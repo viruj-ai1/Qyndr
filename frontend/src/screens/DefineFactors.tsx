@@ -1,34 +1,200 @@
 // src/screens/DefineFactors.tsx
 import { useState } from 'react'
-import { useStore, Factor, Response } from '../store/useStore'
+import { useStore, Factor, Response, CQAMapping, RiskParameter } from '../store/useStore'
 import { Projects } from '../services/api'
 import toast from 'react-hot-toast'
 
 const emptyFactor  = (): Factor  => ({ name:'', unit:'', low:0, high:1, baseline:0.5 })
 const emptyResponse= (): Response=> ({ name:'', unit:'', goal:'maximize' })
 
-const DEFAULT_FACTORS: Factor[] = [
-  { name: 'Reaction Temperature', symbol: 'Temp', unit: '°C', low: 45, high: 65, baseline: 55 },
-  { name: 'Agitation Speed', symbol: 'RPM', unit: 'RPM', low: 250, high: 450, baseline: 350 },
-  { name: 'Reagent Ratio', symbol: 'Ratio', unit: 'eq', low: 1.1, high: 1.6, baseline: 1.35 },
-  { name: 'Hold Time', symbol: 'Time', unit: 'h', low: 4, high: 10, baseline: 7 },
-]
+function parseFactorFromCPP(cppName: string): { name: string; unit: string; low: number; high: number; baseline: number } {
+  let name = cppName.trim()
+  let unit = ''
+  
+  const parenMatch = cppName.match(/^(.*?)\s*\(([^)]+)\)$/)
+  if (parenMatch) {
+    name = parenMatch[1].trim()
+    unit = parenMatch[2].trim()
+  }
 
-const DEFAULT_RESPONSES: Response[] = [
-  { name: '% Reaction Yield', unit: '%', goal: 'maximize', target: 95.0, lower_limit: 88.0, upper_limit: 100.0, weight: 1.0 },
-  { name: '% Impurity A', unit: '%', goal: 'minimize', target: 0.1, lower_limit: 0.0, upper_limit: 0.50, weight: 1.0 },
-]
+  if (name.toLowerCase() === 'morpholine molar ratio') name = 'Morpholine Ratio'
+
+  let low = 0
+  let high = 100
+  let baseline = 50
+
+  const lowerName = name.toLowerCase()
+  if (lowerName.includes('temp')) {
+    low = 45; high = 65; baseline = 55
+    if (!unit) unit = '°C'
+  } else if (lowerName.includes('ratio')) {
+    low = 1.1; high = 1.6; baseline = 1.35
+    if (!unit) unit = 'eq'
+  } else if (lowerName.includes('time')) {
+    low = 4; high = 10; baseline = 7
+    if (!unit) unit = 'h'
+  } else if (lowerName.includes('volume')) {
+    low = 5; high = 15; baseline = 10
+    if (!unit) unit = 'L/kg'
+  } else if (lowerName.includes('rpm') || lowerName.includes('speed') || lowerName.includes('agitation')) {
+    low = 250; high = 450; baseline = 350
+    if (!unit) unit = 'RPM'
+  } else if (lowerName.includes('rate') || lowerName.includes('cooling')) {
+    low = 0.5; high = 3.0; baseline = 1.5
+    if (!unit) unit = '°C/min'
+  } else if (lowerName.includes('seed') || lowerName.includes('quantity')) {
+    low = 0.5; high = 2.5; baseline = 1.5
+    if (!unit) unit = '%'
+  }
+
+  return { name, unit, low, high, baseline }
+}
+
+function getAutoFactors(riskAssessments: Record<string, { parameters: RiskParameter[] }>, activeStageId?: string | null): Factor[] {
+  const criticalCPPs: { name: string; unit: string; low: number; high: number; baseline: number }[] = []
+  
+  let stagesToSearch = activeStageId && riskAssessments[activeStageId]
+    ? [riskAssessments[activeStageId]]
+    : Object.values(riskAssessments)
+
+  if (stagesToSearch.length === 0 || stagesToSearch.every(s => !s?.parameters || s.parameters.length === 0)) {
+    return [
+      { name: 'Reaction Temperature', symbol: 'Temp', unit: '°C', low: 45, high: 65, baseline: 55 },
+      { name: 'Morpholine Ratio', symbol: 'Ratio', unit: 'eq', low: 1.1, high: 1.6, baseline: 1.35 },
+      { name: 'Reaction Time', symbol: 'Time', unit: 'h', low: 4, high: 10, baseline: 7 },
+      { name: 'Solvent Volume', symbol: 'Vol', unit: 'L/kg', low: 5, high: 15, baseline: 10 },
+    ]
+  }
+
+  const seenNames = new Set<string>()
+
+  stagesToSearch.forEach(stage => {
+    (stage?.parameters || []).forEach(p => {
+      if (p.criticalFlag || p.type === 'CPP-candidate') {
+        const parsed = parseFactorFromCPP(p.name)
+        const customUnit = (p as any).unit
+        if (customUnit && customUnit !== 'unit') parsed.unit = customUnit
+        if (!seenNames.has(parsed.name)) {
+          seenNames.add(parsed.name)
+          criticalCPPs.push(parsed)
+        }
+      }
+    })
+  })
+
+  if (criticalCPPs.length === 0) {
+    return [
+      { name: 'Reaction Temperature', symbol: 'Temp', unit: '°C', low: 45, high: 65, baseline: 55 },
+      { name: 'Morpholine Ratio', symbol: 'Ratio', unit: 'eq', low: 1.1, high: 1.6, baseline: 1.35 },
+      { name: 'Reaction Time', symbol: 'Time', unit: 'h', low: 4, high: 10, baseline: 7 },
+      { name: 'Solvent Volume', symbol: 'Vol', unit: 'L/kg', low: 5, high: 15, baseline: 10 },
+    ]
+  }
+
+  return criticalCPPs.map((f, i) => ({
+    name: f.name,
+    symbol: `F${i + 1}`,
+    unit: f.unit,
+    low: f.low,
+    high: f.high,
+    baseline: f.baseline
+  }))
+}
+
+function parseResponseFromCQA(cqa: CQAMapping): Response {
+  const rawName = cqa.name || ''
+  const lowerName = rawName.toLowerCase()
+  const rangeStr = cqa.range || ''
+  const op = cqa.operator || ''
+
+  // Goal logic based on requirements:
+  // Impurity CQAs -> Auto-sets Goal to Minimize with Target limit from Step 03
+  // Yield & Purity CQAs -> Auto-sets Goal to Maximize with Target limit from Step 03
+  let goal = 'maximize'
+  const isImpurity = lowerName.includes('impurity') || lowerName.includes('solvent') || lowerName.includes('degradant') || lowerName.includes('heavy metal') || lowerName.includes('loss') || op === '<=' || op === '<'
+  const isYieldOrPurity = lowerName.includes('yield') || lowerName.includes('purity') || lowerName.includes('assay') || lowerName.includes('recovery') || op === '>=' || op === '>'
+
+  if (isImpurity && !isYieldOrPurity) {
+    goal = 'minimize'
+  } else if (isYieldOrPurity) {
+    goal = 'maximize'
+  } else if (op === '<=' || op === '<') {
+    goal = 'minimize'
+  } else if (op === 'Range') {
+    goal = 'target'
+  }
+
+  let unit = '%'
+  if (rangeStr.includes('ppm')) unit = 'ppm'
+  else if (rangeStr.includes('µm') || rangeStr.includes('um')) unit = 'µm'
+  else if (rangeStr.includes('%')) unit = '%'
+
+  let target: number | undefined = undefined
+  let lower_limit: number | undefined = undefined
+  let upper_limit: number | undefined = undefined
+
+  const rangeNumbers = rangeStr.match(/(\d+(?:\.\d+)?)/g)
+  if (rangeNumbers && rangeNumbers.length > 0) {
+    if (rangeNumbers.length === 1) {
+      target = parseFloat(rangeNumbers[0])
+      if (goal === 'minimize') {
+        lower_limit = 0.0
+        upper_limit = target
+      } else if (goal === 'maximize') {
+        lower_limit = target
+        upper_limit = 100.0
+      }
+    } else if (rangeNumbers.length >= 2) {
+      lower_limit = parseFloat(rangeNumbers[0])
+      upper_limit = parseFloat(rangeNumbers[1])
+      target = (lower_limit + upper_limit) / 2
+    }
+  }
+
+  return {
+    name: rawName,
+    unit,
+    goal,
+    target: target ?? (goal === 'maximize' ? 95.0 : goal === 'minimize' ? 0.15 : 50.0),
+    lower_limit,
+    upper_limit,
+    weight: 1.0,
+    linked_cqa_ids: [cqa.id]
+  }
+}
+
+function getAutoResponses(cqas: CQAMapping[]): Response[] {
+  if (!cqas || cqas.length === 0) {
+    return [
+      { name: '% Reaction Yield', unit: '%', goal: 'maximize', target: 95.0, lower_limit: 88.0, upper_limit: 100.0, weight: 1.0 },
+      { name: '% Impurity A', unit: '%', goal: 'minimize', target: 0.1, lower_limit: 0.0, upper_limit: 0.50, weight: 1.0 },
+    ]
+  }
+
+  return cqas.map(parseResponseFromCQA)
+}
 
 export default function DefineFactors() {
-  const { currentProject, setProject, setStep } = useStore()
+  const { currentProject, riskAssessments, cqas, activeStageId, setProject, setStep } = useStore()
 
-  const [factors, setFactors]     = useState<Factor[]>(
-    currentProject?.factors?.length ? currentProject.factors : DEFAULT_FACTORS)
-  const [responses, setResponses] = useState<Response[]>(
-    (currentProject?.responses?.length ? currentProject.responses : DEFAULT_RESPONSES)
-      .filter((r: any) => !['impurity b', 'impurity c'].includes(r.name.toLowerCase().trim()))
-  )
+  const [factors, setFactors]     = useState<Factor[]>(() =>
+    currentProject?.factors?.length ? currentProject.factors : getAutoFactors(riskAssessments, activeStageId))
+  const [responses, setResponses] = useState<Response[]>(() =>
+    currentProject?.responses?.length ? currentProject.responses : getAutoResponses(cqas))
   const [saving, setSaving]       = useState(false)
+
+  /* ── Auto-Population Handlers ─── */
+  const handleAutoPopulateFactors = () => {
+    const autoF = getAutoFactors(riskAssessments, activeStageId)
+    setFactors(autoF)
+    toast.success(`Pre-filled ${autoF.length} Critical Process Parameters (CPPs) from Step 05 Risk Assessment`)
+  }
+
+  const handleAutoPopulateResponses = () => {
+    const autoR = getAutoResponses(cqas)
+    setResponses(autoR)
+    toast.success(`Pre-filled ${autoR.length} Response Variables & Goals from Step 03 CQAs`)
+  }
 
   /* ── Factors helpers ─── */
   const addFactor = () => setFactors(f => [...f, emptyFactor()])
@@ -80,7 +246,6 @@ export default function DefineFactors() {
     }
   }
 
-
   const inputCls = 'form-input'
 
   return (
@@ -91,14 +256,35 @@ export default function DefineFactors() {
         <p className="page-desc">Select what we will change and what we will measure in the experiments.</p>
       </div>
 
+      {/* Auto-Inheritance Summary Info Banner */}
+      <div className="alert alert-info mb-2" style={{ borderLeft: '4px solid var(--accent)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>⚡ Auto-Inheriting QbD Parameters from Phase 0</div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+            Process Factors auto-inherit CPPs from Step 05 Risk Assessment. Response Variables & Goals auto-inherit CQAs and Target specs from Step 03 CQAs.
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="btn btn-secondary btn-sm" onClick={handleAutoPopulateFactors} title="Re-fill CPPs from Step 05">
+            🔄 Sync CPPs (Step 05)
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={handleAutoPopulateResponses} title="Re-fill CQAs from Step 03">
+            🔄 Sync CQAs (Step 03)
+          </button>
+        </div>
+      </div>
+
       {/* ── Factors ── */}
       <div className="card mb-2">
         <div className="flex-between mb-2">
           <div>
             <div className="card-title">Process Factors</div>
-            <div className="card-sub">Input variables to be varied in the experiment</div>
+            <div className="card-sub">Input variables to be varied in the experiment (Auto-populated from Step 05 CPPs)</div>
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={addFactor}>+ Add Factor</button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn btn-secondary btn-sm" onClick={handleAutoPopulateFactors}>⚡ Pre-fill from Step 05 CPPs</button>
+            <button className="btn btn-secondary btn-sm" onClick={addFactor}>+ Add Factor</button>
+          </div>
         </div>
 
         {/* Header row */}
@@ -162,9 +348,12 @@ export default function DefineFactors() {
         <div className="flex-between mb-2">
           <div>
             <div className="card-title">Response Variables</div>
-            <div className="card-sub">Output variables to measure after each experiment</div>
+            <div className="card-sub">Output variables to measure after each experiment (Auto-populated from Step 03 CQAs)</div>
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={addResponse}>+ Add Response</button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn btn-secondary btn-sm" onClick={handleAutoPopulateResponses}>⚡ Pre-fill from Step 03 CQAs</button>
+            <button className="btn btn-secondary btn-sm" onClick={addResponse}>+ Add Response</button>
+          </div>
         </div>
 
         <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1.5fr 1fr 36px', gap:'0.5rem', marginBottom:'0.4rem', padding:'0 0.75rem' }}>
@@ -205,3 +394,4 @@ export default function DefineFactors() {
     </div>
   )
 }
+

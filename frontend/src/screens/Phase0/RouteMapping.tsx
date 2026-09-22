@@ -25,7 +25,7 @@ export default function RouteMapping() {
   const { currentProject, stages, setStages, setStep, addAuditLog } = useStore()
 
   const [items, setItems] = useState<StageItem[]>(() => {
-    const stage1DefaultName = (currentProject as any)?.activeStage ||
+    const stage1DefaultName = (currentProject as any)?.activeStage || (currentProject as any)?.active_stage ||
       (currentProject?.name && currentProject.name.toLowerCase().includes('stage') ? currentProject.name : 'Stage 1: Morpholine Condensation & Ring-Opening')
 
     const initial: StageItem[] = stages.length > 0 ? stages : [

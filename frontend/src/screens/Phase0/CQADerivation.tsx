@@ -141,15 +141,15 @@ export default function CQADerivation() {
         let updatedOperator = c.operator
         let updatedRange = c.range
 
-        // Auto-fill Range/Limit from target QTPP spec if field is empty or unset when linking
+        // Auto-fill Range/Limit from target QTPP spec when linking
         if (!isCurrentlyLinked) {
           const targetQtpp = qtpp.find(q => q.id === qtppId)
           if (targetQtpp) {
             const { operator: autoOp, range: autoRange } = extractQtppSpec(targetQtpp)
-            if (!c.range || c.range.trim() === '') {
+            if (autoRange) {
               updatedRange = autoRange
             }
-            if (!c.operator || c.operator.trim() === '') {
+            if (autoOp) {
               updatedOperator = autoOp
             }
           }

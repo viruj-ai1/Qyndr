@@ -75,7 +75,18 @@ app.include_router(optimization_router,prefix=PREFIX)
 app.include_router(reports_router,     prefix=PREFIX)
 
 
-# ── Health ──────────────────────────────────────────────────
+# ── Root & Health ───────────────────────────────────────────
+@app.get("/", tags=["System"])
+def root():
+    return {
+        "status": "ok",
+        "service": "DOE Workflow Studio API",
+        "version": "1.0.0",
+        "docs_url": "http://127.0.0.1:8000/docs",
+        "frontend_url": "http://127.0.0.1:5173"
+    }
+
+
 @app.get("/api/health", tags=["System"])
 def health():
     return {"status": "ok", "service": "DOE Workflow Studio", "version": "1.0.0"}

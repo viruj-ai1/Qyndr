@@ -38,7 +38,7 @@ export default function GPModel() {
   return (
     <div>
       <div className="page-header">
-        <div className="page-header-tag">Step 17</div>
+        <div className="page-header-tag">Step 13</div>
         <h1 className="page-title">GP Model</h1>
         <p className="page-desc">Use the existing results to predict better settings.</p>
       </div>

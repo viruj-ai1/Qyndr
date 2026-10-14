@@ -53,7 +53,7 @@ export default function Welcome() {
 
   const stepLabel: Record<string, string> = {
     'create-project': 'Setup', 'define-factors': 'Factors',
-    'generate-doe': 'DOE', 'upload-results': 'Results',
+    'generate-doe': 'DOE & Results', 'upload-results': 'Results',
     'initial-optimization': 'Optimization',
     'bayesian-opt': 'Bayesian Loop', 'final-optimum': 'Complete', 'report': 'Done'
   }

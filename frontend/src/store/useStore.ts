@@ -147,13 +147,13 @@ export const useStore = create<Store>()(
       setProject:     p  => set(state => ({
         currentProject: p,
         currentStep: (p?.current_step as Step) || (p ? 'qtpp' : 'create-project'),
-        qtpp: p?.qtpp_data || state.qtpp,
-        cqas: p?.cqas_data || state.cqas,
-        stages: p?.stages_data || state.stages,
-        riskAssessments: p?.risk_assessment_data || state.riskAssessments,
-        auditLogs: p?.audit_logs || state.auditLogs,
-        lockedCampaigns: p?.locked_campaigns || state.lockedCampaigns,
-        experiments: p?.experiments ?? (p ? state.experiments : [])
+        qtpp: p ? (p.qtpp_data || []) : [],
+        cqas: p ? (p.cqas_data || []) : [],
+        stages: p ? (p.stages_data || []) : [],
+        riskAssessments: p ? (p.risk_assessment_data || {}) : {},
+        auditLogs: p ? (p.audit_logs || []) : [],
+        lockedCampaigns: p ? (p.locked_campaigns || []) : [],
+        experiments: p?.experiments ?? []
       })),
       setStep:         s  => set({ currentStep: s }),
       setActiveStageId: stId => set({ activeStageId: stId }),

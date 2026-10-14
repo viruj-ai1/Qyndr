@@ -8,7 +8,7 @@ export default function EnoughData() {
   return (
     <div>
       <div className="page-header">
-        <div className="page-header-tag">Step 16</div>
+        <div className="page-header-tag">Step 12</div>
         <h1 className="page-title">Enough Data?</h1>
         <p className="page-desc">Check if we have enough results to choose the best settings.</p>
       </div>

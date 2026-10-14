@@ -13,21 +13,22 @@ const WORKFLOW_STEPS: StepDef[] = [
   { key: 'campaign-dashboard',   label: '07. Campaign Dashboard',   icon: '07', category: 'Dashboard' },
   { key: 'define-factors',       label: '08. Define Factors & Responses', icon: '08', category: 'DOE Campaign' },
   { key: 'recommend-doe',        label: '09. Recommend DOE',        icon: '09', category: 'DOE Campaign' },
-  { key: 'generate-doe',         label: '10. Generate DOE',         icon: '10', category: 'DOE Campaign' },
-  { key: 'lab-experiments',      label: '11. Laboratory Runs',      icon: '11', category: 'DOE Campaign' },
-  { key: 'upload-results',       label: '12. Upload Results',       icon: '12', category: 'DOE Campaign' },
-  { key: 'initial-optimization', label: '13. Initial Optimum',      icon: '13', category: 'DOE Campaign' },
-  { key: 'enough-data',          label: '14. Enough Data?',         icon: '14', category: 'DOE Campaign' },
-  { key: 'gp-model',             label: '15. GP Model',             icon: '15', category: 'DOE Campaign' },
-  { key: 'bayesian-opt',         label: '16. Bayesian Optimization',icon: '16', category: 'DOE Campaign' },
-  { key: 'new-experiment',       label: '17. New Experiment',       icon: '17', category: 'DOE Campaign' },
-  { key: 'final-optimum',        label: '18. Final Optimum',        icon: '18', category: 'DOE Campaign' },
-  { key: 'report',               label: '19. Generate Report',      icon: '19', category: 'Report' },
+  { key: 'generate-doe',         label: '10. DOE Matrix & Results', icon: '10', category: 'DOE Campaign' },
+  { key: 'initial-optimization', label: '11. Initial Optimum',      icon: '11', category: 'DOE Campaign' },
+  { key: 'enough-data',          label: '12. Enough Data?',         icon: '12', category: 'DOE Campaign' },
+  { key: 'gp-model',             label: '13. GP Model',             icon: '13', category: 'DOE Campaign' },
+  { key: 'bayesian-opt',         label: '14. Bayesian Optimization',icon: '14', category: 'DOE Campaign' },
+  { key: 'new-experiment',       label: '15. New Experiment',       icon: '15', category: 'DOE Campaign' },
+  { key: 'final-optimum',        label: '16. Final Optimum',        icon: '16', category: 'DOE Campaign' },
+  { key: 'report',               label: '17. Generate Report',      icon: '17', category: 'Report' },
 ]
 
 const STEP_ORDER = WORKFLOW_STEPS.map(s => s.key)
 
-function stepIndex(s: Step) { return STEP_ORDER.indexOf(s) }
+function stepIndex(s: Step) {
+  if (s === 'lab-experiments' || s === 'upload-results') return STEP_ORDER.indexOf('generate-doe')
+  return STEP_ORDER.indexOf(s)
+}
 
 export default function Sidebar() {
   const { currentStep, setStep } = useStore()
@@ -38,7 +39,7 @@ export default function Sidebar() {
       <div className="sidebar-label">DOE Workflow Navigation</div>
 
       {WORKFLOW_STEPS.map((step, idx) => {
-        const isActive    = step.key === currentStep
+        const isActive    = step.key === currentStep || (step.key === 'generate-doe' && (currentStep === 'lab-experiments' || currentStep === 'upload-results'))
         const isCompleted = idx < currentIdx
         return (
           <div
@@ -63,7 +64,7 @@ export default function Sidebar() {
       <div style={{ margin: '1rem 1rem 0.5rem', padding: '0.6rem', background: 'rgba(99,102,241,0.08)', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.15)' }}>
         <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Bayesian Loop</div>
         <div style={{ fontSize: '0.7rem', color: 'var(--primary-light)', lineHeight: 1.4 }}>
-          Steps 12–13 repeat per stage until optimization convergence
+          Steps 14–15 repeat per stage until optimization convergence
         </div>
       </div>
     </nav>

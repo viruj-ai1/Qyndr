@@ -6,50 +6,68 @@ import { Projects } from '../../services/api'
 export default function CQADerivation() {
   const { currentProject, qtpp, cqas, setCqas, setStep, addAuditLog } = useStore()
 
-  const [items, setItems] = useState<CQAMapping[]>(
-    cqas.length > 0 ? cqas : [
-      {
-        id: 'cqa-1',
-        name: 'API HPLC Purity',
-        appliesTo: 'Final API',
-        stageName: 'Stage 3',
-        method: 'HPLC-UV (254 nm)',
-        range: '≥ 99.0%',
-        justification: 'High purity is essential for safety and therapeutic efficacy.',
-        linkedQtppIds: qtpp.length > 0 ? [qtpp[0].id] : []
-      },
-      {
-        id: 'cqa-2',
-        name: 'Impurity B (Process Impurity)',
-        appliesTo: 'Intermediate',
-        stageName: 'Stage 2',
-        method: 'LC-MS/MS',
-        range: '≤ 0.15%',
-        justification: 'Uncontrolled buildup in Stage 2 leads to toxic impurity in final API.',
-        linkedQtppIds: qtpp.length > 1 ? [qtpp[1].id] : []
-      },
-      {
-        id: 'cqa-3',
-        name: 'Residual Solvents (ICH Class 2)',
-        appliesTo: 'Final API',
-        stageName: 'Stage 3',
-        method: 'GC-Headspace',
-        range: '≤ 500 ppm',
-        justification: 'Residual organic solvents must strictly comply with ICH Q3C limits.',
-        linkedQtppIds: qtpp.length > 3 ? [qtpp[3].id] : []
-      },
-      {
-        id: 'cqa-4',
-        name: 'Particle Size Distribution (d90)',
-        appliesTo: 'Final API',
-        stageName: 'Stage 3',
-        method: 'Laser Diffraction',
-        range: '10 µm - 50 µm',
-        justification: 'Particle size governs dissolution kinetics and bio-availability.',
-        linkedQtppIds: qtpp.length > 7 ? [qtpp[7].id] : []
-      }
-    ]
-  )
+  // Initialize items purely based on the QTPPs filled in Step 2:
+  // If user already saved custom CQAs (and not the old dummy "API HPLC Purity" template), keep them.
+  // Otherwise, automatically derive directly from Step 2 QTPPs!
+  const [items, setItems] = useState<CQAMapping[]>(() => {
+    const isOldDummy =
+      cqas.length > 0 &&
+      cqas.some(c => c.name === 'API HPLC Purity' && c.stageName === 'Stage 3') &&
+      !qtpp.some(q => q.attribute === 'API HPLC Purity')
+
+    if (cqas.length > 0 && !isOldDummy) {
+      return cqas
+    }
+
+    // Purely derive CQAs based on the QTPPs filled just before in Step 2!
+    if (qtpp.length > 0) {
+      return qtpp.map((q, idx) => {
+        let method = 'HPLC-UV (254 nm)'
+        const attrLower = (q.attribute || '').toLowerCase()
+        const typeLower = (q.type || '').toLowerCase()
+
+        if (attrLower.includes('gc') || typeLower.includes('gc')) method = 'GC-FID'
+        else if (attrLower.includes('headspace') || attrLower.includes('solvent')) method = 'GC-Headspace'
+        else if (attrLower.includes('ir') || attrLower.includes('spectrum')) method = 'FTIR Spectrometry'
+        else if (attrLower.includes('karl fischer') || attrLower.includes('water')) method = 'Karl Fischer Titration'
+        else if (attrLower.includes('rotation') || attrLower.includes('sor')) method = 'Polarimetry (589 nm)'
+        else if (attrLower.includes('melting') || attrLower.includes('dsc')) method = 'Capillary Melting Point'
+        else if (attrLower.includes('particle') || attrLower.includes('psd')) method = 'Laser Diffraction'
+        else if (typeLower.includes('impurity') || attrLower.includes('impurity')) method = 'LC-MS/MS'
+        else if (typeLower.includes('assay') || attrLower.includes('assay')) method = 'HPLC-UV (254 nm)'
+
+        let range = q.criterion || ''
+        if (q.operator && q.operator !== '=' && q.operator !== 'Conforms' && !range.startsWith(q.operator)) {
+          range = `${q.operator} ${range}`
+        }
+
+        let justification = ''
+        if (q.justification === 'Patient-Critical') {
+          justification = 'Directly impacts clinical safety and therapeutic efficacy.'
+        } else if (q.justification === 'Pharmacopoeial') {
+          justification = 'Pharmacopoeial compendial specification for release.'
+        } else if (q.justification === 'Regulatory Guideline') {
+          justification = 'ICH guideline qualification threshold for quality.'
+        } else {
+          justification = 'Essential quality attribute to satisfy finished product QTPP.'
+        }
+
+        return {
+          id: `cqa-${idx + 1}`,
+          name: q.attribute,
+          appliesTo: 'Final API',
+          stageName: '',
+          method,
+          range,
+          justification,
+          linkedQtppIds: [q.id]
+        }
+      })
+    }
+
+    return []
+  })
+
   const [saving, setSaving] = useState(false)
 
   const handleAddCQA = () => {
@@ -134,7 +152,9 @@ export default function CQADerivation() {
             {qtpp.map(q => (
               <div key={q.id} style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <div style={{ fontWeight: 600, color: 'var(--primary-light)', fontSize: '0.82rem' }}>{q.attribute}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>Spec: {q.criterion}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Spec: {q.operator && q.operator !== '=' ? `${q.operator} ` : ''}{q.criterion}
+                </div>
                 <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
                   <span className="badge badge-secondary" style={{ fontSize: '0.65rem' }}>{q.type}</span>
                   <span className="badge badge-accent" style={{ fontSize: '0.65rem' }}>{q.justification}</span>

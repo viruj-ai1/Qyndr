@@ -19,8 +19,6 @@ import UnderstandProcess   from './screens/UnderstandProcess'
 import DefineFactors       from './screens/DefineFactors'
 import RecommendDOE        from './screens/RecommendDOE'
 import GenerateDOE         from './screens/GenerateDOE'
-import LabExperiments      from './screens/LabExperiments'
-import UploadResults       from './screens/UploadResults'
 import InitialOptimization from './screens/InitialOptimization'
 import EnoughData          from './screens/EnoughData'
 import GPModel             from './screens/GPModel'
@@ -42,8 +40,8 @@ const SCREEN_MAP: Record<Step, React.FC> = {
   'define-factors':        DefineFactors,
   'recommend-doe':         RecommendDOE,
   'generate-doe':          GenerateDOE,
-  'lab-experiments':       LabExperiments,
-  'upload-results':        UploadResults,
+  'lab-experiments':       GenerateDOE,
+  'upload-results':        GenerateDOE,
   'initial-optimization':  InitialOptimization,
   'enough-data':           EnoughData,
   'gp-model':              GPModel,

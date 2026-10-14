@@ -62,7 +62,7 @@ export default function ErrorBoundary({ children }: Props) {
   const { setStep, currentStep } = useStore()
   const steps = [
     'welcome','create-project','understand-process','define-factors',
-    'recommend-doe','generate-doe','lab-experiments','upload-results',
+    'recommend-doe','generate-doe',
     'initial-optimization','enough-data',
     'gp-model','bayesian-opt','new-experiment','final-optimum','report'
   ] as const

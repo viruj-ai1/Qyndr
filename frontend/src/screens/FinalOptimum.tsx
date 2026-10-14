@@ -68,7 +68,7 @@ export default function FinalOptimum() {
   return (
     <div>
       <div className="page-header">
-        <div className="page-header-tag">Step 20</div>
+        <div className="page-header-tag">Step 16</div>
         <h1 className="page-title">Final Optimum</h1>
         <p className="page-desc">Find the best final settings after all experiments.</p>
       </div>

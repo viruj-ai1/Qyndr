@@ -61,7 +61,7 @@ export default function InitialOptimization() {
   return (
     <div>
       <div className="page-header">
-        <div className="page-header-tag">Step 15</div>
+        <div className="page-header-tag">Step 11 · Initial Optimum</div>
         <h1 className="page-title">Initial Optimum</h1>
         <p className="page-desc">Find the first best settings for the process.</p>
       </div>
@@ -75,7 +75,7 @@ export default function InitialOptimization() {
         <div className="alert alert-warning mb-2" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div style={{ fontWeight: 600 }}>⚠️ {errorMsg}</div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => setStep('upload-results')}>Go to Step 12: Upload Results</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setStep('generate-doe')}>Go to Step 10: DOE Matrix & Results</button>
             <button className="btn btn-secondary btn-sm" onClick={runOptimize}>↺ Retry Optimization</button>
           </div>
         </div>
@@ -197,7 +197,7 @@ export default function InitialOptimization() {
       )}
 
       <div className="step-nav">
-        <button className="btn btn-secondary" onClick={() => setStep('upload-results')}>← Back</button>
+        <button className="btn btn-secondary" onClick={() => setStep('generate-doe')}>← Back</button>
         <div style={{ display:'flex', gap:'0.75rem' }}>
           <button className="btn btn-secondary" onClick={runOptimize} disabled={loading}>↺ Re-optimize</button>
           <button className="btn btn-primary" onClick={() => setStep('enough-data')}>

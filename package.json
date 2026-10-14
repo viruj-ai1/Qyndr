@@ -1,4 +1,9 @@
 {
+  "name": "qyndr",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "npm run build --prefix frontend"
+  },
   "devDependencies": {
     "pdf-parse": "^2.4.5"
   }

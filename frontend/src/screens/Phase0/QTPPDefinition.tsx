@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useStore, QTPPItem } from '../../store/useStore'
 import { Projects } from '../../services/api'
+import toast from 'react-hot-toast'
 
 const JUSTIFICATION_OPTIONS = [
   'Pharmacopoeial',
@@ -24,43 +25,39 @@ const TYPE_OPTIONS = [
 export default function QTPPDefinition() {
   const { currentProject, qtpp, setQtpp, setStep, addAuditLog } = useStore()
 
-  const DEFAULT_QTPP: QTPPItem[] = [
-    { id: 'qtpp-1', attribute: 'Purity by GC', operator: '≥', criterion: '98.0% w/w', justification: 'Pharmacopoeial', type: 'Assay-Purity' },
-    { id: 'qtpp-2', attribute: 'Diacetyl Impurity', operator: '≤', criterion: '0.15% w/w', justification: 'Patient-Critical', type: 'Impurity' },
-    { id: 'qtpp-3', attribute: 'KSM-1', operator: '≤', criterion: '0.50% w/w', justification: 'Internal Spec', type: 'Impurity' },
-    { id: 'qtpp-4', attribute: 'Single maximum unknown impurity', operator: '≤', criterion: '0.10% w/w', justification: 'Regulatory Guideline', type: 'Impurity' },
-    { id: 'qtpp-5', attribute: 'Total Impurities', operator: '≤', criterion: '1.00% w/w', justification: 'Pharmacopoeial', type: 'Impurity' },
-    { id: 'qtpp-6', attribute: 'Identification by IR', operator: 'Conforms', criterion: 'to Reference Spectrum', justification: 'Pharmacopoeial', type: 'Identity' },
-    { id: 'qtpp-7', attribute: 'Residue on ignition', operator: '≤', criterion: '0.10% w/w', justification: 'Pharmacopoeial', type: 'Impurity' },
-    { id: 'qtpp-8', attribute: 'Specific Optical Rotation (SOR)', operator: 'Range', criterion: '+28.0° to +32.0°', justification: 'Pharmacopoeial', type: 'Physical Property' },
-    { id: 'qtpp-9', attribute: 'Melting point', operator: 'Range', criterion: '152°C - 156°C', justification: 'Pharmacopoeial', type: 'Physical Property' },
-    { id: 'qtpp-10', attribute: 'Assay (HPLC Anhydrous)', operator: 'Range', criterion: '98.0% - 102.0% w/w', justification: 'Pharmacopoeial', type: 'Assay-Purity' },
-    { id: 'qtpp-17', attribute: 'Water Content / Karl Fischer', operator: '≤', criterion: '0.50% w/w', justification: 'Pharmacopoeial', type: 'Physical Property' },
-    { id: 'qtpp-24', attribute: 'Appearance, Powder Color & Description', operator: '=', criterion: 'White to off-white or pale yellow crystalline powder', justification: 'Pharmacopoeial', type: 'Appearance & Color' }
-  ]
-
+  // Initialize QTPPs: Start completely blank for new projects.
+  // Only load existing items if the user already saved custom QTPPs for this project,
+  // and discard any legacy hardcoded dummy template items (Purity by GC / Diacetyl Impurity)
+  // unless the project is explicitly the Rocuronium Bromide preset.
   const [items, setItems] = useState<QTPPItem[]>(() => {
-    const initial = qtpp.length > 0 ? qtpp : DEFAULT_QTPP
-    return initial.map(item => {
-      if (item.operator) return item
-      
-      let op = '='
-      let crit = item.criterion || ''
-      
-      if (crit.startsWith('>= ') || crit.startsWith('≥ ')) {
-        op = '≥'
-        crit = crit.replace(/^(>=|≥)\s*/, '')
-      } else if (crit.startsWith('<= ') || crit.startsWith('≤ ')) {
-        op = '≤'
-        crit = crit.replace(/^(<=|≤)\s*/, '')
-      } else if (crit.includes(' - ') || crit.includes(' to ')) {
-        op = 'Range'
-      } else if (crit.toLowerCase().startsWith('conforms')) {
-        op = 'Conforms'
-      }
-      
-      return { ...item, operator: op, criterion: crit }
-    })
+    const isOldHardcodedDummy =
+      qtpp.length > 0 &&
+      qtpp.some(q => q.attribute === 'Diacetyl Impurity' || q.attribute === 'Purity by GC') &&
+      currentProject?.compound !== 'Rocuronium Bromide'
+
+    if (qtpp.length > 0 && !isOldHardcodedDummy) {
+      return qtpp.map(item => {
+        if (item.operator) return item
+
+        let op = '='
+        let crit = item.criterion || ''
+
+        if (crit.startsWith('>= ') || crit.startsWith('≥ ')) {
+          op = '≥'
+          crit = crit.replace(/^(>=|≥)\s*/, '')
+        } else if (crit.startsWith('<= ') || crit.startsWith('≤ ')) {
+          op = '≤'
+          crit = crit.replace(/^(<=|≤)\s*/, '')
+        } else if (crit.includes(' - ') || crit.includes(' to ')) {
+          op = 'Range'
+        } else if (crit.toLowerCase().startsWith('conforms')) {
+          op = 'Conforms'
+        }
+
+        return { ...item, operator: op, criterion: crit }
+      })
+    }
+    return []
   })
   const [saving, setSaving] = useState(false)
 
@@ -68,12 +65,12 @@ export default function QTPPDefinition() {
     const newItem: QTPPItem = {
       id: `qtpp-${Date.now()}`,
       attribute: '',
-      operator: '=',
+      operator: '≥',
       criterion: '',
       justification: 'Pharmacopoeial',
       type: 'Assay-Purity'
     }
-    setItems([...items, newItem])
+    setItems(prev => [...prev, newItem])
   }
 
   const handleRemoveRow = (id: string) => {
@@ -97,7 +94,7 @@ export default function QTPPDefinition() {
   const handleSaveAndNext = async () => {
     const valid = items.filter(i => i.attribute.trim() !== '')
     if (valid.length === 0) {
-      alert('Please add at least one valid Quality Target Product Profile attribute.')
+      toast.error('Please add at least one Quality Target Product Profile attribute.')
       return
     }
     setSaving(true)
@@ -127,11 +124,27 @@ export default function QTPPDefinition() {
       </div>
 
       <div className="card" style={{ marginBottom: '1.5rem', padding: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>API Quality Attributes Table</h3>
-          <button className="btn btn-secondary btn-sm" onClick={handleAddRow}>
-            + Add Quality Attribute
-          </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>API Quality Attributes Table</h3>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+              Define attributes and criteria specific to {currentProject?.compound || 'this API'}.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {items.length > 0 && (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setItems([])}
+                title="Clear all rows to start with a blank table"
+              >
+                Clear All
+              </button>
+            )}
+            <button className="btn btn-secondary btn-sm" onClick={handleAddRow}>
+              + Add Quality Attribute
+            </button>
+          </div>
         </div>
 
         <div style={{ overflowX: 'auto' }}>
@@ -147,7 +160,23 @@ export default function QTPPDefinition() {
               </tr>
             </thead>
             <tbody>
-              {items.map((row, idx) => (
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-muted)' }}>
+                    <div style={{ fontSize: '2.2rem', marginBottom: '0.6rem' }}>📋</div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem', marginBottom: '0.35rem' }}>
+                      No QTPP Attributes Defined
+                    </div>
+                    <div style={{ fontSize: '0.82rem', maxWidth: '440px', margin: '0 auto 1.25rem', lineHeight: 1.5 }}>
+                      Quality Target Product Profiles vary from API to API. Click below to add quality specifications tailored to this project.
+                    </div>
+                    <button className="btn btn-primary btn-sm" onClick={handleAddRow}>
+                      + Add Quality Attribute
+                    </button>
+                  </td>
+                </tr>
+              ) : (
+                items.map((row, idx) => (
                 <tr key={row.id}>
                   <td style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{idx + 1}</td>
                   <td>
@@ -233,7 +262,7 @@ export default function QTPPDefinition() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>

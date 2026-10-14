@@ -1,25 +1,26 @@
 // src/screens/Phase0/CQADerivation.tsx – Screen A2: CQA Derivation
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useStore, CQAMapping } from '../../store/useStore'
 import { Projects } from '../../services/api'
 
 export default function CQADerivation() {
   const { currentProject, qtpp, cqas, setCqas, setStep, addAuditLog } = useStore()
 
-  // Initialize items purely based on the QTPPs filled in Step 2:
-  // If user already saved custom CQAs (and not the old dummy "API HPLC Purity" template), keep them.
-  // Otherwise, automatically derive directly from Step 2 QTPPs!
-  const [items, setItems] = useState<CQAMapping[]>(() => {
+  const getInitialCQAs = (): CQAMapping[] => {
+    const list = (currentProject?.cqas_data && currentProject.cqas_data.length > 0)
+      ? currentProject.cqas_data
+      : (cqas && cqas.length > 0 ? cqas : [])
+
     const isOldDummy =
-      cqas.length > 0 &&
-      cqas.some(c => c.name === 'API HPLC Purity' && c.stageName === 'Stage 3') &&
+      list.length > 0 &&
+      list.some(c => c.name === 'API HPLC Purity' && c.stageName === 'Stage 3') &&
       !qtpp.some(q => q.attribute === 'API HPLC Purity')
 
-    if (cqas.length > 0 && !isOldDummy) {
-      return cqas
+    if (list.length > 0 && !isOldDummy) {
+      return list
     }
 
-    // Purely derive CQAs based on the QTPPs filled just before in Step 2!
+    // Derive CQAs based on the QTPPs filled in Step 2:
     if (qtpp.length > 0) {
       return qtpp.map((q, idx) => {
         let method = 'HPLC-UV (254 nm)'
@@ -66,9 +67,14 @@ export default function CQADerivation() {
     }
 
     return []
-  })
+  }
 
+  const [items, setItems] = useState<CQAMapping[]>(getInitialCQAs)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setItems(getInitialCQAs())
+  }, [currentProject?.id])
 
   const handleAddCQA = () => {
     const newCQA: CQAMapping = {

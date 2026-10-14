@@ -1,5 +1,5 @@
 // src/screens/Phase0/QTPPDefinition.tsx – Screen A1: QTPP Definition
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useStore, QTPPItem } from '../../store/useStore'
 import { Projects } from '../../services/api'
 import toast from 'react-hot-toast'
@@ -22,44 +22,49 @@ const TYPE_OPTIONS = [
   'Appearance & Color'
 ]
 
+function formatItems(list: QTPPItem[]): QTPPItem[] {
+  return list.map(item => {
+    if (item.operator) return item
+
+    let op = '='
+    let crit = item.criterion || ''
+
+    if (crit.startsWith('>= ') || crit.startsWith('≥ ')) {
+      op = '≥'
+      crit = crit.replace(/^(>=|≥)\s*/, '')
+    } else if (crit.startsWith('<= ') || crit.startsWith('≤ ')) {
+      op = '≤'
+      crit = crit.replace(/^(<=|≤)\s*/, '')
+    } else if (crit.includes(' - ') || crit.includes(' to ')) {
+      op = 'Range'
+    } else if (crit.toLowerCase().startsWith('conforms')) {
+      op = 'Conforms'
+    }
+
+    return { ...item, operator: op, criterion: crit }
+  })
+}
+
 export default function QTPPDefinition() {
   const { currentProject, qtpp, setQtpp, setStep, addAuditLog } = useStore()
 
-  // Initialize QTPPs: Start completely blank for new projects.
-  // Only load existing items if the user already saved custom QTPPs for this project,
-  // and discard any legacy hardcoded dummy template items (Purity by GC / Diacetyl Impurity)
-  // unless the project is explicitly the Rocuronium Bromide preset.
-  const [items, setItems] = useState<QTPPItem[]>(() => {
-    const isOldHardcodedDummy =
-      qtpp.length > 0 &&
-      qtpp.some(q => q.attribute === 'Diacetyl Impurity' || q.attribute === 'Purity by GC') &&
-      currentProject?.compound !== 'Rocuronium Bromide'
+  // For EXISTING projects: load their saved QTPPs directly from project data or store.
+  // For NEW projects (where no QTPPs have been created or saved yet): start with a clean, blank section ([]).
+  const getInitialItems = (): QTPPItem[] => {
+    const saved = (currentProject?.qtpp_data && currentProject.qtpp_data.length > 0)
+      ? currentProject.qtpp_data
+      : (qtpp && qtpp.length > 0 ? qtpp : [])
 
-    if (qtpp.length > 0 && !isOldHardcodedDummy) {
-      return qtpp.map(item => {
-        if (item.operator) return item
+    return saved.length > 0 ? formatItems(saved) : []
+  }
 
-        let op = '='
-        let crit = item.criterion || ''
-
-        if (crit.startsWith('>= ') || crit.startsWith('≥ ')) {
-          op = '≥'
-          crit = crit.replace(/^(>=|≥)\s*/, '')
-        } else if (crit.startsWith('<= ') || crit.startsWith('≤ ')) {
-          op = '≤'
-          crit = crit.replace(/^(<=|≤)\s*/, '')
-        } else if (crit.includes(' - ') || crit.includes(' to ')) {
-          op = 'Range'
-        } else if (crit.toLowerCase().startsWith('conforms')) {
-          op = 'Conforms'
-        }
-
-        return { ...item, operator: op, criterion: crit }
-      })
-    }
-    return []
-  })
+  const [items, setItems] = useState<QTPPItem[]>(getInitialItems)
   const [saving, setSaving] = useState(false)
+
+  // Synchronize items whenever the active project changes
+  useEffect(() => {
+    setItems(getInitialItems())
+  }, [currentProject?.id])
 
   const handleAddRow = () => {
     const newItem: QTPPItem = {
@@ -103,8 +108,10 @@ export default function QTPPDefinition() {
       try {
         await Projects.savePhase0(currentProject.id, { qtpp: valid })
         addAuditLog('QTPP_SAVE', `Saved ${valid.length} QTPP attributes for final API`)
+        toast.success('QTPP specifications saved!')
       } catch (e) {
         console.error('Failed to save QTPP to backend', e)
+        toast.error('Failed to save to server, saved locally.')
       }
     }
     setSaving(false)

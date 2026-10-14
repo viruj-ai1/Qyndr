@@ -1,5 +1,5 @@
 // src/screens/Phase0/RouteMapping.tsx – Screen A3: Route / Stage Mapping
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useStore, StageItem } from '../../store/useStore'
 import { Projects } from '../../services/api'
 
@@ -45,6 +45,15 @@ export default function RouteMapping() {
     ]
   )
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    const list = (currentProject?.stages_data && currentProject.stages_data.length > 0)
+      ? currentProject.stages_data
+      : (stages.length > 0 ? stages : [])
+    if (list.length > 0) {
+      setItems(list)
+    }
+  }, [currentProject?.id])
 
   const handleAddStage = () => {
     const newStage: StageItem = {

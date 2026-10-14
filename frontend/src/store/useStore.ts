@@ -158,10 +158,22 @@ export const useStore = create<Store>()(
       setStep:         s  => set({ currentStep: s }),
       setActiveStageId: stId => set({ activeStageId: stId }),
       setRpnThreshold: v => set({ rpnThreshold: v }),
-      setQtpp:         items => set({ qtpp: items }),
-      setCqas:         items => set({ cqas: items }),
-      setStages:       items => set({ stages: items }),
-      setRiskAssessments: data => set({ riskAssessments: data }),
+      setQtpp:         items => set(st => ({
+        qtpp: items,
+        currentProject: st.currentProject ? { ...st.currentProject, qtpp_data: items } : null
+      })),
+      setCqas:         items => set(st => ({
+        cqas: items,
+        currentProject: st.currentProject ? { ...st.currentProject, cqas_data: items } : null
+      })),
+      setStages:       items => set(st => ({
+        stages: items,
+        currentProject: st.currentProject ? { ...st.currentProject, stages_data: items } : null
+      })),
+      setRiskAssessments: data => set(st => ({
+        riskAssessments: data,
+        currentProject: st.currentProject ? { ...st.currentProject, risk_assessment_data: data } : null
+      })),
       addAuditLog:     (action, details) => set(st => ({
         auditLogs: [
           ...st.auditLogs,

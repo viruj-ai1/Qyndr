@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useStore } from '../store/useStore'
+import { useStore, isPercentageResponse } from '../store/useStore'
 import { Projects, Optimization } from '../services/api'
 import toast from 'react-hot-toast'
 
@@ -22,7 +22,24 @@ export default function NewExperiment() {
   }, [bayesResult, currentProject, setBayes])
 
   function setVal(i: number, val: string) {
-    setResults(r => r.map((v, idx) => idx===i ? (val===''?null:parseFloat(val)) : v))
+    const resp = responses[i]
+    const isPercent = isPercentageResponse(resp)
+
+    setResults(r => r.map((v, idx) => {
+      if (idx !== i) return v
+      if (val.trim() === '') return null
+      const num = parseFloat(val)
+      if (isNaN(num)) return v
+      if (isPercent && num > 100) {
+        toast.error(`${resp?.name || 'Response'} cannot exceed 100%`, { id: `bayes-max-${i}` })
+        return 100
+      }
+      if (isPercent && num < 0) {
+        toast.error(`${resp?.name || 'Response'} cannot be negative`, { id: `bayes-min-${i}` })
+        return 0
+      }
+      return val.endsWith('.') ? (val as any) : num
+    }))
   }
 
   async function handleSave() {
@@ -34,10 +51,21 @@ export default function NewExperiment() {
     }
     setSaving(true)
     try {
+      const sanitizedResults = results.map((v: any, idx: number) => {
+        if (v == null) return null
+        let num = typeof v === 'string' ? parseFloat(v) : v
+        if (isNaN(num)) return null
+        const isPercent = isPercentageResponse(responses[idx])
+        if (isPercent) {
+          num = Math.min(100, Math.max(0, num))
+        }
+        return num
+      })
+
       await Projects.bayesResult(currentProject!.id, {
         project_id: currentProject!.id,
         iteration,
-        result_values: results,
+        result_values: sanitizedResults,
         actual_values: actuals
       })
       const freshExps = await Projects.getExperiments(currentProject!.id)
@@ -82,17 +110,31 @@ export default function NewExperiment() {
       <div className="card">
         <div className="card-title mb-2">📥 Enter Measured Results</div>
         <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
-          {responses.map((r: any, i: number) => (
-            <div key={i} className="form-group">
-              <label className="form-label">{r.name} {r.unit && `(${r.unit})`} — Goal: {r.goal}</label>
-              <input type="number" step="any" className="form-input"
-                placeholder={`Measured ${r.name}…`}
-                value={results[i] ?? ''}
-                onChange={e => setVal(i, e.target.value)}
-                style={{ fontFamily:'JetBrains Mono, monospace', fontSize:'1.1rem' }}
-              />
-            </div>
-          ))}
+          {responses.map((r: any, i: number) => {
+            const isPercent = isPercentageResponse(r)
+            const rawVal = results[i]
+            const val = (isPercent && rawVal != null && typeof rawVal === 'number' && rawVal > 100)
+              ? 100
+              : (isPercent && rawVal != null && typeof rawVal === 'number' && rawVal < 0)
+              ? 0
+              : rawVal
+            return (
+              <div key={i} className="form-group">
+                <label className="form-label">{r.name} {r.unit && `(${r.unit})`} — Goal: {r.goal}</label>
+                <input
+                  type="number"
+                  step="any"
+                  min={isPercent ? 0 : undefined}
+                  max={isPercent ? 100 : undefined}
+                  className="form-input"
+                  placeholder={`Measured ${r.name}…`}
+                  value={val ?? ''}
+                  onChange={e => setVal(i, e.target.value)}
+                  style={{ fontFamily:'JetBrains Mono, monospace', fontSize:'1.1rem' }}
+                />
+              </div>
+            )
+          })}
         </div>
 
         {rec?.predicted_mean != null && (

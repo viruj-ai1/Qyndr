@@ -41,6 +41,7 @@ export const Projects = {
   uploadResults: (id: number, results: any[])   => api.post(`/projects/${id}/results`, { results }).then(r => r.data),
   bayesResult:   (id: number, d: any)           => api.post(`/projects/${id}/bayes-result`, d).then(r => r.data),
   loadRocuroniumPreset: ()                     => api.post('/projects/preset/rocuronium-stage-1').then(r => r.data),
+  suggestStages: (d: any)                      => api.post('/projects/suggest-stages', d).then(r => r.data),
 }
 
 /* ── DOE ──────────────────────────────────────────────────── */

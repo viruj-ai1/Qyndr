@@ -68,10 +68,11 @@ def fit_and_recommend(experiments: list, response_idx: int,
     if recommendation is None:
         return {"error": "Optimization search failed"}
 
-    # 1D slices for each factor
+    # 1D slices for each factor (sliced through current best/recommended condition)
+    ref_point = recommendation.get("actual_values") if recommendation else None
     slices = []
     for idx in range(len(factor_dicts)):
-        slices.append(gp_1d_slice(gp_bundle, idx, n_grid=40))
+        slices.append(gp_1d_slice(gp_bundle, idx, n_grid=40, reference_point=ref_point))
 
     # 2D EI surface for first two factors
     surface = None

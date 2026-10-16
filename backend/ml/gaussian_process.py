@@ -73,15 +73,17 @@ def build_gp_model(experiments: list, response_idx: int,
     X_norm = _normalize(X_raw, factors)
 
     # Kernel: amplitude × Matérn-5/2 + noise
+    # Constrain length scale bounds to [0.15, 5.0] in normalized space to prevent length scale collapse
+    # and restrict noise level to avoid absorbing 90%+ of the response variance as white noise.
     kernel = (
-        C(1.0, (1e-3, 1e3)) *
-        Matern(length_scale=np.ones(k), length_scale_bounds=(0.01, 10.0), nu=2.5) +
-        WhiteKernel(noise_level=0.1, noise_level_bounds=(1e-5, 1.0))
+        C(1.0, (1e-2, 1e2)) *
+        Matern(length_scale=np.ones(k) * 0.5, length_scale_bounds=(0.15, 5.0), nu=2.5) +
+        WhiteKernel(noise_level=0.01, noise_level_bounds=(1e-4, 0.05))
     )
 
     gpr = GaussianProcessRegressor(
         kernel=kernel,
-        n_restarts_optimizer=5,
+        n_restarts_optimizer=10,
         normalize_y=True,
         random_state=42
     )
@@ -119,27 +121,45 @@ def predict_gp(gp_bundle: dict, X_query_actual: np.ndarray
 
 
 def gp_1d_slice(gp_bundle: dict, factor_idx: int,
-                n_grid: int = 50) -> Dict[str, Any]:
+                n_grid: int = 40,
+                reference_point: Optional[Any] = None) -> Dict[str, Any]:
     """
-    Compute GP posterior along a 1D slice through the midpoint of factor space.
-    All other factors are fixed at their midpoint (baseline).
+    Compute GP posterior along a 1D slice through a reference point (e.g. current best observation or baseline).
+    All other factors are fixed at the reference point coordinates.
     """
-    factors   = gp_bundle["factors"]
-    k         = len(factors)
-    midpoints = np.array([(f["low"] + f["high"]) / 2 for f in factors])
-    f         = factors[factor_idx]
-    xs        = np.linspace(f["low"], f["high"], n_grid)
+    factors = gp_bundle["factors"]
+    k       = len(factors)
 
-    X_query = np.tile(midpoints, (n_grid, 1))
+    if reference_point is not None:
+        ref = np.array(reference_point, dtype=float)
+    elif "X_raw" in gp_bundle and len(gp_bundle["X_raw"]) > 0:
+        y_raw = np.array(gp_bundle["y_raw"])
+        best_idx = int(np.argmax(y_raw))
+        ref = np.array(gp_bundle["X_raw"][best_idx], dtype=float)
+    else:
+        ref = np.array([(f["low"] + f["high"]) / 2.0 for f in factors], dtype=float)
+
+    f  = factors[factor_idx]
+    xs = np.linspace(f["low"], f["high"], n_grid)
+
+    X_query = np.tile(ref, (n_grid, 1))
     X_query[:, factor_idx] = xs
 
     mu, sigma = predict_gp(gp_bundle, X_query)
+
+    xs_rounded = [round(float(x), 3) for x in xs]
+    mu_rounded = [round(float(m), 3) for m in mu]
+    upper = [round(float(m + 1.96 * s), 3) for m, s in zip(mu, sigma)]
+    lower = [round(float(m - 1.96 * s), 3) for m, s in zip(mu, sigma)]
+
     return {
-        "x":     xs.tolist(),
-        "mean":  mu.tolist(),
-        "upper": (mu + 1.96 * sigma).tolist(),
-        "lower": (mu - 1.96 * sigma).tolist(),
-        "y_best": gp_bundle["y_best"],
+        "x":     xs_rounded,
+        "mean":  mu_rounded,
+        "upper": upper,
+        "lower": lower,
+        "y_best": round(float(gp_bundle["y_best"]), 3),
         "factor_name": f["name"],
-        "factor_unit": f.get("unit", "")
+        "factor_unit": f.get("unit", ""),
+        "reference_x": round(float(ref[factor_idx]), 3)
     }
+

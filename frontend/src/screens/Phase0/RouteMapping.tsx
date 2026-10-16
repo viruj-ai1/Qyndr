@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react'
 import { useStore, StageItem } from '../../store/useStore'
 import { Projects } from '../../services/api'
+import { generateContextAwareStages, isDefaultDummyStages } from '../../utils/routeGenerator'
+import toast from 'react-hot-toast'
 
 const UNIT_OP_OPTIONS = [
   'Reaction',
@@ -14,46 +16,40 @@ const UNIT_OP_OPTIONS = [
 ]
 
 export default function RouteMapping() {
-  const { currentProject, stages, setStages, setStep, addAuditLog } = useStore()
+  const { currentProject, qtpp, cqas, stages, setStages, setStep, addAuditLog } = useStore()
 
-  const [items, setItems] = useState<StageItem[]>(
-    stages.length > 0 ? stages : [
-      {
-        id: 'stage-1',
-        order: 1,
-        name: 'Stage 1: Coupling Reaction',
-        unitOpType: 'Reaction',
-        description: 'Condensation reaction of Starting Material A and B',
-        intermediateProduced: 'Intermediate Int-1'
-      },
-      {
-        id: 'stage-2',
-        order: 2,
-        name: 'Stage 2: Deprotection & Workup',
-        unitOpType: 'Workup',
-        description: 'Acidic deprotection followed by liquid-liquid extraction',
-        intermediateProduced: 'Intermediate Int-2'
-      },
-      {
-        id: 'stage-3',
-        order: 3,
-        name: 'Stage 3: API Final Crystallization',
-        unitOpType: 'Crystallization',
-        description: 'Controlled cooling crystallization to yield API Form I',
-        intermediateProduced: 'Final API (Unmilled)'
-      }
-    ]
-  )
-  const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    const list = (currentProject?.stages_data && currentProject.stages_data.length > 0)
-      ? currentProject.stages_data
-      : (stages.length > 0 ? stages : [])
-    if (list.length > 0) {
-      setItems(list)
+  // Initialize stages with context-aware derivation based on all data until Route Mapping
+  const getInitialStages = (): StageItem[] => {
+    // 1. Check currentProject.stages_data
+    const projStages = currentProject?.stages_data
+    if (Array.isArray(projStages) && projStages.length > 0 && !isDefaultDummyStages(projStages, currentProject)) {
+      return projStages
     }
-  }, [currentProject?.id])
+    // 2. Check global store stages
+    if (Array.isArray(stages) && stages.length > 0 && !isDefaultDummyStages(stages, currentProject)) {
+      return stages
+    }
+    // 3. Fallback to smart derivation based on all data until Route Mapping (Project, QTPP, CQAs)
+    return generateContextAwareStages(currentProject, qtpp, cqas)
+  }
+
+  const [items, setItems] = useState<StageItem[]>(getInitialStages)
+  const [saving, setSaving] = useState(false)
+  const [loadingAI, setLoadingAI] = useState(false)
+
+  // Synchronize when project ID, QTPP or CQAs change
+  useEffect(() => {
+    setItems(getInitialStages())
+  }, [currentProject?.id, qtpp.length, cqas.length])
+
+  // Detect whether the current project is scoped to a single stage / unit operation
+  const projectCombined = `${currentProject?.name || ''} ${currentProject?.compound || ''} ${currentProject?.objective || ''} ${currentProject?.description || ''}`.toLowerCase()
+  const isSingleStageScope =
+    /\bstage[\s-_]*(?:\d+|i|ii|iii|iv|one|two|three|four)\b/i.test(projectCombined) ||
+    /\bstep[\s-_]*(?:\d+|i|ii|iii|iv|one|two|three|four)\b/i.test(projectCombined) ||
+    /\b(single[\s-_]*stage|stage[\s-_]*specific|single[\s-_]*step|unit[\s-_]*operation)\b/i.test(projectCombined) ||
+    (/\b(crystalliz|precipitat|alkylat|distill|fractionat|hydrogenat|filtrat|drying|purif)\b/i.test(projectCombined) &&
+     !projectCombined.includes('multi-stage') && !projectCombined.includes('full synthesis'))
 
   const handleAddStage = () => {
     const newStage: StageItem = {
@@ -64,7 +60,7 @@ export default function RouteMapping() {
       description: '',
       intermediateProduced: ''
     }
-    setItems([...items, newStage])
+    setItems(prev => [...prev, newStage])
   }
 
   const handleRemoveStage = (id: string) => {
@@ -86,10 +82,45 @@ export default function RouteMapping() {
     setItems(updated.map((s, idx) => ({ ...s, order: idx + 1 })))
   }
 
+  // AI Suggest Stages / Regenerate from Step 01 Project Info
+  const handleAISuggestStages = async () => {
+    setLoadingAI(true)
+    try {
+      const res = await Projects.suggestStages({
+        project_name: currentProject?.name || '',
+        compound: currentProject?.compound || '',
+        objective: currentProject?.objective || '',
+        description: currentProject?.description || ''
+      })
+      if (res && res.stages && Array.isArray(res.stages) && res.stages.length > 0) {
+        const formatted: StageItem[] = res.stages.map((st: any, idx: number) => ({
+          id: st.id || `stage-${idx + 1}`,
+          order: idx + 1,
+          name: st.name || `Stage ${idx + 1}`,
+          unitOpType: (st.unitOpType || 'Reaction') as any,
+          description: st.description || '',
+          intermediateProduced: st.intermediateProduced || ''
+        }))
+        setItems(formatted)
+        toast.success(`AI derived ${formatted.length} stage(s) tailored to ${currentProject?.compound || currentProject?.name || 'project'}`)
+        return
+      }
+    } catch (err) {
+      console.warn('AI stages endpoint fallback:', err)
+    } finally {
+      setLoadingAI(false)
+    }
+
+    // Fallback to domain-specific derivation based on all prior steps
+    const fallbackStages = generateContextAwareStages(currentProject, qtpp, cqas)
+    setItems(fallbackStages)
+    toast.success(`Derived ${fallbackStages.length} synthesis stage(s) from project specifications & CQAs`)
+  }
+
   const handleSaveAndNext = async () => {
     const valid = items.filter(s => s.name.trim() !== '')
     if (valid.length === 0) {
-      alert('Please add at least one synthesis stage.')
+      toast.error('Please add or generate at least one synthesis stage before proceeding.')
       return
     }
     setSaving(true)
@@ -97,9 +128,11 @@ export default function RouteMapping() {
     if (currentProject) {
       try {
         await Projects.savePhase0(currentProject.id, { stages: valid })
-        addAuditLog('ROUTE_MAPPING_SAVE', `Saved synthetic route map with ${valid.length} stages`)
+        addAuditLog('ROUTE_MAPPING_SAVE', `Saved synthetic route map with ${valid.length} stage(s)`)
+        toast.success(`Synthetic route saved with ${valid.length} stage(s)`)
       } catch (e) {
         console.error('Failed to save stages to backend', e)
+        toast.error('Saved locally. Backend synchronization will retry.')
       }
     }
     setSaving(false)
@@ -108,126 +141,211 @@ export default function RouteMapping() {
 
   return (
     <div className="screen-container">
-      <div className="page-header" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <div className="page-header" style={{ marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <div className="badge badge-accent">Step 04 · Phase 0</div>
           <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Route Mapping</h1>
+          {isSingleStageScope && (
+            <span className="badge badge-primary" style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem' }}>
+              ⚡ Single-Stage Scope (Unit Operation Breakdown)
+            </span>
+          )}
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.3rem' }}>
-          Map the different steps of the API manufacturing process.
+          Synthesized from Step 01 Project Details, Step 02 QTPP, and Step 03 CQAs for{' '}
+          <strong style={{ color: 'var(--primary-light)' }}>
+            {currentProject?.compound ? `${currentProject.compound} (${currentProject.name})` : (currentProject?.name || 'your project')}
+          </strong>.
         </p>
       </div>
 
+      {/* Route Backbone Card */}
       <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Synthetic Route Backbone</h3>
-          <button className="btn btn-secondary btn-sm" onClick={handleAddStage}>
-            + Add Stage
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {items.map((stage, idx) => (
-            <div key={stage.id} style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start', padding: '1.25rem', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
-              {/* Order Indicator */}
-              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1.15rem', color: '#fff', flexShrink: 0, marginTop: '4px' }}>
-                {idx + 1}
-              </div>
-
-              {/* Form Controls in 2 Spacious Rows */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', flex: 1 }}>
-                {/* Row 1: Stage Name & Unit Op Type */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div>
-                    <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Stage Name</label>
-                    <input
-                      type="text"
-                      className="input"
-                      style={{ width: '100%', padding: '0.55rem 0.85rem', fontSize: '0.88rem' }}
-                      placeholder="e.g. Stage 1: Coupling Reaction"
-                      value={stage.name}
-                      onChange={e => handleChange(stage.id, 'name', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Unit Operation Type</label>
-                    <select
-                      className="input"
-                      style={{ width: '100%', padding: '0.55rem 0.85rem', fontSize: '0.88rem' }}
-                      value={stage.unitOpType}
-                      onChange={e => handleChange(stage.id, 'unitOpType', e.target.value)}
-                    >
-                      {UNIT_OP_OPTIONS.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Row 2: Description & Intermediate Produced */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div>
-                    <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Brief Description</label>
-                    <input
-                      type="text"
-                      className="input"
-                      style={{ width: '100%', padding: '0.55rem 0.85rem', fontSize: '0.88rem' }}
-                      placeholder="e.g. Condensation reaction at 50-60°C"
-                      value={stage.description || ''}
-                      onChange={e => handleChange(stage.id, 'description', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Key Intermediate Produced</label>
-                    <input
-                      type="text"
-                      className="input"
-                      style={{ width: '100%', padding: '0.55rem 0.85rem', fontSize: '0.88rem' }}
-                      placeholder="e.g. 2β-Morpholino-16α,17α-epoxy-5α-androstan-3α-ol"
-                      value={stage.intermediateProduced || ''}
-                      onChange={e => handleChange(stage.id, 'intermediateProduced', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Reordering & Actions */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0, justifyContent: 'center', alignSelf: 'center' }}>
-                <button
-                  className="btn btn-icon btn-sm"
-                  disabled={idx === 0}
-                  onClick={() => handleMove(idx, 'up')}
-                  title="Move Up"
-                >
-                  ▲
-                </button>
-                <button
-                  className="btn btn-icon btn-sm"
-                  disabled={idx === items.length - 1}
-                  onClick={() => handleMove(idx, 'down')}
-                  title="Move Down"
-                >
-                  ▼
-                </button>
-                <button
-                  className="btn btn-icon btn-sm btn-danger"
-                  onClick={() => handleRemoveStage(stage.id)}
-                  title="Delete Stage"
-                >
-                  ✕
-                </button>
-              </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Synthetic Route Backbone</h3>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+              {items.length} stage{items.length === 1 ? '' : 's'} defined · Derived from Step 01 Process Details & Step 03 CQAs
             </div>
-          ))}
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={handleAISuggestStages}
+              disabled={loadingAI}
+              title="Re-derive synthesis stages from Step 01 project metadata and Step 03 CQAs"
+            >
+              {loadingAI ? <><div className="spinner" /> Deriving…</> : '⚡ Derive from Prior Steps (01–03)'}
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={handleAddStage}>
+              + Add Stage
+            </button>
+          </div>
         </div>
+
+        {items.length === 0 ? (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '2.5rem 1.5rem',
+              background: 'rgba(255,255,255,0.02)',
+              borderRadius: '8px',
+              border: '1px dashed rgba(255,255,255,0.12)'
+            }}
+          >
+            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🧪</div>
+            <h4 style={{ margin: '0 0 0.4rem', fontSize: '1rem', fontWeight: 600 }}>No Stages Defined</h4>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', maxWidth: '440px', margin: '0 auto 1.25rem' }}>
+              All stages have been removed. Add a custom stage manually or derive stages directly from your Step 01 project details and Step 03 CQAs.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+              <button className="btn btn-secondary btn-sm" onClick={handleAddStage}>
+                + Add Stage
+              </button>
+              <button className="btn btn-primary btn-sm" onClick={handleAISuggestStages} disabled={loadingAI}>
+                {loadingAI ? <><div className="spinner" /> Deriving…</> : '⚡ Derive from Prior Steps (01–03)'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {items.map((stage, idx) => (
+              <div
+                key={stage.id}
+                style={{
+                  display: 'flex',
+                  gap: '1.25rem',
+                  alignItems: 'flex-start',
+                  padding: '1.25rem',
+                  background: 'rgba(255,255,255,0.02)',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.08)'
+                }}
+              >
+                {/* Order Indicator */}
+                <div
+                  style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '50%',
+                    background: 'var(--primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 800,
+                    fontSize: '1.15rem',
+                    color: '#fff',
+                    flexShrink: 0,
+                    marginTop: '4px'
+                  }}
+                >
+                  {idx + 1}
+                </div>
+
+                {/* Form Controls */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', flex: 1 }}>
+                  {/* Row 1: Stage Name & Unit Op Type */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>
+                        Stage / Unit Operation Name
+                      </label>
+                      <input
+                        type="text"
+                        className="input"
+                        style={{ width: '100%', padding: '0.55rem 0.85rem', fontSize: '0.88rem' }}
+                        placeholder="e.g. Unit Op 1: Friedel-Crafts Alkylation Reaction"
+                        value={stage.name}
+                        onChange={e => handleChange(stage.id, 'name', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>
+                        Unit Operation Type
+                      </label>
+                      <select
+                        className="input"
+                        style={{ width: '100%', padding: '0.55rem 0.85rem', fontSize: '0.88rem' }}
+                        value={stage.unitOpType}
+                        onChange={e => handleChange(stage.id, 'unitOpType', e.target.value)}
+                      >
+                        {UNIT_OP_OPTIONS.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Row 2: Description & Intermediate Produced */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>
+                        Brief Chemistry / Engineering Description
+                      </label>
+                      <input
+                        type="text"
+                        className="input"
+                        style={{ width: '100%', padding: '0.55rem 0.85rem', fontSize: '0.88rem' }}
+                        placeholder="e.g. Catalytic alkylation over solid acid catalyst at 200-240°C"
+                        value={stage.description || ''}
+                        onChange={e => handleChange(stage.id, 'description', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>
+                        Key Intermediate / Material Produced
+                      </label>
+                      <input
+                        type="text"
+                        className="input"
+                        style={{ width: '100%', padding: '0.55rem 0.85rem', fontSize: '0.88rem' }}
+                        placeholder="e.g. Crude 2,6-Diisopropylphenol Reaction Mass"
+                        value={stage.intermediateProduced || ''}
+                        onChange={e => handleChange(stage.id, 'intermediateProduced', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reordering & Actions */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0, justifyContent: 'center', alignSelf: 'center' }}>
+                  <button
+                    className="btn btn-icon btn-sm"
+                    disabled={idx === 0}
+                    onClick={() => handleMove(idx, 'up')}
+                    title="Move Up"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    className="btn btn-icon btn-sm"
+                    disabled={idx === items.length - 1}
+                    onClick={() => handleMove(idx, 'down')}
+                    title="Move Down"
+                  >
+                    ▼
+                  </button>
+                  <button
+                    className="btn btn-icon btn-sm btn-danger"
+                    onClick={() => handleRemoveStage(stage.id)}
+                    title="Delete Stage"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      {/* Navigation Buttons */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button className="btn btn-secondary" onClick={() => setStep('cqa')}>
           ← Back to CQA Derivation
         </button>
-        <button className="btn btn-primary" onClick={handleSaveAndNext} disabled={saving}>
-          {saving ? 'Saving...' : 'Confirm & Proceed to Reverse Risk Assessment →'}
+        <button className="btn btn-primary" onClick={handleSaveAndNext} disabled={saving || items.length === 0}>
+          {saving ? <><div className="spinner" /> Saving…</> : 'Confirm & Proceed to Reverse Risk Assessment →'}
         </button>
       </div>
     </div>

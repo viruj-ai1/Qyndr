@@ -1,6 +1,6 @@
 // src/screens/GenerateDOE.tsx – Unified DOE Matrix & Results (Consolidating Steps 10, 11, 12)
 import React, { useState, useEffect, useMemo } from 'react'
-import { useStore } from '../store/useStore'
+import { useStore, isPercentageResponse } from '../store/useStore'
 import { DOE, Projects } from '../services/api'
 import toast from 'react-hot-toast'
 
@@ -95,9 +95,23 @@ export default function GenerateDOE() {
       const next: Record<number, (number | null)[]> = {}
       displayedExperiments.forEach((e: any) => {
         if (prev[e.id] && prev[e.id].some(v => v !== null)) {
-          next[e.id] = prev[e.id]
+          next[e.id] = prev[e.id].map((v: any, ri: number) => {
+            if (v == null) return null
+            const isPercent = isPercentageResponse(responses[ri])
+            const num = typeof v === 'string' ? parseFloat(v) : v
+            if (isNaN(num)) return null
+            if (isPercent) return Math.min(100, Math.max(0, num))
+            return num
+          })
         } else if (e.result_values && e.result_values.length) {
-          next[e.id] = [...e.result_values]
+          next[e.id] = e.result_values.map((v: any, ri: number) => {
+            if (v == null) return null
+            const isPercent = isPercentageResponse(responses[ri])
+            const num = typeof v === 'string' ? parseFloat(v) : v
+            if (isNaN(num)) return null
+            if (isPercent) return Math.min(100, Math.max(0, num))
+            return num
+          })
         } else {
           next[e.id] = new Array(responses.length).fill(null)
         }
@@ -122,9 +136,50 @@ export default function GenerateDOE() {
 
   // Cell change handlers
   function handleResponseChange(expId: number, responseIdx: number, rawVal: string) {
+    const resp = responses[responseIdx]
+    const isPercent = isPercentageResponse(resp)
+
     setResults(prev => {
       const row = [...(prev[expId] || new Array(responses.length).fill(null))]
-      row[responseIdx] = rawVal.trim() === '' ? null : parseFloat(rawVal)
+      if (rawVal.trim() === '') {
+        row[responseIdx] = null
+      } else {
+        const num = parseFloat(rawVal)
+        if (!isNaN(num)) {
+          if (isPercent && num > 100) {
+            row[responseIdx] = 100
+            toast.error(`${resp?.name || 'Response'} cannot exceed 100%`, { id: `max-limit-${responseIdx}` })
+          } else if (isPercent && num < 0) {
+            row[responseIdx] = 0
+            toast.error(`${resp?.name || 'Response'} cannot be negative`, { id: `min-limit-${responseIdx}` })
+          } else {
+            row[responseIdx] = rawVal.endsWith('.') ? (rawVal as any) : num
+          }
+        }
+      }
+      return { ...prev, [expId]: row }
+    })
+  }
+
+  function handleResponseBlur(expId: number, responseIdx: number) {
+    const resp = responses[responseIdx]
+    const isPercent = isPercentageResponse(resp)
+
+    setResults(prev => {
+      const row = [...(prev[expId] || [])]
+      const current = row[responseIdx]
+      if (current != null) {
+        let num = typeof current === 'string' ? parseFloat(current) : current
+        if (isNaN(num)) {
+          row[responseIdx] = null
+        } else {
+          if (isPercent) {
+            if (num > 100) num = 100
+            if (num < 0) num = 0
+          }
+          row[responseIdx] = num
+        }
+      }
       return { ...prev, [expId]: row }
     })
   }
@@ -189,10 +244,17 @@ export default function GenerateDOE() {
         Math.min(0.95, 0.12 - 0.05 * x0 + 0.08 * x1 - 0.03 * x2 + 0.04 * x1 * x1 + (idx % 2) * 0.02)
       )
 
-      filled[e.id] = responses.map((_, rIdx: number) => {
-        if (rIdx === 0) return Number(yieldVal.toFixed(2))
-        if (rIdx === 1) return Number(impVal.toFixed(3))
-        return Number((90.0 + (idx % 5) * 1.5).toFixed(2))
+      filled[e.id] = responses.map((r: any, rIdx: number) => {
+        const isPercent = isPercentageResponse(r)
+        let sampleVal: number
+        if (rIdx === 0) sampleVal = Number(yieldVal.toFixed(2))
+        else if (rIdx === 1) sampleVal = Number(impVal.toFixed(3))
+        else sampleVal = Number((90.0 + (idx % 5) * 1.5).toFixed(2))
+
+        if (isPercent) {
+          sampleVal = Math.min(100, Math.max(0, sampleVal))
+        }
+        return sampleVal
       })
 
       // Realistic thermocouples/dispenser jitter for actuals
@@ -277,7 +339,16 @@ export default function GenerateDOE() {
     try {
       const payload = rowsWithData.map((e: any) => ({
         experiment_id: e.id,
-        result_values: results[e.id]
+        result_values: (results[e.id] || []).map((v: any, ri: number) => {
+          if (v == null) return null
+          let num = typeof v === 'string' ? parseFloat(v) : v
+          if (isNaN(num)) return null
+          const isPercent = isPercentageResponse(responses[ri])
+          if (isPercent) {
+            num = Math.min(100, Math.max(0, num))
+          }
+          return num
+        })
       }))
 
       await Projects.uploadResults(currentProject.id, payload)
@@ -712,14 +783,22 @@ export default function GenerateDOE() {
                     })}
 
                     {/* Direct Editable Response Columns */}
-                    {responses.map((_: any, ri: number) => {
-                      const val = rowRes[ri]
+                    {responses.map((r: any, ri: number) => {
+                      const isPercent = isPercentageResponse(r)
+                      const rawVal = rowRes[ri]
+                      const val = (isPercent && rawVal != null && typeof rawVal === 'number' && rawVal > 100)
+                        ? 100
+                        : (isPercent && rawVal != null && typeof rawVal === 'number' && rawVal < 0)
+                        ? 0
+                        : rawVal
                       const hasVal = val != null
                       return (
                         <td key={ri} style={{ padding: '0.35rem 0.5rem' }}>
                           <input
                             type="number"
                             step="any"
+                            min={isPercent ? 0 : undefined}
+                            max={isPercent ? 100 : undefined}
                             className="form-input mono"
                             placeholder="—"
                             style={{
@@ -735,6 +814,7 @@ export default function GenerateDOE() {
                             }}
                             value={val ?? ''}
                             onChange={ev => handleResponseChange(e.id, ri, ev.target.value)}
+                            onBlur={() => handleResponseBlur(e.id, ri)}
                           />
                         </td>
                       )

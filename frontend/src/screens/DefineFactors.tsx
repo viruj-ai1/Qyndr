@@ -1,6 +1,5 @@
-// src/screens/DefineFactors.tsx
 import { useState } from 'react'
-import { useStore, Factor, Response } from '../store/useStore'
+import { useStore, Factor, Response, isPercentageResponse } from '../store/useStore'
 import { Projects } from '../services/api'
 import toast from 'react-hot-toast'
 
@@ -46,6 +45,14 @@ export default function DefineFactors() {
     if (factors.some(f => !f.name.trim())) { toast.error('All factors need a name'); return }
     if (factors.some(f => f.high <= f.low)) { toast.error('High must be > Low for each factor'); return }
     if (responses.some(r => !r.name.trim())) { toast.error('All responses need a name'); return }
+    if (responses.some(r => isPercentageResponse(r) && r.target != null && r.target > 100)) {
+      toast.error('Response target percentage cannot exceed 100%')
+      return
+    }
+    if (responses.some(r => isPercentageResponse(r) && r.upper_limit != null && r.upper_limit > 100)) {
+      toast.error('Response upper limit percentage cannot exceed 100%')
+      return
+    }
     setSaving(true)
     try {
       const id = currentProject!.id

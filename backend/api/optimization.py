@@ -73,20 +73,24 @@ def bayesian_recommend(body: schemas.BayesRecommendRequest, db: Session = Depend
         } for f in factors]
         slices = []
         for idx, f in enumerate(factors):
-            grid = [round(x, 2) for x in np.linspace(f.low, f.high, 40)]
-            mid = round((f.low + f.high) / 2.0, 2)
-            mu = [round(92.0 + 3.0 * np.sin((x - f.low) / (f.high - f.low + 1e-6) * np.pi), 2) for x in grid]
-            sigma = [round(0.5 + 0.3 * np.cos((x - f.low) / (f.high - f.low + 1e-6) * np.pi), 2) for x in grid]
+            grid = [round(float(x), 2) for x in np.linspace(f.low, f.high, 40)]
+            mid = round(float((f.low + f.high) / 2.0), 2)
+            mu = [round(float(92.0 + 3.0 * np.sin((x - f.low) / (f.high - f.low + 1e-6) * np.pi)), 2) for x in grid]
+            sigma = [round(float(0.5 + 0.3 * np.cos((x - f.low) / (f.high - f.low + 1e-6) * np.pi)), 2) for x in grid]
+            upper = [round(float(m + 1.96 * s), 2) for m, s in zip(mu, sigma)]
+            lower = [round(float(m - 1.96 * s), 2) for m, s in zip(mu, sigma)]
             slices.append({
                 "factor_index": idx,
                 "factor_name": f.name,
-                "unit": f.unit,
-                "grid": grid,
-                "mu": mu,
+                "factor_unit": f.unit,
+                "x": grid,
+                "mean": mu,
+                "upper": upper,
+                "lower": lower,
                 "sigma": sigma,
-                "ei": [round(m + 1.96 * s, 2) for m, s in zip(mu, sigma)],
-                "optimum_x": mid
+                "reference_x": mid
             })
+
         
         rec_actual = [round((f.low + f.high)/2.0, 2) for f in factors]
         rec_coded = [0.0 for _ in factors]

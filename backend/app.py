@@ -1,5 +1,5 @@
 # ============================================================
-#  app.py  –  FastAPI Application Entry Point
+#  app.py  –  FastAPI Application Entry Point (reload)
 # ============================================================
 import sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))

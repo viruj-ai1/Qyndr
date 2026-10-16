@@ -1,6 +1,5 @@
-// src/screens/UploadResults.tsx
 import { useState, useEffect } from 'react'
-import { useStore } from '../store/useStore'
+import { useStore, isPercentageResponse } from '../store/useStore'
 import { Projects } from '../services/api'
 import toast from 'react-hot-toast'
 
@@ -32,9 +31,27 @@ export default function UploadResults() {
   }, [displayedExperiments, responses.length])
 
   function setVal(expId: number, responseIdx: number, val: string) {
+    const resp = responses[responseIdx]
+    const isPercent = isPercentageResponse(resp)
+
     setResults(prev => {
       const row = [...(prev[expId] || new Array(responses.length).fill(null))]
-      row[responseIdx] = val === '' ? null : parseFloat(val)
+      if (val.trim() === '') {
+        row[responseIdx] = null
+      } else {
+        const num = parseFloat(val)
+        if (!isNaN(num)) {
+          if (isPercent && num > 100) {
+            row[responseIdx] = 100
+            toast.error(`${resp?.name || 'Response'} cannot exceed 100%`, { id: `upload-max-${responseIdx}` })
+          } else if (isPercent && num < 0) {
+            row[responseIdx] = 0
+            toast.error(`${resp?.name || 'Response'} cannot be negative`, { id: `upload-min-${responseIdx}` })
+          } else {
+            row[responseIdx] = val.endsWith('.') ? (val as any) : num
+          }
+        }
+      }
       return { ...prev, [expId]: row }
     })
   }
@@ -46,7 +63,19 @@ export default function UploadResults() {
     try {
       const payload = displayedExperiments
         .filter(e => results[e.id]?.some(v => v !== null))
-        .map(e => ({ experiment_id: e.id, result_values: results[e.id] }))
+        .map(e => ({
+          experiment_id: e.id,
+          result_values: (results[e.id] || []).map((v: any, ri: number) => {
+            if (v == null) return null
+            let num = typeof v === 'string' ? parseFloat(v) : v
+            if (isNaN(num)) return null
+            const isPercent = isPercentageResponse(responses[ri])
+            if (isPercent) {
+              num = Math.min(100, Math.max(0, num))
+            }
+            return num
+          })
+        }))
       await Projects.uploadResults(currentProject!.id, payload)
       
       const freshExps = await Projects.getExperiments(currentProject!.id)
@@ -153,17 +182,29 @@ export default function UploadResults() {
                     {e.actual_values.map((v,j) => (
                       <td key={j} className="mono" style={{ color:'var(--text-muted)', fontSize:'0.78rem' }}>{v.toFixed(3)}</td>
                     ))}
-                    {responses.map((_: any, ri: number) => (
-                      <td key={ri} style={{ padding:'0.4rem 0.5rem' }}>
-                        <input
-                          type="number" step="any"
-                          style={{ width:'100%', background:'rgba(6,182,212,0.07)', border:'1px solid rgba(6,182,212,0.25)', borderRadius:'6px', padding:'0.35rem 0.5rem', color:'var(--text-primary)', fontSize:'0.85rem', fontFamily:'JetBrains Mono, monospace' }}
-                          placeholder="—"
-                          value={row[ri] ?? ''}
-                          onChange={e2 => setVal(e.id, ri, e2.target.value)}
-                        />
-                      </td>
-                    ))}
+                    {responses.map((r: any, ri: number) => {
+                      const isPercent = isPercentageResponse(r)
+                      const rawVal = row[ri]
+                      const val = (isPercent && rawVal != null && typeof rawVal === 'number' && rawVal > 100)
+                        ? 100
+                        : (isPercent && rawVal != null && typeof rawVal === 'number' && rawVal < 0)
+                        ? 0
+                        : rawVal
+                      return (
+                        <td key={ri} style={{ padding:'0.4rem 0.5rem' }}>
+                          <input
+                            type="number"
+                            step="any"
+                            min={isPercent ? 0 : undefined}
+                            max={isPercent ? 100 : undefined}
+                            style={{ width:'100%', background:'rgba(6,182,212,0.07)', border:'1px solid rgba(6,182,212,0.25)', borderRadius:'6px', padding:'0.35rem 0.5rem', color:'var(--text-primary)', fontSize:'0.85rem', fontFamily:'JetBrains Mono, monospace' }}
+                            placeholder="—"
+                            value={val ?? ''}
+                            onChange={e2 => setVal(e.id, ri, e2.target.value)}
+                          />
+                        </td>
+                      )
+                    })}
                   </tr>
                 )
               })}

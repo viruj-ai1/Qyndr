@@ -20,6 +20,18 @@ def create_project(data: schemas.ProjectCreate, db: Session = Depends(get_db)):
     return crud.create_project(db, data)
 
 
+@router.post("/suggest-stages")
+def suggest_stages_endpoint(body: dict):
+    from services.llm_service import suggest_stages_llm
+    stages = suggest_stages_llm(
+        project_name=body.get("project_name", ""),
+        compound=body.get("compound", ""),
+        objective=body.get("objective", ""),
+        description=body.get("description", "")
+    )
+    return {"ok": True, "stages": stages}
+
+
 @router.get("/{project_id}", response_model=schemas.ProjectOut)
 def get_project(project_id: int, db: Session = Depends(get_db)):
     p = crud.get_project(db, project_id)
@@ -73,12 +85,41 @@ def get_experiments(project_id: int, db: Session = Depends(get_db)):
     return crud.get_experiments(db, project_id)
 
 
+def _clean_response_values(db: Session, project_id: int, result_values: list) -> list:
+    proj = crud.get_project(db, project_id)
+    responses = proj.responses if proj and proj.responses else []
+    cleaned = []
+    for i, val in enumerate(result_values):
+        if val is not None and i < len(responses):
+            resp = responses[i]
+            unit = (resp.unit or "").lower()
+            name = (resp.name or "").lower()
+            is_percent = (
+                "%" in unit
+                or "percent" in unit
+                or "%" in name
+                or "yield" in name
+                or "purity" in name
+                or "conversion" in name
+                or getattr(resp, "upper_limit", None) == 100.0
+            )
+            if is_percent:
+                try:
+                    num = float(val)
+                    val = max(0.0, min(100.0, num))
+                except (ValueError, TypeError):
+                    pass
+        cleaned.append(val)
+    return cleaned
+
+
 # ── Upload results ───────────────────────────────────────────
 @router.post("/{project_id}/results")
 def upload_results(project_id: int, body: schemas.ResultsUpload,
                    db: Session = Depends(get_db)):
     for r in body.results:
-        crud.update_experiment_results(db, r.experiment_id, r.result_values)
+        cleaned_vals = _clean_response_values(db, project_id, r.result_values)
+        crud.update_experiment_results(db, r.experiment_id, cleaned_vals)
     crud.update_project(db, project_id, schemas.ProjectUpdate(current_step="statistical-analysis"))
     return {"ok": True, "updated": len(body.results)}
 
@@ -145,13 +186,14 @@ def lock_campaign_endpoint(project_id: int, body: dict, db: Session = Depends(ge
 @router.post("/{project_id}/bayes-result")
 def bayes_result(project_id: int, body: schemas.BayesResultRequest,
                  db: Session = Depends(get_db)):
+    cleaned_vals = _clean_response_values(db, project_id, body.result_values)
     exp = crud.add_bayesian_experiment(
         db, project_id,
-        body.actual_values, body.result_values, body.iteration
+        body.actual_values, cleaned_vals, body.iteration
     )
     crud.upsert_gp_iteration(
         db, project_id, body.iteration,
-        new_result=body.result_values
+        new_result=cleaned_vals
     )
     # Increment bayes_iter
     proj = crud.get_project(db, project_id)

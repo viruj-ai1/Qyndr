@@ -67,6 +67,23 @@ export interface Response {
   stage_id?: string; linked_cqa_ids?: string[]
 }
 
+export function isPercentageResponse(r?: Partial<Response> | null): boolean {
+  if (!r) return false
+  const unit = (r.unit || '').trim().toLowerCase()
+  const name = (r.name || '').trim().toLowerCase()
+  return (
+    unit.includes('%') ||
+    unit === 'percent' ||
+    unit === 'percentage' ||
+    name.includes('%') ||
+    name.includes('yield') ||
+    name.includes('purity') ||
+    name.includes('conversion') ||
+    r.upper_limit === 100
+  )
+}
+
+
 export interface Project {
   id: number; name: string; compound: string; objective: string
   description: string; current_step: Step; doe_type: string; bayes_iter: number

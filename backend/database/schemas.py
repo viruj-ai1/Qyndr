@@ -228,6 +228,10 @@ class BayesRecommendRequest(BaseModel):
     project_id: int
     stage_id: Optional[str] = None
     response_idx: int = 0
+    project_name: Optional[str] = None
+    compound: Optional[str] = None
+    factors: Optional[List[dict]] = None
+    responses: Optional[List[dict]] = None
 
 class BayesResultRequest(BaseModel):
     project_id: int

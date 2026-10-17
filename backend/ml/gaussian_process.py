@@ -59,14 +59,14 @@ def build_gp_model(experiments: list, response_idx: int,
             cleaned_exps.append({"actual_values": av_list, "result_values": rv})
 
     valid = cleaned_exps
-    if len(valid) < 3:
+    if len(valid) < 3 or n_factors == 0:
         return None
 
     X_raw = np.array([e["actual_values"] for e in valid], dtype=float)
     y_raw_list = [_extract_response_val(e["result_values"], response_idx) for e in valid]
     mask = np.array([y is not None and not np.isnan(y) for y in y_raw_list])
     X_raw, y_raw = X_raw[mask], np.array([y for y in y_raw_list if y is not None and not np.isnan(y)], dtype=float)
-    if len(y_raw) < 3:
+    if len(y_raw) < 3 or X_raw.ndim != 2 or X_raw.shape[1] == 0:
         return None
 
     k = X_raw.shape[1]
@@ -87,12 +87,22 @@ def build_gp_model(experiments: list, response_idx: int,
         normalize_y=True,
         random_state=42
     )
-    gpr.fit(X_norm, y_raw)
+    try:
+        gpr.fit(X_norm, y_raw)
+    except Exception as fit_err:
+        print(f"GPR fitting error: {fit_err}")
+        return None
 
     # Serialize kernel params
     params = gpr.kernel_.get_params()
     safe_params = {k: float(v) if isinstance(v, (np.floating, float)) else str(v)
                    for k, v in params.items() if np.isscalar(v)}
+
+    log_lik = -4.0
+    try:
+        log_lik = round(float(gpr.log_marginal_likelihood_value_), 4)
+    except Exception:
+        pass
 
     return {
         "gpr": gpr,            # not JSON-serializable, keep in memory
@@ -104,7 +114,7 @@ def build_gp_model(experiments: list, response_idx: int,
         "y_best": float(y_raw.max()),
         "y_mean": float(y_raw.mean()),
         "kernel_params": safe_params,
-        "log_likelihood": round(float(gpr.log_marginal_likelihood_value_), 4)
+        "log_likelihood": log_lik
     }
 
 

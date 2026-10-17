@@ -75,10 +75,10 @@ export const Analysis = {
 
 /* ── Optimization ─────────────────────────────────────────── */
 export const Optimization = {
-  recommend: (project_id: number, response_idx: number) =>
-    api.post('/optimization/gp/recommend', { project_id, response_idx }).then(r => r.data),
-  final:     (project_id: number, response_idx: number) =>
-    api.post('/optimization/gp/final',     { project_id, response_idx }).then(r => r.data),
+  recommend: (project_id: number, response_idx: number, payload?: any) =>
+    api.post('/optimization/gp/recommend', { project_id, response_idx, ...(payload || {}) }).then(r => r.data),
+  final:     (project_id: number, response_idx: number, payload?: any) =>
+    api.post('/optimization/gp/final',     { project_id, response_idx, ...(payload || {}) }).then(r => r.data),
   latest:    (project_id: number) =>
     api.get(`/optimization/gp/latest-recommendation/${project_id}`).then(r => r.data),
   llmSummary: (project_id: number, response_idx: number) =>

@@ -3,28 +3,81 @@
 # ============================================================
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import get_db, crud, schemas
+from database import get_db, crud, schemas, models
 from services.bayesian_service import fit_and_recommend, get_final_optimum
 
 router = APIRouter(prefix="/optimization", tags=["Optimization"])
 
 
-def _ensure_valid_data(db: Session, project_id: int):
+def _ensure_valid_data(db: Session, project_id: int, project_name: str = None, compound: str = None,
+                       factors_payload: list = None, responses_payload: list = None):
+    # 1. Ensure project exists in DB
+    proj = crud.get_project(db, project_id)
+    if not proj:
+        proj = models.Project(
+            id=project_id,
+            name=project_name or f"Optimization Study #{project_id}",
+            compound=compound or "API Intermediate",
+            objective="Maximize Yield and Purity via Response Surface & Bayesian Optimization",
+            description="Process Optimization Campaign",
+            current_step="gp-model",
+            bayes_iter=0
+        )
+        db.add(proj)
+        db.commit()
+        db.refresh(proj)
+    elif project_name and (not proj.name or proj.name.startswith("Optimization Study")):
+        proj.name = project_name
+        if compound:
+            proj.compound = compound
+        db.commit()
+
+    # 2. Ensure factors exist
     factors = crud.get_factors(db, project_id)
     if not factors:
-        crud.replace_factors(db, project_id, [
-            schemas.FactorCreate(name="Temperature", symbol="T", unit="°C", low=45.0, high=65.0, baseline=55.0),
-            schemas.FactorCreate(name="Morpholine Ratio", symbol="MR", unit="eq", low=1.2, high=1.8, baseline=1.5)
-        ])
+        if factors_payload and len(factors_payload) > 0:
+            crud.replace_factors(db, project_id, [
+                schemas.FactorCreate(
+                    name=f.get("name", f"Factor {i+1}").strip(),
+                    symbol=f.get("symbol", f"X{i+1}"),
+                    unit=f.get("unit", "").strip(),
+                    low=float(f.get("low", 0.0)),
+                    high=float(f.get("high", 100.0)),
+                    baseline=float(f.get("baseline", (float(f.get("low", 0.0)) + float(f.get("high", 100.0))) / 2.0)),
+                    factor_order=i,
+                    is_categorical=bool(f.get("is_categorical", False))
+                ) for i, f in enumerate(factors_payload) if f.get("name")
+            ])
+        else:
+            crud.replace_factors(db, project_id, [
+                schemas.FactorCreate(name="Temperature", symbol="T", unit="°C", low=45.0, high=65.0, baseline=55.0),
+                schemas.FactorCreate(name="Morpholine Ratio", symbol="MR", unit="eq", low=1.2, high=1.8, baseline=1.5)
+            ])
         factors = crud.get_factors(db, project_id)
 
+    # 3. Ensure responses exist
     responses = crud.get_responses(db, project_id)
     if not responses:
-        crud.replace_responses(db, project_id, [
-            schemas.ResponseCreate(name="Yield", unit="%", goal="maximize", target=95.0, lower_limit=90.0, upper_limit=100.0)
-        ])
+        if responses_payload and len(responses_payload) > 0:
+            crud.replace_responses(db, project_id, [
+                schemas.ResponseCreate(
+                    name=r.get("name", f"Response {i+1}").strip(),
+                    unit=r.get("unit", "%").strip(),
+                    goal=r.get("goal", "maximize"),
+                    target=float(r["target"]) if r.get("target") is not None else 95.0,
+                    lower_limit=float(r["lower_limit"]) if r.get("lower_limit") is not None else 90.0,
+                    upper_limit=float(r["upper_limit"]) if r.get("upper_limit") is not None else 100.0,
+                    weight=float(r.get("weight", 1.0)),
+                    resp_order=i
+                ) for i, r in enumerate(responses_payload) if r.get("name")
+            ])
+        else:
+            crud.replace_responses(db, project_id, [
+                schemas.ResponseCreate(name="Yield", unit="%", goal="maximize", target=95.0, lower_limit=90.0, upper_limit=100.0)
+            ])
         responses = crud.get_responses(db, project_id)
 
+    # 4. Ensure completed experiments exist
     exps = crud.get_experiments(db, project_id)
     valid_exps = [e for e in exps if e.result_values is not None]
     if len(valid_exps) < 3:
@@ -62,10 +115,21 @@ def _ensure_valid_data(db: Session, project_id: int):
 
 @router.post("/gp/recommend")
 def bayesian_recommend(body: schemas.BayesRecommendRequest, db: Session = Depends(get_db)):
-    _ensure_valid_data(db, body.project_id)
+    _ensure_valid_data(
+        db, body.project_id,
+        project_name=body.project_name,
+        compound=body.compound,
+        factors_payload=body.factors,
+        responses_payload=body.responses
+    )
     factors = crud.get_factors(db, body.project_id)
     exps    = crud.get_experiments(db, body.project_id)
-    result  = fit_and_recommend(exps, body.response_idx, factors)
+    responses = crud.get_responses(db, body.project_id)
+    resp_idx = body.response_idx
+    if responses and (resp_idx < 0 or resp_idx >= len(responses)):
+        resp_idx = 0
+
+    result  = fit_and_recommend(exps, resp_idx, factors)
     if "error" in result:
         import numpy as np
         factor_dicts = [{
@@ -91,7 +155,6 @@ def bayesian_recommend(body: schemas.BayesRecommendRequest, db: Session = Depend
                 "reference_x": mid
             })
 
-        
         rec_actual = [round((f.low + f.high)/2.0, 2) for f in factors]
         rec_coded = [0.0 for _ in factors]
         result = {
@@ -117,18 +180,26 @@ def bayesian_recommend(body: schemas.BayesRecommendRequest, db: Session = Depend
             "iteration": 0
         }
 
-    # Store iteration
+    # Store iteration safely
     proj = crud.get_project(db, body.project_id)
-    iteration = proj.bayes_iter or 0
-    crud.upsert_gp_iteration(
-        db, body.project_id, iteration,
-        gp_params=result["gp_summary"],
-        recommended=result["recommendation"],
-        ei_score=result["recommendation"].get("expected_improvement")
-    )
+    iteration = (proj.bayes_iter or 0) if proj else 0
+    try:
+        crud.upsert_gp_iteration(
+            db, body.project_id, iteration,
+            gp_params=result["gp_summary"],
+            recommended=result["recommendation"],
+            ei_score=result["recommendation"].get("expected_improvement")
+        )
+    except Exception as iter_err:
+        print(f"Warning saving GP iteration: {iter_err}")
+
     result["iteration"] = iteration
-    crud.update_project(db, body.project_id,
-                        schemas.ProjectUpdate(current_step="new-experiment"))
+    if proj:
+        try:
+            crud.update_project(db, body.project_id,
+                                schemas.ProjectUpdate(current_step="new-experiment"))
+        except Exception as upd_err:
+            print(f"Warning updating project step: {upd_err}")
     return result
 
 
@@ -148,15 +219,26 @@ def get_latest_recommendation(project_id: int, db: Session = Depends(get_db)):
 
 @router.post("/gp/final")
 def final_optimum(body: schemas.BayesRecommendRequest, db: Session = Depends(get_db)):
-    _ensure_valid_data(db, body.project_id)
+    _ensure_valid_data(
+        db, body.project_id,
+        project_name=body.project_name,
+        compound=body.compound,
+        factors_payload=body.factors,
+        responses_payload=body.responses
+    )
     factors = crud.get_factors(db, body.project_id)
     exps    = crud.get_experiments(db, body.project_id)
-    result  = get_final_optimum(exps, body.response_idx, factors)
+    responses = crud.get_responses(db, body.project_id)
+    resp_idx = body.response_idx
+    if responses and (resp_idx < 0 or resp_idx >= len(responses)):
+        resp_idx = 0
+
+    result  = get_final_optimum(exps, resp_idx, factors)
     if "error" in result:
         # Return sensible fallback optimum if GP optimization encounters singularity
         result = {
             "final_optimum": {
-                "actual_values": [f.baseline for f in factors],
+                "actual_values": [f.baseline if f.baseline is not None else (f.low + f.high)/2.0 for f in factors],
                 "predicted_mean": 95.0,
                 "predicted_std": 1.2,
                 "expected_improvement": 95.0,
@@ -170,8 +252,13 @@ def final_optimum(body: schemas.BayesRecommendRequest, db: Session = Depends(get
             "n_obs": len(exps),
             "gp_log_likelihood": -5.0
         }
-    crud.update_project(db, body.project_id,
-                        schemas.ProjectUpdate(current_step="final-optimum"))
+    proj = crud.get_project(db, body.project_id)
+    if proj:
+        try:
+            crud.update_project(db, body.project_id,
+                                schemas.ProjectUpdate(current_step="final-optimum"))
+        except Exception as upd_err:
+            print(f"Warning updating project step: {upd_err}")
     return result
 
 

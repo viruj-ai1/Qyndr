@@ -575,6 +575,173 @@ export function generateContextAwareStages(
 }
 
 /**
+ * Generates context-aware Critical Quality Attributes (CQAs) for a project based on compound chemistry and QTPPs.
+ */
+export function generateContextAwareCQAs(project: Project | null, qtpp: QTPPItem[] = []): CQAMapping[] {
+  // If QTPPs exist, map directly from them
+  if (qtpp && qtpp.length > 0) {
+    return qtpp.map((q, idx) => {
+      let method = 'HPLC-UV (254 nm)'
+      const attrLower = (q.attribute || '').toLowerCase()
+      const typeLower = (q.type || '').toLowerCase()
+
+      if (attrLower.includes('gc') || typeLower.includes('gc')) method = 'GC-FID'
+      else if (attrLower.includes('headspace') || attrLower.includes('solvent')) method = 'GC-Headspace'
+      else if (attrLower.includes('ir') || attrLower.includes('spectrum')) method = 'FTIR Spectrometry'
+      else if (attrLower.includes('karl fischer') || attrLower.includes('water')) method = 'Karl Fischer Titration'
+      else if (attrLower.includes('rotation') || attrLower.includes('sor')) method = 'Polarimetry (589 nm)'
+      else if (attrLower.includes('melting') || attrLower.includes('dsc')) method = 'Capillary Melting Point'
+      else if (attrLower.includes('particle') || attrLower.includes('psd')) method = 'Laser Diffraction'
+      else if (typeLower.includes('impurity') || attrLower.includes('impurity')) method = 'LC-MS/MS'
+      else if (typeLower.includes('assay') || attrLower.includes('assay')) method = 'HPLC-UV (254 nm)'
+
+      let range = q.criterion || ''
+      if (q.operator && q.operator !== '=' && q.operator !== 'Conforms' && !range.startsWith(q.operator)) {
+        range = `${q.operator} ${range}`
+      }
+
+      let justification = ''
+      if (q.justification === 'Patient-Critical') {
+        justification = 'Directly impacts clinical safety and therapeutic efficacy.'
+      } else if (q.justification === 'Pharmacopoeial') {
+        justification = 'Pharmacopoeial compendial specification for release.'
+      } else if (q.justification === 'Regulatory Guideline') {
+        justification = 'ICH guideline qualification threshold for quality.'
+      } else {
+        justification = 'Essential quality attribute to satisfy finished product QTPP.'
+      }
+
+      return {
+        id: `cqa-${idx + 1}`,
+        name: q.attribute,
+        appliesTo: 'Final API',
+        stageName: '',
+        method,
+        range,
+        justification,
+        linkedQtppIds: [q.id]
+      }
+    })
+  }
+
+  // Fallback domain-specific chemistry templates
+  const comp = `${project?.compound || ''} ${project?.name || ''} ${project?.objective || ''}`.toLowerCase()
+  if (comp.includes('propofol') || comp.includes('diisopropylphenol')) {
+    return [
+      {
+        id: 'cqa-1',
+        name: 'Stage-1 Intermediate Yield (%)',
+        appliesTo: 'Intermediate',
+        stageName: 'Unit Op 1: Friedel-Crafts Alkylation Reaction',
+        method: 'HPLC-UV (254 nm)',
+        range: '≥ 85.0%',
+        justification: 'Critical intermediate reaction conversion benchmark to ensure commercial batch yield.',
+        linkedQtppIds: []
+      },
+      {
+        id: 'cqa-2',
+        name: 'Mono-alkylated Impurity: 3-isopropyl-4-HBA (%)',
+        appliesTo: 'Intermediate',
+        stageName: 'Unit Op 1: Friedel-Crafts Alkylation Reaction',
+        method: 'HPLC-UV (254 nm)',
+        range: '≤ 0.50%',
+        justification: 'Incomplete double-alkylation by-product that carries forward into final drug substance.',
+        linkedQtppIds: []
+      },
+      {
+        id: 'cqa-3',
+        name: 'Unreacted 4-Hydroxybenzoic Acid (%)',
+        appliesTo: 'Intermediate',
+        stageName: 'Unit Op 1: Friedel-Crafts Alkylation Reaction',
+        method: 'HPLC-UV (254 nm)',
+        range: '≤ 0.50%',
+        justification: 'Residual starting material indicating incomplete reaction progression.',
+        linkedQtppIds: []
+      },
+      {
+        id: 'cqa-4',
+        name: 'HPLC Assay Purity (%)',
+        appliesTo: 'Final API',
+        stageName: '',
+        method: 'HPLC-UV (275 nm)',
+        range: '≥ 98.0%',
+        justification: 'Core pharmacopoeial purity specification for Propofol API.',
+        linkedQtppIds: []
+      }
+    ]
+  }
+
+  if (comp.includes('rocuronium')) {
+    return [
+      {
+        id: 'cqa-1',
+        name: 'Stage-I Intermediate Yield (%)',
+        appliesTo: 'Intermediate',
+        stageName: 'Stage 1: Morpholine Condensation',
+        method: 'HPLC-UV (215 nm)',
+        range: '≥ 92.0%',
+        justification: 'Crucial for downstream crystallization recovery.',
+        linkedQtppIds: []
+      },
+      {
+        id: 'cqa-2',
+        name: 'Impurity A (Di-morpholine adduct) (%)',
+        appliesTo: 'Intermediate',
+        stageName: 'Stage 1: Morpholine Condensation',
+        method: 'HPLC-UV (215 nm)',
+        range: '≤ 0.50%',
+        justification: 'Critical process-related degradation impurity.',
+        linkedQtppIds: []
+      },
+      {
+        id: 'cqa-3',
+        name: 'Residual Morpholine Content (%)',
+        appliesTo: 'Intermediate',
+        stageName: 'Stage 1: Morpholine Condensation',
+        method: 'GC-FID',
+        range: '≤ 0.10%',
+        justification: 'Toxic reagent residual burden.',
+        linkedQtppIds: []
+      }
+    ]
+  }
+
+  // Generic chemical process fallback
+  return [
+    {
+      id: 'cqa-1',
+      name: 'Reaction Conversion / Assay Yield (%)',
+      appliesTo: 'Intermediate',
+      stageName: '',
+      method: 'HPLC-UV (254 nm)',
+      range: '≥ 90.0%',
+      justification: 'Primary conversion efficiency indicator.',
+      linkedQtppIds: []
+    },
+    {
+      id: 'cqa-2',
+      name: 'Critical Process Impurity (%)',
+      appliesTo: 'Intermediate',
+      stageName: '',
+      method: 'HPLC-UV (254 nm)',
+      range: '≤ 0.50%',
+      justification: 'Key process impurity required below ICH qualification limits.',
+      linkedQtppIds: []
+    },
+    {
+      id: 'cqa-3',
+      name: 'API Chromatographic Purity (%)',
+      appliesTo: 'Final API',
+      stageName: '',
+      method: 'HPLC-UV (254 nm)',
+      range: '≥ 98.5%',
+      justification: 'Finished active substance specification.',
+      linkedQtppIds: []
+    }
+  ]
+}
+
+/**
  * Generates context-aware Critical Process Parameters (CPPs) and Critical Material Attributes (CMAs)
  * for a specific stage, taking into account its unit operation, stage description, and compound.
  */

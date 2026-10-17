@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useStore, CQAMapping } from '../../store/useStore'
 import { Projects } from '../../services/api'
+import { generateContextAwareCQAs } from '../../utils/routeGenerator'
 
 export default function CQADerivation() {
   const { currentProject, qtpp, cqas, setCqas, setStep, addAuditLog } = useStore()
@@ -66,7 +67,7 @@ export default function CQADerivation() {
       })
     }
 
-    return []
+    return generateContextAwareCQAs(currentProject, qtpp)
   }
 
   const [items, setItems] = useState<CQAMapping[]>(getInitialCQAs)

@@ -2,14 +2,20 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useStore, RiskParameter } from '../../store/useStore'
 import { Projects } from '../../services/api'
-import { generateContextAwareRiskParameters, isDummyRiskParams } from '../../utils/routeGenerator'
+import { generateContextAwareRiskParameters, isDummyRiskParams, generateContextAwareCQAs } from '../../utils/routeGenerator'
 import toast from 'react-hot-toast'
 
 export default function ReverseRiskAssessment() {
   const {
-    currentProject, stages, cqas, riskAssessments,
+    currentProject, stages, cqas, setCqas, riskAssessments,
     rpnThreshold, setRpnThreshold, setRiskAssessments, setStep, addAuditLog
   } = useStore()
+
+  // Relevant CQAs for current stage (use project CQAs if defined, else fallback to suggested CQAs for compound)
+  const relevantCQAs = useMemo(() => {
+    if (cqas && cqas.length > 0) return cqas
+    return generateContextAwareCQAs(currentProject, [])
+  }, [cqas, currentProject])
 
   // Stage order index: 0 -> stages.length - 1
   const [currentStageIndex, setCurrentStageIndex] = useState(0)
@@ -25,7 +31,7 @@ export default function ReverseRiskAssessment() {
       const existing = defaultDict[st.id]?.parameters
       if (!existing || existing.length === 0 || isDummyRiskParams(existing, currentProject)) {
         defaultDict[st.id] = {
-          parameters: generateContextAwareRiskParameters(st, idx, currentProject, cqas)
+          parameters: generateContextAwareRiskParameters(st, idx, currentProject, relevantCQAs)
         }
       }
     })
@@ -41,20 +47,14 @@ export default function ReverseRiskAssessment() {
         const existing = next[st.id]?.parameters
         if (!existing || existing.length === 0 || isDummyRiskParams(existing, currentProject)) {
           next[st.id] = {
-            parameters: generateContextAwareRiskParameters(st, idx, currentProject, cqas)
+            parameters: generateContextAwareRiskParameters(st, idx, currentProject, relevantCQAs)
           }
           updated = true
         }
       })
       return updated ? next : prev
     })
-  }, [stages, currentProject?.id])
-
-  // Relevant CQAs for current stage
-  const relevantCQAs = useMemo(() => {
-    if (!currentStage) return cqas
-    return cqas
-  }, [cqas, currentStage])
+  }, [stages, currentProject?.id, relevantCQAs])
 
   // Get current stage parameters
   const rawParams = localRisk[currentStage?.id]?.parameters
@@ -246,15 +246,45 @@ export default function ReverseRiskAssessment() {
 
       {/* Relevant CQAs banner */}
       <div className="card" style={{ padding: '0.75rem 1.25rem', marginBottom: '1.25rem', background: 'rgba(99,102,241,0.06)', borderColor: 'rgba(99,102,241,0.2)' }}>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>
-          Target Quality Attributes (CQAs) for {currentStage.name}:
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+            Target Quality Attributes (CQAs) for {currentStage.name}:
+          </div>
+          {cqas.length === 0 && relevantCQAs.length > 0 && (
+            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 600 }}>Suggested for {currentProject?.compound || 'API'}</span>
+              <button
+                className="btn btn-secondary btn-xs"
+                style={{ fontSize: '0.7rem' }}
+                onClick={() => setStep('cqa')}
+              >
+                Edit in Step 03
+              </button>
+              <button
+                className="btn btn-primary btn-xs"
+                style={{ fontSize: '0.7rem' }}
+                onClick={() => {
+                  setCqas(relevantCQAs)
+                  if (currentProject) {
+                    Projects.savePhase0(currentProject.id, { cqas: relevantCQAs })
+                  }
+                  toast.success(`Saved ${relevantCQAs.length} CQAs to project`)
+                }}
+              >
+                💾 Confirm & Save CQAs
+              </button>
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
           {relevantCQAs.length === 0 ? (
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No CQAs linked yet. CQAs derived in Step 03 will appear here.</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No CQAs linked yet. CQAs derived in Step 03 will appear here.</span>
+              <button className="btn btn-secondary btn-xs" onClick={() => setStep('cqa')}>← Go to Step 03</button>
+            </div>
           ) : (
             relevantCQAs.map(c => (
-              <span key={c.id} className="badge badge-secondary" style={{ fontSize: '0.75rem' }}>
+              <span key={c.id} className="badge badge-secondary" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}>
                 • {c.name} {c.range ? `(${c.range})` : ''}
               </span>
             ))

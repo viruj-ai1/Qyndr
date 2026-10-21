@@ -415,17 +415,17 @@ a { color: inherit; text-decoration: none; }
 .hero-title span { background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .hero-sub    { font-size: 1.1rem; color: var(--text-secondary); max-width: 600px; line-height: 1.7; font-weight: 500; }
 
-.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px,1fr)); gap: 1.5rem; }
+.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
 .project-card {
   background: white; border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 1.5rem;
-  cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: var(--radius-sm); padding: 1rem 1.15rem;
+  cursor: pointer; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--shadow-sm);
 }
-.project-card:hover { border-color: var(--primary-light); transform: translateY(-4px); box-shadow: var(--shadow); }
-.project-card-name { font-weight: 800; font-size: 1.1rem; margin-bottom: 0.4rem; color: var(--text-primary); }
-.project-card-compound { font-size: 0.85rem; color: var(--accent); margin-bottom: 0.75rem; font-weight: 600; }
-.project-card-meta { display: flex; gap: 0.75rem; font-size: 0.8rem; color: var(--text-muted); flex-wrap: wrap; font-weight: 500; }
+.project-card:hover { border-color: var(--primary-light); transform: translateY(-2px); box-shadow: var(--shadow); }
+.project-card-name { font-weight: 700; font-size: 0.92rem; margin-bottom: 0.35rem; color: var(--text-primary); }
+.project-card-compound { font-size: 0.74rem; color: var(--accent); margin-bottom: 0.45rem; font-weight: 600; }
+.project-card-meta { display: flex; gap: 0.55rem; font-size: 0.72rem; color: var(--text-muted); flex-wrap: wrap; font-weight: 500; }
 
 /* ── Misc ────────────────────────────────────────────────────*/
 .divider  { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
@@ -694,4 +694,127 @@ a { color: inherit; text-decoration: none; }
   background: #fef2f2;
   border-radius: 4px;
   border: 1px solid #fecaca;
+}
+
+/* ── Stage Badges ───────────────────────────────────────────*/
+.stage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.bg-amber-50    { background-color: #fffbeb !important; }
+.text-amber-700 { color: #b45309 !important; }
+.border-amber-200 { border-color: #fde68a !important; }
+
+.bg-blue-50     { background-color: #eff6ff !important; }
+.text-blue-700  { color: #1d4ed8 !important; }
+.border-blue-200 { border-color: #bfdbfe !important; }
+
+.bg-emerald-50  { background-color: #ecfdf5 !important; }
+.text-emerald-700 { color: #047857 !important; }
+.border-emerald-200 { border-color: #a7f3d0 !important; }
+
+/* ── Landing Top-Bar Navigation ──────────────────────────────*/
+.landing-top-bar {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  width: 100%;
+}
+
+.landing-nav-container {
+  width: 100%;
+  padding: 0 2.5rem;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+/* ── Stage Filter Tabs & Cards ───────────────────────────────*/
+.stage-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stage-tab-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: var(--text-primary);
+}
+
+.stage-tab-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0, 91, 170, 0.25);
+}
+
+.stage-tab-btn.active .badge {
+  background: rgba(255, 255, 255, 0.25) !important;
+  color: white !important;
+}
+
+.stage-metric-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.stage-metric-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+  border-color: var(--primary-light);
+}
+
+.stage-metric-card.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(0, 91, 170, 0.2);
+}
+
+.stage-progress-bar {
+  height: 3.5px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 0.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.stage-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
 }

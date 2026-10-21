@@ -8,12 +8,13 @@ from typing import List, Optional, Dict, Any
 # ── Phase 0 QbD Schemas ─────────────────────────────────────
 
 class QTPPItem(BaseModel):
-
     id: str
     attribute: str
     criterion: str
     justification: str  # Pharmacopoeial / Regulatory Guideline / Patient-Critical / Internal Spec
     type: str           # Identity / Assay-Purity / Impurity / Physical Property / Residual Solvent / Microbial / Stability
+    operator: Optional[str] = None
+    acceptanceCriterion: Optional[Dict[str, Any]] = None
 
 class CQAMapping(BaseModel):
     id: str

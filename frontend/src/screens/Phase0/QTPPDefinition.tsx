@@ -1,7 +1,14 @@
 // src/screens/Phase0/QTPPDefinition.tsx – Screen A1: QTPP Definition
 import { useState, useEffect } from 'react'
-import { useStore, QTPPItem } from '../../store/useStore'
+import { useStore, QTPPItem, AcceptanceCriterion } from '../../store/useStore'
 import { Projects } from '../../services/api'
+import { CriterionInput } from '../../components/CriterionInput'
+import {
+  parseLegacyCriterion,
+  formatCriterionDisplay,
+  getCriterionOperator,
+  getDefaultCriterionForAttribute
+} from '../../utils/criterionUtils'
 import toast from 'react-hot-toast'
 
 const JUSTIFICATION_OPTIONS = [
@@ -24,24 +31,19 @@ const TYPE_OPTIONS = [
 
 function formatItems(list: QTPPItem[]): QTPPItem[] {
   return list.map(item => {
-    if (item.operator) return item
-
-    let op = '='
-    let crit = item.criterion || ''
-
-    if (crit.startsWith('>= ') || crit.startsWith('≥ ')) {
-      op = '≥'
-      crit = crit.replace(/^(>=|≥)\s*/, '')
-    } else if (crit.startsWith('<= ') || crit.startsWith('≤ ')) {
-      op = '≤'
-      crit = crit.replace(/^(<=|≤)\s*/, '')
-    } else if (crit.includes(' - ') || crit.includes(' to ')) {
-      op = 'Range'
-    } else if (crit.toLowerCase().startsWith('conforms')) {
-      op = 'Conforms'
+    let ac = item.acceptanceCriterion
+    if (!ac) {
+      ac = parseLegacyCriterion(item.criterion, item.operator, item.type)
     }
+    const op = getCriterionOperator(ac.type)
+    const crit = ac.displayString || formatCriterionDisplay(ac) || item.criterion || ''
 
-    return { ...item, operator: op, criterion: crit }
+    return {
+      ...item,
+      operator: op,
+      criterion: crit,
+      acceptanceCriterion: ac
+    }
   })
 }
 
@@ -67,13 +69,16 @@ export default function QTPPDefinition() {
   }, [currentProject?.id])
 
   const handleAddRow = () => {
+    const defaultType = 'Assay-Purity'
+    const defaultCriterion = getDefaultCriterionForAttribute(defaultType)
     const newItem: QTPPItem = {
       id: `qtpp-${Date.now()}`,
       attribute: '',
-      operator: '≥',
-      criterion: '',
+      operator: getCriterionOperator(defaultCriterion.type),
+      criterion: defaultCriterion.displayString || formatCriterionDisplay(defaultCriterion),
       justification: 'Pharmacopoeial',
-      type: 'Assay-Purity'
+      type: defaultType,
+      acceptanceCriterion: defaultCriterion
     }
     setItems(prev => [...prev, newItem])
   }
@@ -82,8 +87,50 @@ export default function QTPPDefinition() {
     setItems(items.filter(i => i.id !== id))
   }
 
+  const handleCriterionChange = (id: string, newCriterion: AcceptanceCriterion) => {
+    setItems(prev =>
+      prev.map(item => {
+        if (item.id !== id) return item
+        const op = getCriterionOperator(newCriterion.type)
+        const display = newCriterion.displayString || formatCriterionDisplay(newCriterion)
+        return {
+          ...item,
+          operator: op,
+          criterion: display,
+          acceptanceCriterion: newCriterion
+        }
+      })
+    )
+  }
+
   const handleChange = (id: string, field: keyof QTPPItem, value: string) => {
-    setItems(items.map(i => i.id === id ? { ...i, [field]: value } : i))
+    setItems(prev =>
+      prev.map(i => {
+        if (i.id !== id) return i
+        if (field === 'type') {
+          // If the criterion is currently empty, adapt default to new attribute type
+          const isEmpty =
+            !i.acceptanceCriterion ||
+            (i.acceptanceCriterion.type === 'qualitative' && !i.acceptanceCriterion.textDescription) ||
+            (i.acceptanceCriterion.type !== 'qualitative' &&
+              i.acceptanceCriterion.minValue == null &&
+              i.acceptanceCriterion.maxValue == null &&
+              i.acceptanceCriterion.targetValue == null)
+
+          if (isEmpty) {
+            const defCriterion = getDefaultCriterionForAttribute(value, i.attribute)
+            return {
+              ...i,
+              type: value,
+              operator: getCriterionOperator(defCriterion.type),
+              criterion: defCriterion.displayString || formatCriterionDisplay(defCriterion),
+              acceptanceCriterion: defCriterion
+            }
+          }
+        }
+        return { ...i, [field]: value }
+      })
+    )
   }
 
   const handleMove = (index: number, direction: 'up' | 'down') => {
@@ -158,12 +205,12 @@ export default function QTPPDefinition() {
           <table className="data-table" style={{ width: '100%', fontSize: '0.85rem' }}>
             <thead>
               <tr>
-                <th style={{ width: '5%' }}>#</th>
-                <th style={{ width: '25%' }}>Attribute Name</th>
-                <th style={{ width: '25%' }}>Target / Acceptance Criterion</th>
-                <th style={{ width: '20%' }}>Justification / Source</th>
-                <th style={{ width: '18%' }}>Attribute Type</th>
-                <th style={{ width: '7%', textAlign: 'center' }}>Actions</th>
+                <th style={{ width: '4%' }}>#</th>
+                <th style={{ width: '22%' }}>Attribute Name</th>
+                <th style={{ width: '36%' }}>Target / Acceptance Criterion</th>
+                <th style={{ width: '18%' }}>Justification / Source</th>
+                <th style={{ width: '14%' }}>Attribute Type</th>
+                <th style={{ width: '6%', textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -185,43 +232,31 @@ export default function QTPPDefinition() {
               ) : (
                 items.map((row, idx) => (
                 <tr key={row.id}>
-                  <td style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{idx + 1}</td>
-                  <td>
+                  <td style={{ color: 'var(--text-muted)', fontWeight: 600, verticalAlign: 'top', paddingTop: '1rem' }}>
+                    {idx + 1}
+                  </td>
+                  <td style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
                     <input
                       type="text"
-                      className="input input-sm"
+                      className="form-input"
+                      style={{ padding: '0.45rem 0.65rem', fontSize: '0.85rem' }}
                       placeholder="e.g. Assay (Purity)"
                       value={row.attribute}
                       onChange={e => handleChange(row.id, 'attribute', e.target.value)}
                     />
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <select
-                        className="input input-sm"
-                        style={{ width: '80px', flexShrink: 0 }}
-                        value={row.operator || '='}
-                        onChange={e => handleChange(row.id, 'operator', e.target.value)}
-                      >
-                        <option value="=">=</option>
-                        <option value="≤">≤</option>
-                        <option value="≥">≥</option>
-                        <option value="Range">Range</option>
-                        <option value="Conforms">Conforms</option>
-                      </select>
-                      <input
-                        type="text"
-                        className="input input-sm"
-                        style={{ flex: 1 }}
-                        placeholder="e.g. 99.0% w/w"
-                        value={row.criterion}
-                        onChange={e => handleChange(row.id, 'criterion', e.target.value)}
-                      />
-                    </div>
+                  <td style={{ verticalAlign: 'top', padding: '0.75rem 0.5rem' }}>
+                    <CriterionInput
+                      value={row.acceptanceCriterion}
+                      onChange={newCrit => handleCriterionChange(row.id, newCrit)}
+                      attributeType={row.type}
+                      attributeName={row.attribute}
+                    />
                   </td>
-                  <td>
+                  <td style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
                     <select
-                      className="input input-sm"
+                      className="form-select"
+                      style={{ padding: '0.45rem 0.65rem', fontSize: '0.82rem' }}
                       value={row.justification}
                       onChange={e => handleChange(row.id, 'justification', e.target.value)}
                     >
@@ -230,9 +265,10 @@ export default function QTPPDefinition() {
                       ))}
                     </select>
                   </td>
-                  <td>
+                  <td style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
                     <select
-                      className="input input-sm"
+                      className="form-select"
+                      style={{ padding: '0.45rem 0.65rem', fontSize: '0.82rem' }}
                       value={row.type}
                       onChange={e => handleChange(row.id, 'type', e.target.value)}
                     >
@@ -241,10 +277,11 @@ export default function QTPPDefinition() {
                       ))}
                     </select>
                   </td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td style={{ textAlign: 'center', verticalAlign: 'top', paddingTop: '0.9rem' }}>
                     <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                       <button
-                        className="btn btn-icon btn-xs"
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem', lineHeight: 1 }}
                         disabled={idx === 0}
                         onClick={() => handleMove(idx, 'up')}
                         title="Move Up"
@@ -252,7 +289,8 @@ export default function QTPPDefinition() {
                         ▲
                       </button>
                       <button
-                        className="btn btn-icon btn-xs"
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem', lineHeight: 1 }}
                         disabled={idx === items.length - 1}
                         onClick={() => handleMove(idx, 'down')}
                         title="Move Down"
@@ -260,7 +298,8 @@ export default function QTPPDefinition() {
                         ▼
                       </button>
                       <button
-                        className="btn btn-icon btn-xs btn-danger"
+                        className="btn btn-danger btn-sm"
+                        style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem', lineHeight: 1 }}
                         onClick={() => handleRemoveRow(row.id)}
                         title="Delete"
                       >

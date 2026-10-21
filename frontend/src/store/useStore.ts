@@ -11,6 +11,19 @@ export type Step =
   | 'gp-model' | 'bayesian-opt' | 'new-experiment' | 'lab-new'
   | 'update-model' | 'more-improvement' | 'final-optimum' | 'report'
 
+export type CriterionType = 'range' | 'upper_bound' | 'lower_bound' | 'exact' | 'qualitative'
+
+export interface AcceptanceCriterion {
+  type: CriterionType
+  minValue?: number | null
+  maxValue?: number | null
+  targetValue?: number | null
+  unit?: string
+  textDescription?: string
+  // Optional: serialized string for backward compatibility with existing backend/APIs
+  displayString?: string
+}
+
 export interface QTPPItem {
   id: string
   attribute: string
@@ -18,6 +31,7 @@ export interface QTPPItem {
   criterion: string
   justification: string
   type: string
+  acceptanceCriterion?: AcceptanceCriterion
 }
 
 export interface CQAMapping {

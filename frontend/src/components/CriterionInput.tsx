@@ -8,7 +8,6 @@ import {
   CRITERION_TYPES,
   COMMON_UNITS,
   getSuggestedUnits,
-  getSuggestedQualitative,
   getDefaultCriterionForAttribute,
   convertCriterionType,
   formatCriterionDisplay,
@@ -41,10 +40,6 @@ export const CriterionInput: React.FC<CriterionInputProps> = ({
     return getSuggestedUnits(attributeType, attributeName);
   }, [attributeType, attributeName]);
 
-  // Context-aware qualitative preset phrases
-  const suggestedQualitative = useMemo(() => {
-    return getSuggestedQualitative(attributeType, attributeName);
-  }, [attributeType, attributeName]);
 
   // Handle Type Change (preserves numbers, units, and text)
   const handleTypeChange = (newType: CriterionType) => {
@@ -297,23 +292,6 @@ export const CriterionInput: React.FC<CriterionInputProps> = ({
         </div>
       )}
 
-      {criterion.type === 'qualitative' && suggestedQualitative.length > 0 && (
-        <div className="criterion-quick-chips">
-          <span className="criterion-chips-label">Presets:</span>
-          {suggestedQualitative.slice(0, 2).map((phrase, idx) => (
-            <button
-              key={idx}
-              type="button"
-              className={`criterion-chip ${criterion.textDescription === phrase ? 'is-selected' : ''}`}
-              onClick={() => updateCriterion({ textDescription: phrase })}
-              disabled={disabled}
-              title={phrase}
-            >
-              {phrase.length > 30 ? phrase.slice(0, 28) + '...' : phrase}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* ── Inverted Range Validation Warning ── */}
       {isRangeInverted && (

@@ -48,22 +48,22 @@ export default function Sidebar() {
             onClick={() => setStep(step.key)}
             title={step.label}
           >
-            <div className="step-num" style={{ fontSize: '0.65rem' }}>
+            <div className="step-num">
               {isCompleted ? (
-                <svg width="10" height="10" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <polyline points="20,6 9,17 4,12"/>
                 </svg>
               ) : step.icon}
             </div>
-            <span style={{ fontSize: '0.8rem' }}>{step.label}</span>
+            <span className="step-label">{step.label}</span>
           </div>
         )
       })}
 
       {/* GP Loop indicator */}
-      <div style={{ margin: '1rem 1rem 0.5rem', padding: '0.6rem', background: 'rgba(99,102,241,0.08)', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.15)' }}>
-        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Bayesian Loop</div>
-        <div style={{ fontSize: '0.7rem', color: 'var(--primary-light)', lineHeight: 1.4 }}>
+      <div style={{ margin: '1rem 1rem 0.5rem', padding: '0.75rem', background: 'rgba(99,102,241,0.08)', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.15)' }}>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Bayesian Loop</div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--primary-light)', lineHeight: 1.45 }}>
           Steps 14–15 repeat per stage until optimization convergence
         </div>
       </div>

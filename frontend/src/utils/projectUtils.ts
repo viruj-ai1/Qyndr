@@ -5,14 +5,20 @@ export type ProjectStage = 'planning' | 'ongoing' | 'completed';
 
 /**
  * Classifies a project into one of the three workflow stages:
- * - Planning: Steps 1 – 7
- * - On-going: Steps 8 – 15
- * - Completed: Steps 16 – 17 or finished
+ * - Planning: Steps 1 – 7 or status === 'PLANNING'
+ * - On-going: Steps 8 – 15 or status === 'ON-GOING' / 'ONGOING'
+ * - Completed: Steps 16 – 17 or status === 'COMPLETED' or isFinished
  */
-export function getProjectStage(currentStep: number, isFinished?: boolean): ProjectStage {
-  if (isFinished || currentStep >= 16) return 'completed';
-  if (currentStep >= 8) return 'ongoing';
-  return 'planning';
+export function getProjectStage(
+  currentStep: number,
+  isFinished?: boolean,
+  status?: string
+): ProjectStage {
+  const normStatus = (status || '').trim().toUpperCase();
+  if (normStatus === 'COMPLETED' || isFinished || currentStep >= 16) return 'completed';
+  if (normStatus === 'ON-GOING' || normStatus === 'ONGOING' || (currentStep >= 8 && currentStep <= 15)) return 'ongoing';
+  if (normStatus === 'PLANNING' || currentStep <= 7) return 'planning';
+  return currentStep >= 16 ? 'completed' : currentStep >= 8 ? 'ongoing' : 'planning';
 }
 
 export const STEP_KEY_TO_NUMBER: Record<string, number> = {
@@ -84,39 +90,73 @@ export function getStepLabel(currentStep: string | number | undefined): string {
 export interface StageMeta {
   key: ProjectStage;
   title: string;
+  statusLabel: string;
   stepRange: string;
+  subtitle: string;
   includedSteps: string;
   badgeClasses: string;
   icon: string;
   accentColor: string;
+  bgLight: string;
+  borderColor: string;
+  textColor: string;
 }
 
 export const STAGE_META: Record<ProjectStage, StageMeta> = {
   planning: {
     key: 'planning',
     title: 'Planning',
+    statusLabel: 'PLANNING',
     stepRange: 'Steps 1 – 7',
+    subtitle: 'QbD Foundation & Scoping · Steps 1–7',
     includedSteps: 'Step 01 (Create Project) through Step 07 (Campaign Dashboard)',
     badgeClasses: 'bg-amber-50 text-amber-700 border-amber-200',
     icon: '📋',
-    accentColor: '#d97706'
+    accentColor: '#F59E0B',
+    bgLight: '#FFFBEB',
+    borderColor: '#FDE68A',
+    textColor: '#B45309'
   },
   ongoing: {
     key: 'ongoing',
     title: 'On-going',
+    statusLabel: 'ON-GOING',
     stepRange: 'Steps 8 – 15',
+    subtitle: 'DoE Runs & Bayesian Loop · Steps 8–15',
     includedSteps: 'Step 08 (Factors & Responses) through Step 15 (New Experiment / Bayesian Iterations)',
     badgeClasses: 'bg-blue-50 text-blue-700 border-blue-200',
     icon: '🧪',
-    accentColor: '#2563eb'
+    accentColor: '#2563EB',
+    bgLight: '#EFF6FF',
+    borderColor: '#BFDBFE',
+    textColor: '#1D4ED8'
   },
   completed: {
     key: 'completed',
     title: 'Completed',
+    statusLabel: 'COMPLETED',
     stepRange: 'Steps 16 – 17',
+    subtitle: 'Optimum & Final Reports · Steps 16–17',
     includedSteps: 'Step 16 (Final Optimum) and Step 17 (Generate Report)',
     badgeClasses: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     icon: '✅',
-    accentColor: '#059669'
+    accentColor: '#10B981',
+    bgLight: '#ECFDF5',
+    borderColor: '#A7F3D0',
+    textColor: '#047857'
   }
 };
+
+/**
+ * Formats a date string into standard DD/MM/YYYY format.
+ */
+export function formatDateDMY(dateStr: string | Date | undefined): string {
+  if (!dateStr) return 'N/A';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return 'N/A';
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+

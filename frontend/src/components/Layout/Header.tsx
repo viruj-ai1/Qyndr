@@ -10,23 +10,23 @@ export default function Header() {
       {/* Top-Left: Project Name & Details (Replaced logo and Viruj Chematrix) */}
       <div className="header-project-name">
         {currentProject ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.875rem' }}>
             <span style={{ color: 'var(--text-muted)' }}>Project:</span>
             <span style={{ color: 'var(--primary-light)', fontWeight: 700 }}>{currentProject.name}</span>
             {currentProject.compound && (
-              <span style={{ color: 'var(--accent)', fontSize: '0.78rem' }}>
+              <span style={{ color: 'var(--accent)', fontSize: '0.8125rem', fontWeight: 600 }}>
                 · {currentProject.compound}
               </span>
             )}
 
             {activeStage && (
-              <span className="badge badge-primary" style={{ marginLeft: '0.5rem', fontSize: '0.72rem' }}>
+              <span className="badge badge-primary" style={{ marginLeft: '0.5rem', fontSize: '0.75rem', padding: '0.15rem 0.5rem' }}>
                 Active Stage: {activeStage.name}
               </span>
             )}
           </div>
         ) : (
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>No project loaded</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>No project loaded</span>
         )}
       </div>
 

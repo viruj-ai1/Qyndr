@@ -12,11 +12,14 @@ export interface ProjectCardProps {
   project: any;
   onOpen: (project: any) => void;
   onDelete?: (e: React.MouseEvent, id: number) => void;
+  deleteEnabled?: boolean;
 }
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({
   project,
-  onOpen
+  onOpen,
+  onDelete,
+  deleteEnabled = false
 }) => {
   const stepNum = project._stepNum ?? getStepNumber(project.current_step);
   const stepLabel = project._stepLabel ?? getStepLabel(project.current_step);
@@ -73,6 +76,44 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             >
               {stageMeta.icon} {stageMeta.statusLabel}
             </span>
+            {deleteEnabled && onDelete && (
+              <button
+                type="button"
+                className="btn-card-delete"
+                title={`Delete ${project.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(e, project.id);
+                }}
+                style={{
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  padding: '2px 5px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  color: '#dc2626',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.color = '#ffffff';
+                  e.currentTarget.style.background = '#dc2626';
+                  e.currentTarget.style.borderColor = '#b91c1c';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.color = '#dc2626';
+                  e.currentTarget.style.background = '#fef2f2';
+                  e.currentTarget.style.borderColor = '#fecaca';
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
 

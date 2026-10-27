@@ -1,5 +1,4 @@
-// src/screens/Phase0/RouteMapping.tsx – Screen A3: Route / Stage Mapping
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useStore, StageItem } from '../../store/useStore'
 import { Projects } from '../../services/api'
 import { generateContextAwareStages, isDefaultDummyStages } from '../../utils/routeGenerator'
@@ -36,11 +35,41 @@ export default function RouteMapping() {
   const [items, setItems] = useState<StageItem[]>(getInitialStages)
   const [saving, setSaving] = useState(false)
   const [loadingAI, setLoadingAI] = useState(false)
+  const isFirstMount = useRef(true)
 
-  // Synchronize when project ID, QTPP or CQAs change
+  // Synchronize when project ID changes
   useEffect(() => {
     setItems(getInitialStages())
-  }, [currentProject?.id, qtpp.length, cqas.length])
+  }, [currentProject?.id])
+
+  // Synchronize to store and auto-save so navigating away never loses data
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      return
+    }
+    setStages(items)
+
+    if (!currentProject?.id || items.length === 0) return
+    const valid = items.filter(s => s.name.trim() !== '')
+    if (valid.length === 0) return
+
+    const timer = setTimeout(() => {
+      Projects.savePhase0(currentProject.id, { stages: valid }).catch(() => {})
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [items, currentProject?.id, setStages])
+
+  // Save to backend on unmount if valid items exist
+  useEffect(() => {
+    return () => {
+      const valid = items.filter(s => s.name.trim() !== '')
+      if (valid.length > 0 && currentProject?.id) {
+        Projects.savePhase0(currentProject.id, { stages: valid }).catch(() => {})
+      }
+    }
+  }, [items, currentProject?.id])
 
   // Detect whether the current project is scoped to a single stage / unit operation
   const projectCombined = `${currentProject?.name || ''} ${currentProject?.compound || ''} ${currentProject?.objective || ''} ${currentProject?.description || ''}`.toLowerCase()
@@ -115,6 +144,15 @@ export default function RouteMapping() {
     const fallbackStages = generateContextAwareStages(currentProject, qtpp, cqas)
     setItems(fallbackStages)
     toast.success(`Derived ${fallbackStages.length} synthesis stage(s) from project specifications & CQAs`)
+  }
+
+  const handleBack = () => {
+    setStages(items)
+    const valid = items.filter(s => s.name.trim() !== '')
+    if (valid.length > 0 && currentProject?.id) {
+      Projects.savePhase0(currentProject.id, { stages: valid }).catch(() => {})
+    }
+    setStep('cqa')
   }
 
   const handleSaveAndNext = async () => {
@@ -341,7 +379,7 @@ export default function RouteMapping() {
 
       {/* Navigation Buttons */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <button className="btn btn-secondary" onClick={() => setStep('cqa')}>
+        <button className="btn btn-secondary" onClick={handleBack}>
           ← Back to CQA Derivation
         </button>
         <button className="btn btn-primary" onClick={handleSaveAndNext} disabled={saving || items.length === 0}>

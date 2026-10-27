@@ -1,5 +1,4 @@
-// src/screens/Phase0/CQADerivation.tsx – Screen A2: CQA Derivation
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useStore, CQAMapping } from '../../store/useStore'
 import { Projects } from '../../services/api'
 import { generateContextAwareCQAs } from '../../utils/routeGenerator'
@@ -72,10 +71,40 @@ export default function CQADerivation() {
 
   const [items, setItems] = useState<CQAMapping[]>(getInitialCQAs)
   const [saving, setSaving] = useState(false)
+  const isFirstMount = useRef(true)
 
   useEffect(() => {
     setItems(getInitialCQAs())
   }, [currentProject?.id])
+
+  // Synchronize to store and auto-save so navigating away never loses data
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      return
+    }
+    setCqas(items)
+
+    if (!currentProject?.id || items.length === 0) return
+    const valid = items.filter(c => c.name.trim() !== '')
+    if (valid.length === 0) return
+
+    const timer = setTimeout(() => {
+      Projects.savePhase0(currentProject.id, { cqas: valid }).catch(() => {})
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [items, currentProject?.id, setCqas])
+
+  // Save to backend on unmount if valid items exist
+  useEffect(() => {
+    return () => {
+      const valid = items.filter(c => c.name.trim() !== '')
+      if (valid.length > 0 && currentProject?.id) {
+        Projects.savePhase0(currentProject.id, { cqas: valid }).catch(() => {})
+      }
+    }
+  }, [items, currentProject?.id])
 
   const handleAddCQA = () => {
     const newCQA: CQAMapping = {
@@ -110,6 +139,15 @@ export default function CQADerivation() {
       }
       return c
     }))
+  }
+
+  const handleBack = () => {
+    setCqas(items)
+    const valid = items.filter(c => c.name.trim() !== '')
+    if (valid.length > 0 && currentProject?.id) {
+      Projects.savePhase0(currentProject.id, { cqas: valid }).catch(() => {})
+    }
+    setStep('qtpp')
   }
 
   const handleSaveAndNext = async () => {
@@ -287,7 +325,7 @@ export default function CQADerivation() {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <button className="btn btn-secondary" onClick={() => setStep('qtpp')}>
+        <button className="btn btn-secondary" onClick={handleBack}>
           ← Back to QTPP
         </button>
         <button className="btn btn-primary" onClick={handleSaveAndNext} disabled={saving}>

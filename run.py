@@ -6,7 +6,7 @@ import subprocess
 def free_port(port):
     try:
         if os.name == 'nt':
-            cmd = f'powershell -Command "Get-NetTCPConnection -LocalPort {port} -ErrorAction SilentlyContinue | ForEach-Object {{ Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }}"'
+            cmd = f'powershell -Command "Get-NetTCPConnection -LocalPort {port} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | ForEach-Object {{ Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }}"'
             subprocess.run(cmd, shell=True, capture_output=True)
         else:
             cmd = f'lsof -ti:{port} | xargs kill -9'
@@ -19,8 +19,9 @@ def run():
     print("Starting DOE Workflow Studio...")
     print("========================================")
 
-    # Ensure port 8000 is clean before starting
+    # Ensure ports 8000 and 5173 are clean before starting
     free_port(8000)
+    free_port(5173)
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
 

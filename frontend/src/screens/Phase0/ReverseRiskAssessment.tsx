@@ -1,5 +1,4 @@
-// src/screens/Phase0/ReverseRiskAssessment.tsx – Screen A4: Reverse Risk Assessment
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useStore, RiskParameter } from '../../store/useStore'
 import { Projects } from '../../services/api'
 import { generateContextAwareRiskParameters, isDummyRiskParams, generateContextAwareCQAs } from '../../utils/routeGenerator'
@@ -37,6 +36,7 @@ export default function ReverseRiskAssessment() {
     })
     return defaultDict
   })
+  const isFirstMount = useRef(true)
 
   // Synchronize when stages or project changes
   useEffect(() => {
@@ -55,6 +55,32 @@ export default function ReverseRiskAssessment() {
       return updated ? next : prev
     })
   }, [stages, currentProject?.id, relevantCQAs])
+
+  // Synchronize to store and auto-save so navigating away never loses data
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      return
+    }
+    setRiskAssessments(localRisk)
+
+    if (!currentProject?.id || Object.keys(localRisk).length === 0) return
+
+    const timer = setTimeout(() => {
+      Projects.savePhase0(currentProject.id, { riskAssessments: localRisk }).catch(() => {})
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [localRisk, currentProject?.id, setRiskAssessments])
+
+  // Save to backend on unmount
+  useEffect(() => {
+    return () => {
+      if (currentProject?.id && Object.keys(localRisk).length > 0) {
+        Projects.savePhase0(currentProject.id, { riskAssessments: localRisk }).catch(() => {})
+      }
+    }
+  }, [localRisk, currentProject?.id])
 
   // Get current stage parameters
   const rawParams = localRisk[currentStage?.id]?.parameters
@@ -147,6 +173,15 @@ export default function ReverseRiskAssessment() {
   }, [currentParams])
 
   // Navigation between stages
+  const handleBack = () => {
+    setRiskAssessments(localRisk)
+    if (currentProject && Object.keys(localRisk).length > 0) {
+      Projects.savePhase0(currentProject.id, { riskAssessments: localRisk }).catch(() => {})
+    }
+    if (safeStageIndex > 0) setCurrentStageIndex(safeStageIndex - 1)
+    else setStep('route-mapping')
+  }
+
   const handleConfirmAndNextStage = async () => {
     const updatedDict = {
       ...localRisk,
@@ -454,10 +489,7 @@ export default function ReverseRiskAssessment() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button
           className="btn btn-secondary"
-          onClick={() => {
-            if (safeStageIndex > 0) setCurrentStageIndex(safeStageIndex - 1)
-            else setStep('route-mapping')
-          }}
+          onClick={handleBack}
         >
           ← {safeStageIndex > 0 ? `Back to Stage ${safeStageIndex}` : 'Back to Route Mapping'}
         </button>

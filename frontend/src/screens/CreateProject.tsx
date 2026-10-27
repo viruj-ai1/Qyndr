@@ -1,5 +1,4 @@
-// src/screens/CreateProject.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import { Projects } from '../services/api'
 import toast from 'react-hot-toast'
@@ -14,21 +13,40 @@ export default function CreateProject() {
   })
   const [saving, setSaving] = useState(false)
 
-  function set(key: string, val: string) { setForm(f => ({ ...f, [key]: val })) }
+  useEffect(() => {
+    setForm({
+      name:        currentProject?.name        || '',
+      compound:    currentProject?.compound    || '',
+      objective:   currentProject?.objective   || '',
+      description: currentProject?.description || '',
+    })
+  }, [currentProject?.id])
+
+  function set(key: string, val: string) {
+    setForm(f => {
+      const next = { ...f, [key]: val }
+      // Keep store updated so switching tabs doesn't wipe unsaved input
+      if (currentProject) {
+        setProject({ ...currentProject, ...next })
+      }
+      return next
+    })
+  }
 
   async function handleSave() {
     if (!form.name.trim()) { toast.error('Project name is required'); return }
     setSaving(true)
     try {
       let proj
+      const payload = { ...form, current_step: 'qtpp' }
       if (currentProject?.id) {
-        proj = await Projects.update(currentProject.id, form)
+        proj = await Projects.update(currentProject.id, payload)
       } else {
-        proj = await Projects.create(form)
+        proj = await Projects.create(payload)
       }
       setProject(proj)
       toast.success(currentProject?.id ? 'Project updated!' : 'Project created!')
-      setStep('understand-process')
+      setStep('qtpp')
     } catch (e: any) {
       toast.error(e.response?.data?.detail || 'Failed to save project')
     } finally {

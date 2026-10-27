@@ -1,4 +1,9 @@
 import { StageItem, RiskParameter, CQAMapping, Project, QTPPItem } from '../store/useStore'
+import {
+  parseLegacyCriterion,
+  formatCriterionDisplay,
+  getCriterionOperator
+} from './criterionUtils'
 
 /**
  * Dynamically derives synthetic route stages and unit operations based on project metadata.
@@ -571,6 +576,222 @@ export function generateContextAwareStages(
       description: `Controlled crystallization to deliver final API with defined polymorphic form and particle size.`,
       intermediateProduced: `Final ${compLabel} API (Unmilled)`
     }
+  ]
+}
+
+function makeQtppItem(
+  id: string,
+  attribute: string,
+  operator: string,
+  criterion: string,
+  justification: string,
+  type: string
+): QTPPItem {
+  const ac = parseLegacyCriterion(criterion, operator, type)
+  const op = getCriterionOperator(ac.type) || operator
+  const disp = ac.displayString || formatCriterionDisplay(ac) || criterion
+  return {
+    id,
+    attribute,
+    operator: op,
+    criterion: disp,
+    justification,
+    type,
+    acceptanceCriterion: ac
+  }
+}
+
+/**
+ * Attempts to parse explicit QTPP attributes directly from the user's project description or notes.
+ * E.g.: "Assay: 98.0 - 102.0%", "- Purity: >= 99.0%", "Water: <= 0.5%"
+ */
+function parseQTPPFromDescription(description: string, compound: string): QTPPItem[] | null {
+  if (!description || description.trim().length === 0) return null
+  const lines = description.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+  const items: QTPPItem[] = []
+
+  // Pattern: "[-*•] [Attribute Name] [:=-] [Criterion]"
+  const lineRegex = /^(?:[-*•]|\d+[.)])?\s*([A-Za-z0-9\s/()–—-]+?)[:=]\s*(.+)$/
+
+  for (const line of lines) {
+    const match = line.match(lineRegex)
+    if (!match) continue
+    const rawAttr = match[1].trim()
+    const rawCrit = match[2].trim()
+
+    if (rawAttr.length > 45 || rawAttr.length < 3) continue
+    const attrLower = rawAttr.toLowerCase()
+    if (
+      attrLower.includes('objective') ||
+      attrLower.includes('project') ||
+      attrLower.includes('background') ||
+      attrLower.includes('scope') ||
+      attrLower.includes('stage') ||
+      attrLower.includes('step')
+    ) {
+      continue
+    }
+
+    let type = 'Impurity'
+    let justification = 'Pharmacopoeial'
+    if (attrLower.includes('assay') || attrLower.includes('purity') || attrLower.includes('potency') || attrLower.includes('yield')) {
+      type = 'Assay-Purity'
+    } else if (attrLower.includes('ident') || attrLower.includes('ir') || attrLower.includes('nmr')) {
+      type = 'Identity'
+    } else if (
+      attrLower.includes('water') ||
+      attrLower.includes('karl') ||
+      attrLower.includes('moisture') ||
+      attrLower.includes('melt') ||
+      attrLower.includes('solid') ||
+      attrLower.includes('ph') ||
+      attrLower.includes('refract') ||
+      attrLower.includes('sor') ||
+      attrLower.includes('rotation')
+    ) {
+      type = 'Physical Property'
+    } else if (attrLower.includes('solvent')) {
+      type = 'Residual Solvent'
+      justification = 'Regulatory Guideline'
+    } else if (attrLower.includes('appear') || attrLower.includes('color') || attrLower.includes('clarity')) {
+      type = 'Appearance & Color'
+    } else if (attrLower.includes('micro') || attrLower.includes('endotoxin') || attrLower.includes('bioburden')) {
+      type = 'Microbial'
+      justification = 'Patient-Critical'
+    }
+
+    let op = '='
+    if (
+      rawCrit.includes('≤') ||
+      rawCrit.includes('<=') ||
+      rawCrit.toLowerCase().startsWith('max') ||
+      rawCrit.toLowerCase().startsWith('not more than') ||
+      rawCrit.toLowerCase().startsWith('nmt')
+    ) {
+      op = '≤'
+    } else if (
+      rawCrit.includes('≥') ||
+      rawCrit.includes('>=') ||
+      rawCrit.toLowerCase().startsWith('min') ||
+      rawCrit.toLowerCase().startsWith('not less than') ||
+      rawCrit.toLowerCase().startsWith('nlt')
+    ) {
+      op = '≥'
+    } else if (rawCrit.includes('-') || rawCrit.includes('to')) {
+      op = 'Range'
+    } else if (rawCrit.toLowerCase().includes('conform') || rawCrit.toLowerCase().includes('pass') || rawCrit.toLowerCase().includes('complies')) {
+      op = 'Conforms'
+    }
+
+    items.push(makeQtppItem(`qtpp-${items.length + 1}`, rawAttr, op, rawCrit, justification, type))
+  }
+
+  return items.length >= 2 ? items : null
+}
+
+/**
+ * Context-aware QTPP generator providing standard pharmacopoeial compendial specifications
+ * tailored to the API compound or parsed from the project description.
+ */
+export function generateContextAwareQTPP(
+  project: {
+    name?: string
+    compound?: string
+    objective?: string
+    description?: string
+  } | null
+): QTPPItem[] {
+  const name = (project?.name || '').trim()
+  const compound = (project?.compound || '').trim()
+  const objective = (project?.objective || '').trim()
+  const description = (project?.description || '').trim()
+  const comp = `${compound} ${name} ${objective} ${description}`.toLowerCase()
+
+  // 1. Check if user described explicit specifications in the project description
+  const parsedFromText = parseQTPPFromDescription(description, compound)
+  if (parsedFromText && parsedFromText.length >= 3) {
+    return parsedFromText
+  }
+
+  // 2. Specific API Compendial Monographs (USP / Ph. Eur. / IP)
+  if (comp.includes('propofol') || comp.includes('diisopropylphenol')) {
+    return [
+      makeQtppItem('qtpp-1', 'Appearance / Physical State', 'Conforms', 'Clear, colorless to very pale yellow liquid', 'Pharmacopoeial', 'Appearance & Color'),
+      makeQtppItem('qtpp-2', 'Assay (Purity)', 'Range', '98.0% - 102.0% w/w', 'Pharmacopoeial', 'Assay-Purity'),
+      makeQtppItem('qtpp-3', 'Total Impurities', '≤', '≤ 0.50% w/w', 'Pharmacopoeial', 'Impurity'),
+      makeQtppItem('qtpp-4', 'Specified Impurity A (Propofol Quinone)', '≤', '≤ 0.10% w/w', 'Pharmacopoeial', 'Impurity'),
+      makeQtppItem('qtpp-5', 'Any Unspecified / Individual Impurity', '≤', '≤ 0.10% w/w', 'Pharmacopoeial', 'Impurity'),
+      makeQtppItem('qtpp-6', 'Water Content (KF)', '≤', '≤ 0.10% w/w', 'Pharmacopoeial', 'Physical Property'),
+      makeQtppItem('qtpp-7', 'Residual Solvents', 'Conforms', 'Complies with ICH Q3C limits', 'Pharmacopoeial', 'Residual Solvent'),
+      makeQtppItem('qtpp-8', 'Refractive Index (nD20)', 'Range', '1.512 - 1.514', 'Pharmacopoeial', 'Physical Property')
+    ]
+  }
+
+  if (comp.includes('rocuronium')) {
+    return [
+      makeQtppItem('qtpp-1', 'Appearance & Description', 'Conforms', 'White to almost white or faintly yellowish hygroscopic powder', 'Pharmacopoeial', 'Appearance & Color'),
+      makeQtppItem('qtpp-2', 'Identification by IR', 'Conforms', 'Conforms to Rocuronium Bromide reference spectrum', 'Pharmacopoeial', 'Identity'),
+      makeQtppItem('qtpp-3', 'Assay (HPLC Anhydrous Basis)', 'Range', '98.0% - 102.0% w/w', 'Pharmacopoeial', 'Assay-Purity'),
+      makeQtppItem('qtpp-4', 'Impurity A (Di-morpholine adduct)', '≤', '≤ 0.50% w/w', 'Patient-Critical', 'Impurity'),
+      makeQtppItem('qtpp-5', 'Impurity C (Desallyl rocuronium)', '≤', '≤ 0.20% w/w', 'Regulatory Guideline', 'Impurity'),
+      makeQtppItem('qtpp-6', 'Total Impurities', '≤', '≤ 1.50% w/w', 'Pharmacopoeial', 'Impurity'),
+      makeQtppItem('qtpp-7', 'Specific Optical Rotation (SOR)', 'Range', '+28.0° to +32.0°', 'Pharmacopoeial', 'Physical Property'),
+      makeQtppItem('qtpp-8', 'Water Content (Karl Fischer)', '≤', '≤ 4.00% w/w', 'Pharmacopoeial', 'Physical Property'),
+      makeQtppItem('qtpp-9', 'Residual Solvents (GC Headspace)', 'Conforms', 'Complies with ICH Limits', 'Regulatory Guideline', 'Residual Solvent')
+    ]
+  }
+
+  if (comp.includes('brexpiprazole') || comp.includes('bxp')) {
+    return [
+      makeQtppItem('qtpp-1', 'Appearance & Description', 'Conforms', 'White to off-white crystalline powder', 'Pharmacopoeial', 'Appearance & Color'),
+      makeQtppItem('qtpp-2', 'Identification by IR & HPLC', 'Conforms', 'Conforms to Brexpiprazole reference standard', 'Pharmacopoeial', 'Identity'),
+      makeQtppItem('qtpp-3', 'Assay (HPLC Anhydrous)', 'Range', '98.0% - 102.0% w/w', 'Pharmacopoeial', 'Assay-Purity'),
+      makeQtppItem('qtpp-4', 'Des-benzo Impurity', '≤', '≤ 0.15% w/w', 'Patient-Critical', 'Impurity'),
+      makeQtppItem('qtpp-5', 'Single Maximum Unknown Impurity', '≤', '≤ 0.10% w/w', 'Regulatory Guideline', 'Impurity'),
+      makeQtppItem('qtpp-6', 'Total Impurities', '≤', '≤ 0.50% w/w', 'Pharmacopoeial', 'Impurity'),
+      makeQtppItem('qtpp-7', 'Water Content (Karl Fischer)', '≤', '≤ 0.50% w/w', 'Pharmacopoeial', 'Physical Property'),
+      makeQtppItem('qtpp-8', 'Residual Solvents (ICH Q3C)', 'Conforms', 'Complies with ICH Limits', 'Regulatory Guideline', 'Residual Solvent')
+    ]
+  }
+
+  if (comp.includes('fosravuconazole') || comp.includes('frz')) {
+    return [
+      makeQtppItem('qtpp-1', 'Appearance & Description', 'Conforms', 'White to off-white or pale yellow crystalline powder', 'Pharmacopoeial', 'Appearance & Color'),
+      makeQtppItem('qtpp-2', 'Identification by IR', 'Conforms', 'Conforms to Reference Spectrum', 'Pharmacopoeial', 'Identity'),
+      makeQtppItem('qtpp-3', 'Assay (HPLC Anhydrous)', 'Range', '98.0% - 102.0% w/w', 'Pharmacopoeial', 'Assay-Purity'),
+      makeQtppItem('qtpp-4', 'Diacetyl Impurity', '≤', '≤ 0.15% w/w', 'Patient-Critical', 'Impurity'),
+      makeQtppItem('qtpp-5', 'KSM-1 Residual', '≤', '≤ 0.50% w/w', 'Internal Spec', 'Impurity'),
+      makeQtppItem('qtpp-6', 'Single maximum unknown impurity', '≤', '≤ 0.10% w/w', 'Regulatory Guideline', 'Impurity'),
+      makeQtppItem('qtpp-7', 'Total Impurities', '≤', '≤ 1.00% w/w', 'Pharmacopoeial', 'Impurity'),
+      makeQtppItem('qtpp-8', 'Water Content / Karl Fischer', '≤', '≤ 0.50% w/w', 'Pharmacopoeial', 'Physical Property'),
+      makeQtppItem('qtpp-9', 'Melting point', 'Range', '152°C - 156°C', 'Pharmacopoeial', 'Physical Property')
+    ]
+  }
+
+  if (comp.includes('loxoprofen') || comp.includes('lxp')) {
+    return [
+      makeQtppItem('qtpp-1', 'Appearance & Description', 'Conforms', 'White to yellowish-white crystal or powder', 'Pharmacopoeial', 'Appearance & Color'),
+      makeQtppItem('qtpp-2', 'Identification by IR', 'Conforms', 'Conforms to Loxoprofen reference standard spectrum', 'Pharmacopoeial', 'Identity'),
+      makeQtppItem('qtpp-3', 'Assay (HPLC Titration)', 'Range', '98.5% - 101.5% w/w', 'Pharmacopoeial', 'Assay-Purity'),
+      makeQtppItem('qtpp-4', 'Related Substance A (2-(4-(bromomethyl)phenyl)propanoic acid)', '≤', '≤ 0.20% w/w', 'Patient-Critical', 'Impurity'),
+      makeQtppItem('qtpp-5', 'Single Maximum Unknown Impurity', '≤', '≤ 0.10% w/w', 'Regulatory Guideline', 'Impurity'),
+      makeQtppItem('qtpp-6', 'Total Impurities', '≤', '≤ 0.80% w/w', 'Pharmacopoeial', 'Impurity'),
+      makeQtppItem('qtpp-7', 'Water Content (Dihydrate Form)', 'Range', '11.0% - 13.0% w/w', 'Pharmacopoeial', 'Physical Property'),
+      makeQtppItem('qtpp-8', 'Residual Solvents', 'Conforms', 'Complies with ICH Class 2 & 3 Limits', 'Regulatory Guideline', 'Residual Solvent')
+    ]
+  }
+
+  // 3. Harmonized USP / Ph. Eur. Chemical Drug Substance (API) Standard Specification
+  const drugName = compound || 'API Drug Substance'
+  return [
+    makeQtppItem('qtpp-1', 'Appearance & Physical State', 'Conforms', `White to off-white crystalline solid or characteristic ${comp.includes('oil') || comp.includes('liquid') ? 'liquid' : 'powder'}`, 'Pharmacopoeial', 'Appearance & Color'),
+    makeQtppItem('qtpp-2', 'Identification by IR / Spectrometry', 'Conforms', `Conforms to ${drugName} reference standard spectrum`, 'Pharmacopoeial', 'Identity'),
+    makeQtppItem('qtpp-3', 'Assay / Potency (HPLC Anhydrous Basis)', 'Range', '98.0% - 102.0% w/w', 'Pharmacopoeial', 'Assay-Purity'),
+    makeQtppItem('qtpp-4', 'Any Individual Unknown / Unspecified Impurity', '≤', '≤ 0.10% w/w', 'Regulatory Guideline', 'Impurity'),
+    makeQtppItem('qtpp-5', 'Total Related Substances / Impurities', '≤', '≤ 1.00% w/w', 'Pharmacopoeial', 'Impurity'),
+    makeQtppItem('qtpp-6', 'Water Content / Karl Fischer Titration', '≤', '≤ 0.50% w/w', 'Pharmacopoeial', 'Physical Property'),
+    makeQtppItem('qtpp-7', 'Residue on Ignition / Sulfated Ash', '≤', '≤ 0.10% w/w', 'Pharmacopoeial', 'Impurity'),
+    makeQtppItem('qtpp-8', 'Residual Solvents (ICH Q3C Headspace GC)', 'Conforms', 'Complies with ICH Class 2 & 3 Limits', 'Regulatory Guideline', 'Residual Solvent')
   ]
 }
 

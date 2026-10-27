@@ -114,6 +114,7 @@ class ProjectBase(BaseModel):
     compound: str = ""
     objective: str = ""
     description: str = ""
+    current_step: Optional[str] = "qtpp"
 
 class ProjectCreate(ProjectBase): pass
 

@@ -290,20 +290,15 @@ class LLMChatRequest(BaseModel):
 
 @router.post("/llm-chat")
 def get_llm_chat(body: LLMChatRequest, db: Session = Depends(get_db)):
-    from services.llm_service import generate_chat_response
+    from api.chat import handle_chat_execution, ChatRequest
     proj = crud.get_project(db, body.project_id)
     if not proj: raise HTTPException(404, "Project not found")
-    factors = [{"name": f.name, "low": f.low, "high": f.high, "unit": f.unit} for f in crud.get_factors(db, body.project_id)]
-    responses = [{"name": r.name, "goal": r.goal} for r in crud.get_responses(db, body.project_id)]
-    analyses = [{"response_idx": a.response_idx, "regression": a.regression} for a in crud.get_analyses(db, body.project_id)]
-    exps = crud.get_experiments(db, body.project_id)
-    gp_opt = get_final_optimum(exps, body.response_idx, factors)
-    n_obs = len([e for e in exps if e.result_values is not None])
     
-    result = generate_chat_response(
-        proj.name, factors, responses, analyses, gp_opt, n_obs,
-        body.chat_history, body.message
+    chat_req = ChatRequest(
+        message=body.message,
+        chat_history=body.chat_history,
+        project_id=body.project_id,
+        response_idx=body.response_idx
     )
-    if "error" in result:
-        raise HTTPException(500, result["error"])
+    result = handle_chat_execution(chat_req, db)
     return result

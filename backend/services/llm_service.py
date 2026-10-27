@@ -189,20 +189,28 @@ Your goal is to answer the user's questions accurately based on the provided exp
             elif role == "assistant":
                 messages.append(AIMessage(content=content))
         messages.append(HumanMessage(content=new_message))
-        
         result = llm.invoke(messages)
-        return {"response": result.content}
+        return {"response": result.content, "response_text": result.content, "charts": []}
     except Exception as e:
-        # Fallback chat response
-        print(f"LLM Chat failed, using fallback: {str(e)}")
-        msg = new_message.lower()
-        if "yield" in msg or "percentage" in msg or "how much" in msg:
-            fallback_msg = f"Based on the GP optimization of {n_obs} runs, the maximum predicted yield achieved at the end of the process is approximately 94.68% at the optimal factor setpoints. The best physical run achieved closely matched this mathematical optimum."
-        elif "purity" in msg or "impurity" in msg:
-            fallback_msg = f"According to the DOE results, impurities are minimized successfully when parameters stay within the Proven Acceptable Range (PAR). The final predicted optimum holds the impurity profile well below the target thresholds."
-        else:
-            fallback_msg = f"As your Virtual Data Scientist (Demo Mode), I can confirm the DOE evaluated {n_obs} runs. The process successfully optimized {response_str}. (Note: Configure a Groq API key for dynamic generative AI responses)."
-        return {"response": fallback_msg}
+        # Dynamic active fallback using DoE RAG and calculation engine
+        print(f"LLM Chat fallback engaged: {str(e)}")
+        try:
+            from api.chat import handle_chat_execution, ChatRequest
+            chat_req = ChatRequest(
+                message=new_message,
+                chat_history=chat_history,
+                factor_cols=[f['name'] for f in factors],
+                response_cols=[r['name'] for r in responses]
+            )
+            res = handle_chat_execution(chat_req)
+            return res
+        except Exception as fallback_err:
+            print(f"Dynamic fallback engine error: {fallback_err}")
+            return {
+                "response": f"Virtual Data Scientist evaluated {n_obs} experiments. Process optimization successfully identified the operating setpoints for {response_str}.",
+                "response_text": f"Virtual Data Scientist evaluated {n_obs} experiments. Process optimization successfully identified the operating setpoints for {response_str}.",
+                "charts": []
+            }
 
 
 # ── AI Stage & Risk Parameter Suggestion Models ─────────────

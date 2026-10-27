@@ -2,7 +2,14 @@
 import { useState, useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import { Optimization } from '../services/api'
+import PlotlyChart from '../components/PlotlyChart'
 import toast from 'react-hot-toast'
+
+interface ChatMsg {
+  role: 'user' | 'assistant'
+  content: string
+  charts?: any[]
+}
 
 export default function FinalOptimum() {
   const { currentProject, setStep, setFinal, finalResult } = useStore()
@@ -11,7 +18,7 @@ export default function FinalOptimum() {
   const [loading, setLoading] = useState(false)
   const [aiSummary, setAiSummary] = useState<any>(null)
   const [loadingAi, setLoadingAi] = useState(false)
-  const [chatMessages, setChatMessages] = useState<{role:string, content:string}[]>([])
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([])
   const [chatInput, setChatInput] = useState('')
   const [loadingChat, setLoadingChat] = useState(false)
 
@@ -46,16 +53,21 @@ export default function FinalOptimum() {
     } finally { setLoadingAi(false) }
   }
 
-  async function handleSendChat() {
-    if (!chatInput.trim()) return
-    const msg = chatInput.trim()
-    setChatInput('')
-    const newHistory = [...chatMessages, { role: 'user', content: msg }]
+  async function handleSendChat(overrideMsg?: string) {
+    const text = overrideMsg !== undefined ? overrideMsg : chatInput
+    if (!text.trim()) return
+    const msg = text.trim()
+    if (overrideMsg === undefined) setChatInput('')
+    const newHistory: ChatMsg[] = [...chatMessages, { role: 'user', content: msg }]
     setChatMessages(newHistory)
     setLoadingChat(true)
     try {
       const data = await Optimization.llmChat(currentProject!.id, msg, chatMessages, 0)
-      setChatMessages([...newHistory, { role: 'assistant', content: data.response }])
+      setChatMessages([...newHistory, { 
+        role: 'assistant', 
+        content: data.response || data.response_text || '',
+        charts: data.charts || []
+      }])
     } catch (e: any) {
       toast.error(e.response?.data?.detail || 'Chat failed')
       setChatMessages([...newHistory, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }])
@@ -253,43 +265,165 @@ export default function FinalOptimum() {
           </div>
 
           {/* AI Chat Interaction Section */}
-          {aiSummary && (
-            <div className="card mb-2">
-              <div className="card-title" style={{ marginBottom: '1rem' }}>💬 Chat with Virtual Data Scientist</div>
-              <div style={{ background: 'var(--surface)', borderRadius: '8px', padding: '1rem', maxHeight: '300px', overflowY: 'auto', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {chatMessages.length === 0 && (
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center' }}>
-                    Ask me any questions about the data, optimal conditions, or validation experiments!
+          <div className="card mb-2" style={{ borderTop: '4px solid var(--primary-light)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <div className="card-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>💬</span> Chat with Virtual Data Scientist
+              </div>
+              <span className="badge badge-accent" style={{ fontSize: '0.72rem', letterSpacing: '0.05em' }}>
+                GROQ LLAMA-3.3-70B + DoE RAG
+              </span>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+              Query QbD regulatory guidance (ICH Q8/Q9/Q10/Q14), inspect ANOVA and Pareto significance, or request interactive 2D/3D response surface plots.
+            </p>
+
+            {/* Quick Action Suggestion Pills */}
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              {[
+                "Difference between NOR & PAR (ICH Q8)",
+                "Generate 2D contour map of sweet spot",
+                "Show Pareto chart of effects with Bonferroni line",
+                "Which factors are statistically significant CPPs?"
+              ].map((suggestion, sIdx) => (
+                <button
+                  key={sIdx}
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.78rem',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '20px',
+                    background: 'rgba(99, 102, 241, 0.08)',
+                    border: '1px solid rgba(99, 102, 241, 0.25)',
+                    color: 'var(--primary-light)',
+                    cursor: 'pointer'
+                  }}
+                  disabled={loadingChat}
+                  onClick={() => handleSendChat(suggestion)}
+                >
+                  ⚡ {suggestion}
+                </button>
+              ))}
+            </div>
+
+            {/* Chat Messages Stream */}
+            <div style={{ 
+              background: 'var(--surface)', 
+              borderRadius: '8px', 
+              padding: '1.25rem', 
+              maxHeight: '560px', 
+              overflowY: 'auto', 
+              marginBottom: '1rem', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '1.25rem',
+              border: '1px solid var(--border)'
+            }}>
+              {chatMessages.length === 0 && (
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', padding: '1.5rem' }}>
+                  Ask me any questions about your DoE dataset, optimal settings, ANOVA models, or QbD regulatory standards!
+                </div>
+              )}
+              {chatMessages.map((msg, idx) => (
+                <div 
+                  key={idx} 
+                  style={{ 
+                    alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', 
+                    background: msg.role === 'user' ? 'var(--primary-dark)' : 'var(--surface-light)', 
+                    color: msg.role === 'user' ? '#fff' : 'var(--text)', 
+                    padding: '0.85rem 1.15rem', 
+                    borderRadius: '10px', 
+                    maxWidth: msg.charts && msg.charts.length > 0 ? '95%' : '85%', 
+                    width: msg.charts && msg.charts.length > 0 ? '100%' : 'auto',
+                    fontSize: '0.9rem', 
+                    border: msg.role === 'assistant' ? '1px solid var(--border)' : 'none', 
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
+                  }}
+                >
+                  <div style={{ 
+                    fontSize: '0.72rem', 
+                    fontWeight: 700, 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.08em', 
+                    marginBottom: '0.4rem', 
+                    opacity: 0.8 
+                  }}>
+                    {msg.role === 'user' ? 'You' : 'Virtual Data Scientist'}
                   </div>
-                )}
-                {chatMessages.map((msg, idx) => (
-                  <div key={idx} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', background: msg.role === 'user' ? 'var(--primary-dark)' : 'var(--surface-light)', color: msg.role === 'user' ? '#fff' : 'var(--text)', padding: '0.75rem 1rem', borderRadius: '8px', maxWidth: '80%', fontSize: '0.9rem', border: msg.role === 'assistant' ? '1px solid var(--border)' : 'none', whiteSpace: 'pre-wrap' }}>
+
+                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.65 }}>
                     {msg.content}
                   </div>
-                ))}
-                {loadingChat && (
-                  <div style={{ alignSelf: 'flex-start', background: 'var(--surface-light)', padding: '0.75rem 1rem', borderRadius: '8px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                    Thinking...
-                  </div>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input 
-                  type="text" 
-                  className="input" 
-                  style={{ flex: 1 }}
-                  placeholder="Ask a follow-up question..." 
-                  value={chatInput} 
-                  onChange={e => setChatInput(e.target.value)} 
-                  onKeyDown={e => e.key === 'Enter' && handleSendChat()}
-                  disabled={loadingChat}
-                />
-                <button className="btn btn-primary" onClick={handleSendChat} disabled={loadingChat || !chatInput.trim()}>
-                  Send
-                </button>
-              </div>
+
+                  {/* Inline Plotly Charts */}
+                  {msg.charts && msg.charts.length > 0 && (
+                    <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {msg.charts.map((chart: any, cIdx: number) => (
+                        <div 
+                          key={cIdx} 
+                          style={{ 
+                            background: '#ffffff', 
+                            borderRadius: '8px', 
+                            padding: '0.5rem', 
+                            border: '1px solid #e2e8f0', 
+                            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                            overflow: 'hidden'
+                          }}
+                        >
+                          <PlotlyChart 
+                            data={chart.data} 
+                            layout={chart.layout} 
+                            config={chart.config || { responsive: true }} 
+                            style={{ width: '100%', minHeight: '380px' }} 
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {loadingChat && (
+                <div style={{ 
+                  alignSelf: 'flex-start', 
+                  background: 'var(--surface-light)', 
+                  padding: '0.75rem 1.25rem', 
+                  borderRadius: '10px', 
+                  fontSize: '0.9rem', 
+                  color: 'var(--text-muted)',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px' }} />
+                  Virtual Data Scientist is calculating & evaluating...
+                </div>
+              )}
             </div>
-          )}
+
+            {/* Input Row */}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input 
+                type="text" 
+                className="input" 
+                style={{ flex: 1 }}
+                placeholder="Ask about ANOVA, Pareto effects, contour sweet spots, or ICH standards..." 
+                value={chatInput} 
+                onChange={e => setChatInput(e.target.value)} 
+                onKeyDown={e => e.key === 'Enter' && handleSendChat()}
+                disabled={loadingChat}
+              />
+              <button 
+                className="btn btn-primary" 
+                onClick={() => handleSendChat()} 
+                disabled={loadingChat || !chatInput.trim()}
+              >
+                Send
+              </button>
+            </div>
+          </div>
         </>
       )}
 

@@ -1,5 +1,5 @@
-// src/components/Layout/Sidebar.tsx
-import { useStore, Step } from '../../store/useStore'
+import { useStore, Step, normalizeStep } from '../../store/useStore'
+import { Projects } from '../../services/api'
 
 interface StepDef { key: Step; label: string; icon: string; category?: string }
 
@@ -30,22 +30,79 @@ function stepIndex(s: Step) {
   return STEP_ORDER.indexOf(s)
 }
 
+function isStepDone(stepKey: Step, idx: number, currentIdx: number, store: any): boolean {
+  const { currentProject, qtpp, cqas, stages, riskAssessments, experiments, optimumResult, finalResult } = store
+  switch (stepKey) {
+    case 'create-project':
+      return Boolean(currentProject?.name)
+    case 'qtpp':
+      return Boolean((qtpp && qtpp.length > 0) || (currentProject?.qtpp_data && currentProject.qtpp_data.length > 0))
+    case 'cqa':
+      return Boolean((cqas && cqas.length > 0) || (currentProject?.cqas_data && currentProject.cqas_data.length > 0))
+    case 'route-mapping':
+      return Boolean((stages && stages.length > 0) || (currentProject?.stages_data && currentProject.stages_data.length > 0))
+    case 'risk-assessment':
+      return Boolean(
+        (riskAssessments && Object.keys(riskAssessments).length > 0) ||
+        (currentProject?.risk_assessment_data && Object.keys(currentProject.risk_assessment_data).length > 0)
+      )
+    case 'phase0-summary':
+      return Boolean((stages && stages.length > 0) || (currentProject?.stages_data && currentProject.stages_data.length > 0))
+    case 'campaign-dashboard':
+      return Boolean(currentProject)
+    case 'define-factors':
+      return Boolean(currentProject?.factors && currentProject.factors.length > 0)
+    case 'recommend-doe':
+      return Boolean(currentProject?.doe_type)
+    case 'generate-doe':
+      return Boolean(
+        experiments &&
+        experiments.length > 0 &&
+        experiments.some((e: any) => e.is_completed || (e.result_values && e.result_values.some((v: any) => v != null)))
+      )
+    case 'initial-optimization':
+      return Boolean(optimumResult)
+    case 'enough-data':
+      return Boolean(optimumResult)
+    case 'gp-model':
+      return Boolean(store.bayesResult || optimumResult)
+    case 'bayesian-opt':
+      return Boolean(store.bayesResult)
+    case 'new-experiment':
+      return Boolean(experiments && experiments.some((e: any) => e.run_type === 'Bayesian'))
+    case 'final-optimum':
+      return Boolean(finalResult || optimumResult)
+    case 'report':
+      return Boolean(finalResult || optimumResult)
+    default:
+      return idx < currentIdx
+  }
+}
+
 export default function Sidebar() {
-  const { currentStep, setStep } = useStore()
-  const currentIdx = stepIndex(currentStep)
+  const store = useStore()
+  const { currentStep, setStep, currentProject } = store
+  const currentIdx = stepIndex(normalizeStep(currentStep))
+
+  const handleStepClick = (stepKey: Step) => {
+    setStep(stepKey)
+    if (currentProject?.id) {
+      Projects.update(currentProject.id, { current_step: stepKey }).catch(() => {})
+    }
+  }
 
   return (
     <nav className="sidebar" style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 60px)' }}>
       <div className="sidebar-label">DOE Workflow Navigation</div>
 
       {WORKFLOW_STEPS.map((step, idx) => {
-        const isActive    = step.key === currentStep || (step.key === 'generate-doe' && (currentStep === 'lab-experiments' || currentStep === 'upload-results'))
-        const isCompleted = idx < currentIdx
+        const isActive = step.key === currentStep || (step.key === 'generate-doe' && (currentStep === 'lab-experiments' || currentStep === 'upload-results'))
+        const isCompleted = isStepDone(step.key, idx, currentIdx, store)
         return (
           <div
             key={step.key}
             className={`step-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
-            onClick={() => setStep(step.key)}
+            onClick={() => handleStepClick(step.key)}
             title={step.label}
           >
             <div className="step-num">

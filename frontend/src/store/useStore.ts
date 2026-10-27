@@ -171,22 +171,38 @@ const INITIAL: Omit<Store, keyof { setProject: any; setStep: any; setActiveStage
   loading:         false,
 }
 
+export function normalizeStep(s?: string | null): Step {
+  if (!s) return 'qtpp'
+  if (s === 'statistical-analysis') return 'initial-optimization'
+  if (s === 'lab-experiments' || s === 'upload-results') return 'generate-doe'
+  if (s === 'lab-new') return 'new-experiment'
+  if (s === 'update-model') return 'bayesian-opt'
+  if (s === 'more-improvement') return 'enough-data'
+  return s as Step
+}
+
 export const useStore = create<Store>()(
   persist(
     (set, get) => ({
       ...INITIAL,
-      setProject:     p  => set(state => ({
-        currentProject: p,
-        currentStep: (p?.current_step as Step) || (p ? 'qtpp' : 'create-project'),
-        qtpp: p ? (p.qtpp_data || []) : [],
-        cqas: p ? (p.cqas_data || []) : [],
-        stages: p ? (p.stages_data || []) : [],
-        riskAssessments: p ? (p.risk_assessment_data || {}) : {},
-        auditLogs: p ? (p.audit_logs || []) : [],
-        lockedCampaigns: p ? (p.locked_campaigns || []) : [],
-        experiments: p?.experiments ?? []
+      setProject:     p  => set(state => {
+        const step = p ? normalizeStep(p.current_step) : 'create-project'
+        return {
+          currentProject: p ? { ...p, current_step: step } : null,
+          currentStep: step,
+          qtpp: p ? (p.qtpp_data || []) : [],
+          cqas: p ? (p.cqas_data || []) : [],
+          stages: p ? (p.stages_data || []) : [],
+          riskAssessments: p ? (p.risk_assessment_data || {}) : {},
+          auditLogs: p ? (p.audit_logs || []) : [],
+          lockedCampaigns: p ? (p.locked_campaigns || []) : [],
+          experiments: p?.experiments ?? []
+        }
+      }),
+      setStep:         s  => set(st => ({
+        currentStep: s,
+        currentProject: st.currentProject ? { ...st.currentProject, current_step: s } : null
       })),
-      setStep:         s  => set({ currentStep: s }),
       setActiveStageId: stId => set({ activeStageId: stId }),
       setRpnThreshold: v => set({ rpnThreshold: v }),
       setQtpp:         items => set(st => ({

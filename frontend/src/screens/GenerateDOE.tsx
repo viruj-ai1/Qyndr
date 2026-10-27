@@ -134,6 +134,33 @@ export default function GenerateDOE() {
     })
   }, [displayedExperiments, responses.length])
 
+  // Debounced auto-save so typing results is never lost when navigating back or forward
+  useEffect(() => {
+    if (!currentProject) return
+    const rowsWithData = displayedExperiments.filter((e: any) => isRunPartiallyComplete(e.id))
+    if (rowsWithData.length === 0) return
+
+    const timer = setTimeout(async () => {
+      try {
+        const payload = rowsWithData.map((e: any) => ({
+          experiment_id: e.id,
+          result_values: (results[e.id] || []).map((v: any, ri: number) => {
+            if (v == null) return null
+            let num = typeof v === 'string' ? parseFloat(v) : v
+            if (isNaN(num)) return null
+            const isPercent = isPercentageResponse(responses[ri])
+            return isPercent ? Math.min(100, Math.max(0, num)) : num
+          })
+        }))
+        await Projects.uploadResults(currentProject.id, payload)
+      } catch {
+        // silent auto-save error
+      }
+    }, 1500)
+
+    return () => clearTimeout(timer)
+  }, [results, currentProject?.id])
+
   // Cell change handlers
   function handleResponseChange(expId: number, responseIdx: number, rawVal: string) {
     const resp = responses[responseIdx]
@@ -361,6 +388,32 @@ export default function GenerateDOE() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function handleBack() {
+    if (currentProject) {
+      const rowsWithData = displayedExperiments.filter((e: any) => isRunPartiallyComplete(e.id))
+      if (rowsWithData.length > 0) {
+        try {
+          const payload = rowsWithData.map((e: any) => ({
+            experiment_id: e.id,
+            result_values: (results[e.id] || []).map((v: any, ri: number) => {
+              if (v == null) return null
+              let num = typeof v === 'string' ? parseFloat(v) : v
+              if (isNaN(num)) return null
+              const isPercent = isPercentageResponse(responses[ri])
+              return isPercent ? Math.min(100, Math.max(0, num)) : num
+            })
+          }))
+          await Projects.uploadResults(currentProject.id, payload)
+          const freshExps = await Projects.getExperiments(currentProject.id)
+          setExperiments(freshExps)
+        } catch {
+          // ignore
+        }
+      }
+    }
+    setStep('recommend-doe')
   }
 
   const typeColor: Record<string, string> = {
@@ -857,7 +910,7 @@ export default function GenerateDOE() {
 
       {/* ── Step Navigation Footer ── */}
       <div className="step-nav">
-        <button className="btn btn-secondary" onClick={() => setStep('recommend-doe')}>
+        <button className="btn btn-secondary" onClick={handleBack}>
           ← Back to Recommend DOE
         </button>
 

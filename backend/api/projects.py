@@ -120,7 +120,7 @@ def upload_results(project_id: int, body: schemas.ResultsUpload,
     for r in body.results:
         cleaned_vals = _clean_response_values(db, project_id, r.result_values)
         crud.update_experiment_results(db, r.experiment_id, cleaned_vals)
-    crud.update_project(db, project_id, schemas.ProjectUpdate(current_step="statistical-analysis"))
+    crud.update_project(db, project_id, schemas.ProjectUpdate(current_step="initial-optimization"))
     return {"ok": True, "updated": len(body.results)}
 
 
@@ -363,7 +363,7 @@ def load_rocuronium_preset(db: Session = Depends(get_db)):
     crud.update_project(db, project_id, schemas.ProjectUpdate(
         doe_type="Face-Centered Central Composite (CCD)",
         bayes_iter=2,
-        current_step="statistical-analysis"
+        current_step="initial-optimization"
     ))
 
     db.commit()

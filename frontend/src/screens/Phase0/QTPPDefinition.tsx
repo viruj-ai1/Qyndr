@@ -1,5 +1,4 @@
-// src/screens/Phase0/QTPPDefinition.tsx – Screen A1: QTPP Definition
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useStore, QTPPItem, AcceptanceCriterion } from '../../store/useStore'
 import { Projects } from '../../services/api'
 import { CriterionInput } from '../../components/CriterionInput'
@@ -9,6 +8,7 @@ import {
   getCriterionOperator,
   getDefaultCriterionForAttribute
 } from '../../utils/criterionUtils'
+import { generateContextAwareQTPP } from '../../utils/routeGenerator'
 import toast from 'react-hot-toast'
 
 const JUSTIFICATION_OPTIONS = [
@@ -51,22 +51,69 @@ export default function QTPPDefinition() {
   const { currentProject, qtpp, setQtpp, setStep, addAuditLog } = useStore()
 
   // For EXISTING projects: load their saved QTPPs directly from project data or store.
-  // For NEW projects (where no QTPPs have been created or saved yet): start with a clean, blank section ([]).
+  // For NEW projects: auto-suggest standards from pharmacopoeial compendia / compound metadata.
   const getInitialItems = (): QTPPItem[] => {
     const saved = (currentProject?.qtpp_data && currentProject.qtpp_data.length > 0)
       ? currentProject.qtpp_data
       : (qtpp && qtpp.length > 0 ? qtpp : [])
 
-    return saved.length > 0 ? formatItems(saved) : []
+    if (saved.length > 0) {
+      return formatItems(saved)
+    }
+
+    if (currentProject) {
+      const suggested = generateContextAwareQTPP(currentProject)
+      if (suggested.length > 0) {
+        return formatItems(suggested)
+      }
+    }
+
+    return []
   }
 
   const [items, setItems] = useState<QTPPItem[]>(getInitialItems)
   const [saving, setSaving] = useState(false)
+  const isFirstMount = useRef(true)
 
   // Synchronize items whenever the active project changes
   useEffect(() => {
     setItems(getInitialItems())
   }, [currentProject?.id])
+
+  // Synchronize to store and auto-save so going front and back NEVER loses data
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (items.length > 0 && (!qtpp || qtpp.length === 0)) {
+        setQtpp(items)
+        if (currentProject?.id) {
+          Projects.savePhase0(currentProject.id, { qtpp: items }).catch(() => {})
+        }
+      }
+      return
+    }
+    setQtpp(items)
+
+    if (!currentProject?.id || items.length === 0) return
+    const valid = items.filter(i => i.attribute.trim() !== '')
+    if (valid.length === 0) return
+
+    const timer = setTimeout(() => {
+      Projects.savePhase0(currentProject.id, { qtpp: valid }).catch(() => {})
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [items, currentProject?.id, setQtpp])
+
+  // Save to backend on unmount if valid items exist
+  useEffect(() => {
+    return () => {
+      const valid = items.filter(i => i.attribute.trim() !== '')
+      if (valid.length > 0 && currentProject?.id) {
+        Projects.savePhase0(currentProject.id, { qtpp: valid }).catch(() => {})
+      }
+    }
+  }, [items, currentProject?.id])
 
   const handleAddRow = () => {
     const defaultType = 'Assay-Purity'
@@ -143,6 +190,36 @@ export default function QTPPDefinition() {
     setItems(updated)
   }
 
+  const handleAutoSuggest = () => {
+    if (!currentProject) return
+    const suggested = generateContextAwareQTPP(currentProject)
+    const formatted = formatItems(suggested)
+    setItems(formatted)
+    setQtpp(formatted)
+    if (currentProject.id) {
+      Projects.savePhase0(currentProject.id, { qtpp: formatted }).catch(() => {})
+    }
+    toast.success(`Loaded ${formatted.length} compendial specifications for ${currentProject.compound || 'API'}!`)
+  }
+
+  const handleClearAll = () => {
+    setItems([])
+    setQtpp([])
+    if (currentProject?.id) {
+      Projects.savePhase0(currentProject.id, { qtpp: [] }).catch(() => {})
+    }
+    toast('Cleared all QTPP specifications.')
+  }
+
+  const handleBack = () => {
+    setQtpp(items)
+    const valid = items.filter(i => i.attribute.trim() !== '')
+    if (valid.length > 0 && currentProject?.id) {
+      Projects.savePhase0(currentProject.id, { qtpp: valid }).catch(() => {})
+    }
+    setStep('create-project')
+  }
+
   const handleSaveAndNext = async () => {
     const valid = items.filter(i => i.attribute.trim() !== '')
     if (valid.length === 0) {
@@ -185,11 +262,19 @@ export default function QTPPDefinition() {
               Define attributes and criteria specific to {currentProject?.compound || 'this API'}.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={handleAutoSuggest}
+              title="Auto-suggest compendial specifications based on compound"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            >
+              <span>⚡</span> Auto-Suggest Standards
+            </button>
             {items.length > 0 && (
               <button
                 className="btn btn-secondary btn-sm"
-                onClick={() => setItems([])}
+                onClick={handleClearAll}
                 title="Clear all rows to start with a blank table"
               >
                 Clear All
@@ -200,6 +285,30 @@ export default function QTPPDefinition() {
             </button>
           </div>
         </div>
+
+        {items.length > 0 && (
+          <div style={{
+            background: 'rgba(56, 189, 248, 0.08)',
+            border: '1px solid rgba(56, 189, 248, 0.22)',
+            borderRadius: '8px',
+            padding: '0.6rem 0.9rem',
+            marginBottom: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '0.82rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1.05rem' }}>✨</span>
+              <span>
+                <strong>{items.length} Quality Attributes defined</strong> for <strong>{currentProject?.compound || 'this API'}</strong>. Changes are auto-saved in real-time.
+              </span>
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
+              ICH Q8(R2) / Pharmacopoeial Spec
+            </div>
+          </div>
+        )}
 
         <div style={{ overflowX: 'auto' }}>
           <table className="data-table" style={{ width: '100%', fontSize: '0.85rem' }}>
@@ -219,14 +328,19 @@ export default function QTPPDefinition() {
                   <td colSpan={6} style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-muted)' }}>
                     <div style={{ fontSize: '2.2rem', marginBottom: '0.6rem' }}>📋</div>
                     <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem', marginBottom: '0.35rem' }}>
-                      No QTPP Attributes Defined
+                      No QTPP Attributes Defined Yet
                     </div>
-                    <div style={{ fontSize: '0.82rem', maxWidth: '440px', margin: '0 auto 1.25rem', lineHeight: 1.5 }}>
-                      Quality Target Product Profiles vary from API to API. Click below to add quality specifications tailored to this project.
+                    <div style={{ fontSize: '0.82rem', maxWidth: '480px', margin: '0 auto 1.25rem', lineHeight: 1.5 }}>
+                      Target specifications establish the foundation of Quality by Design (QbD). You can auto-generate pharmacopoeial standards for <strong>{currentProject?.compound || 'this API'}</strong> or add custom attributes manually.
                     </div>
-                    <button className="btn btn-primary btn-sm" onClick={handleAddRow}>
-                      + Add Quality Attribute
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+                      <button className="btn btn-primary btn-sm" onClick={handleAutoSuggest}>
+                        ⚡ Auto-Suggest Compendial Specifications
+                      </button>
+                      <button className="btn btn-secondary btn-sm" onClick={handleAddRow}>
+                        + Add Quality Attribute
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -314,7 +428,10 @@ export default function QTPPDefinition() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+        <button className="btn btn-secondary" onClick={handleBack}>
+          ← Back to Create Project
+        </button>
         <button className="btn btn-primary" onClick={handleSaveAndNext} disabled={saving}>
           {saving ? 'Saving...' : 'Confirm & Proceed to CQA Derivation →'}
         </button>

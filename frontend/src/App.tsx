@@ -1,5 +1,5 @@
 // src/App.tsx  –  Root application component with step-based routing
-import { useStore, Step } from './store/useStore'
+import { useStore, Step, normalizeStep } from './store/useStore'
 import Sidebar from './components/Layout/Sidebar'
 import Header  from './components/Layout/Header'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -27,7 +27,7 @@ import NewExperiment       from './screens/NewExperiment'
 import FinalOptimum        from './screens/FinalOptimum'
 import Report              from './screens/Report'
 
-const SCREEN_MAP: Record<Step, React.FC> = {
+const SCREEN_MAP: Record<string, React.FC> = {
   'welcome':               Welcome,
   'create-project':        CreateProject,
   'qtpp':                  QTPPDefinition,
@@ -42,6 +42,7 @@ const SCREEN_MAP: Record<Step, React.FC> = {
   'generate-doe':          GenerateDOE,
   'lab-experiments':       GenerateDOE,
   'upload-results':        GenerateDOE,
+  'statistical-analysis':  InitialOptimization,
   'initial-optimization':  InitialOptimization,
   'enough-data':           EnoughData,
   'gp-model':              GPModel,
@@ -57,7 +58,8 @@ const SCREEN_MAP: Record<Step, React.FC> = {
 
 export default function App() {
   const { currentStep } = useStore()
-  const Screen = SCREEN_MAP[currentStep] || Welcome
+  const normalized = normalizeStep(currentStep)
+  const Screen = SCREEN_MAP[normalized] || SCREEN_MAP[currentStep] || Welcome
 
   if (currentStep === 'welcome') {
     return (

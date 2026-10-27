@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useStore, Factor, Response, isPercentageResponse } from '../store/useStore'
 import { Projects } from '../services/api'
 import toast from 'react-hot-toast'
@@ -28,6 +28,18 @@ export default function DefineFactors() {
       .filter((r: any) => !['impurity b', 'impurity c'].includes(r.name.toLowerCase().trim()))
   )
   const [saving, setSaving]       = useState(false)
+  const isFirstMount = useRef(true)
+
+  // Keep store in sync so switching steps never wipes factors or responses
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      return
+    }
+    if (currentProject) {
+      setProject({ ...currentProject, factors, responses })
+    }
+  }, [factors, responses])
 
   /* ── Factors helpers ─── */
   const addFactor = () => setFactors(f => [...f, emptyFactor()])
@@ -201,7 +213,17 @@ export default function DefineFactors() {
       </div>
 
       <div className="step-nav">
-        <button className="btn btn-secondary" onClick={() => setStep('understand-process')}>← Back</button>
+        <button
+          className="btn btn-secondary"
+          onClick={() => {
+            if (currentProject) {
+              setProject({ ...currentProject, factors, responses })
+            }
+            setStep('campaign-dashboard')
+          }}
+        >
+          ← Back to Campaign Dashboard
+        </button>
         <div style={{ display:'flex', gap:'0.75rem', alignItems:'center' }}>
           <span style={{ fontSize:'0.8rem', color:'var(--text-muted)' }}>{factors.length} factors · {responses.length} responses</span>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>

@@ -23,10 +23,16 @@ if _root_dir not in sys.path:
     sys.path.insert(0, _root_dir)
 
 from database import get_db, crud
+from services.project_context import build_full_project_context, format_project_context_markdown
 from src.agent import DoEAgent
 from src.doe_engine import analyze_doe_run_table, generate_doe_design, optimize_desirability
 from src.qbd_rag import query_qbd_regulatory_guidance
-from src.viz_engine import create_pareto_chart, create_contour_plot, create_3d_surface
+from src.viz_engine import (
+    create_pareto_chart,
+    create_contour_plot,
+    create_3d_surface,
+    create_residual_diagnostics
+)
 
 router = APIRouter(prefix="", tags=["Chat"])
 
@@ -34,6 +40,22 @@ router = APIRouter(prefix="", tags=["Chat"])
 # =============================================================================
 # Request & Response Schemas
 # =============================================================================
+
+def sanitize_chat_history(history: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    """Sanitizes incoming chat history to role and string content to avoid Pydantic validation errors."""
+    if not history:
+        return []
+    clean = []
+    for item in history:
+        if not isinstance(item, dict):
+            continue
+        role = item.get("role", "user")
+        content = item.get("content", "")
+        if not isinstance(content, str):
+            content = json.dumps(content) if content is not None else ""
+        clean.append({"role": role, "content": content})
+    return clean
+
 
 class ChatRequest(BaseModel):
     message: str
@@ -139,20 +161,52 @@ def handle_chat_execution(
 ) -> Dict[str, Any]:
     """
     Executes the Virtual Data Scientist agent:
-    1. Injects dataset into DoEAgent and calls Groq with tool calling.
-    2. If Groq API key is invalid/missing, applies dynamic data-driven calculations
-       and generates real Plotly charts (Contour, Pareto, 3D surface) or ICH Q8/Q9/Q10/Q14 citations.
+    1. Compiles full QbD & DoE project context (QTPP, CQAs, Synthesis Route, Risk Assessment, ANOVA, Optimum).
+    2. Runs DoEAgent with Groq tool calling (supporting llama-3.3-70b-versatile and fallback models).
+    3. If external LLM is unavailable, executes Data-Driven Dynamic Fallback:
+       - Runs deterministic OLS regression on active dataset
+       - Calculates exact ANOVA F-values, p-values, R², and Lack-of-Fit
+       - Generates interactive Plotly charts (Contour, Pareto, 3D Surface, 4-in-1 Diagnostics)
+       - Synthesizes a grounded scientific narrative tailored to the active compound and prompt.
     """
+    clean_history = sanitize_chat_history(body.chat_history)
+    project_ctx = None
+    project_dossier = None
+
+    # 1. Compile full pharmaceutical dossier if project_id and db are provided
+    if body.project_id is not None and db is not None:
+        try:
+            project_ctx = build_full_project_context(body.project_id, db)
+            project_dossier = format_project_context_markdown(project_ctx)
+        except Exception as e:
+            print(f"[Project Context Info] Context builder note: {e}")
+
     df, f_cols, r_cols = extract_dataframe(body, db)
+
+    # Enrich factor & response columns from project context if missing
+    if project_ctx:
+        if not f_cols and project_ctx.get("factors"):
+            f_cols = [f["name"] for f in project_ctx["factors"]]
+        if not r_cols and project_ctx.get("responses"):
+            r_cols = [r["name"] for r in project_ctx["responses"]]
+        if (df is None or len(df) == 0) and project_ctx.get("dataframe") is not None and not project_ctx["dataframe"].empty:
+            df = project_ctx["dataframe"]
+
     user_msg = body.message.strip()
     msg_lower = user_msg.lower()
+    compound_name = (project_ctx.get("compound") if project_ctx else None) or "Active API"
 
-    # 1. Attempt dynamic agent invocation with Groq
+    # 2. Attempt dynamic agent invocation with Groq (with model fallback)
     groq_key = os.getenv("GROQ_API_KEY")
     if groq_key:
         try:
-            agent = DoEAgent(dataset=df, api_key=groq_key)
-            result = agent.run_structured(user_msg, dataset=df, chat_history=body.chat_history)
+            agent = DoEAgent(
+                dataset=df,
+                api_key=groq_key,
+                project_context=project_ctx,
+                project_dossier=project_dossier
+            )
+            result = agent.run_structured(user_msg, dataset=df, chat_history=clean_history)
             return {
                 "status": "success",
                 "response": result["response_text"],
@@ -162,9 +216,9 @@ def handle_chat_execution(
             }
         except Exception as e:
             err_str = str(e)
-            print(f"[DoE Agent Info] Groq execution fallback engaged: {err_str}")
+            print(f"[DoE Agent Info] LLM execution fallback engaged: {err_str}")
 
-    # 2. Active Dynamic Fallback Engine (computes real statistical values & charts)
+    # 3. Active Data-Driven Dynamic Fallback Engine
     charts = []
     response_paragraphs = []
 
@@ -177,16 +231,25 @@ def handle_chat_execution(
         r"\batp\b", r"\bmodr\b", r"proven acceptable", r"normal operating",
         r"difference between"
     ]
-    is_qbd_inquiry = any(re.search(p, msg_lower) for p in qbd_patterns) and not ("pareto" in msg_lower or "contour" in msg_lower or "plot" in msg_lower)
+    is_qbd_inquiry = any(re.search(p, msg_lower) for p in qbd_patterns) and not any(k in msg_lower for k in ("pareto", "contour", "plot", "surface", "diagnostic"))
     if is_qbd_inquiry:
         reg_result = query_qbd_regulatory_guidance(user_msg)
         if reg_result.get("status") == "success" and reg_result.get("results"):
             top = reg_result["results"][0]
             response_paragraphs.append(
-                f"### Regulatory Guidance & Quality by Design Standards\n\n"
-                f"**Citation:** {top['citation']}\n\n"
+                f"### Regulatory Guidance & Quality by Design Standards for {compound_name}\n\n"
+                f"**Formal Regulatory Citation:** {top['citation']}\n\n"
                 f"{top['content']}"
             )
+            # If NOR vs PAR, add project-specific ranges if available
+            if "nor" in msg_lower or "par" in msg_lower or "difference between" in msg_lower:
+                fo = project_ctx.get("final_optimum") if project_ctx else None
+                if fo and (fo.get("nor") or fo.get("par")):
+                    response_paragraphs.append(
+                        f"#### Application to {compound_name} Process:\n"
+                        f"- **Normal Operating Ranges (NOR)**: The routine operational target envelope maintained by standard operating procedures.\n"
+                        f"- **Proven Acceptable Ranges (PAR)**: The validated experimental design space envelope wherein CQAs remain within acceptance limits."
+                    )
             return {
                 "status": "success",
                 "response": "\n\n".join(response_paragraphs),
@@ -214,7 +277,7 @@ def handle_chat_execution(
         sig_names = [c["term"] for c in sig_factors]
 
         # 1. Pareto Chart
-        if "pareto" in msg_lower or "effect" in msg_lower or "significant" in msg_lower or "t-value" in msg_lower:
+        if "pareto" in msg_lower or "effect" in msg_lower or ("significant" in msg_lower and "chart" in msg_lower) or "t-value" in msg_lower:
             try:
                 p_chart = create_pareto_chart(model_analysis, alpha=0.05)
                 charts.append(p_chart)
@@ -222,7 +285,7 @@ def handle_chat_execution(
                 print(f"Pareto generation: {e}")
 
         # 2. 2D Contour Plot
-        if "contour" in msg_lower or "sweet spot" in msg_lower or "operating region" in msg_lower or "map" in msg_lower or "plot" in msg_lower or "visual" in msg_lower:
+        if "contour" in msg_lower or "sweet spot" in msg_lower or "operating region" in msg_lower or "map" in msg_lower or ("plot" in msg_lower and "2d" in msg_lower) or "visual" in msg_lower:
             try:
                 fx = f_cols[0] if len(f_cols) > 0 else "Temperature"
                 fy = f_cols[1] if len(f_cols) > 1 else "Reaction_Time"
@@ -241,7 +304,15 @@ def handle_chat_execution(
             except Exception as e:
                 print(f"3D Surface generation: {e}")
 
-        # Synthesize analytical explanation
+        # 4. 4-in-1 Residual Diagnostics
+        if "diagnostic" in msg_lower or "residual" in msg_lower or "q-q" in msg_lower or "qq" in msg_lower or "homoscedastic" in msg_lower:
+            try:
+                d_chart = create_residual_diagnostics(model_analysis, response_name=first_resp)
+                charts.append(d_chart)
+            except Exception as e:
+                print(f"Diagnostics generation: {e}")
+
+        # Synthesize analytical explanation tailored to active compound and dataset
         r2 = metrics.get("r_squared")
         r2_str = f"{r2:.4f}" if isinstance(r2, (int, float)) else "N/A"
         adj_r2 = metrics.get("adj_r_squared")
@@ -257,24 +328,36 @@ def handle_chat_execution(
         lof_p_str = f"{lof_p:.4f}" if isinstance(lof_p, (int, float)) else str(lof_p or "N/A")
 
         response_paragraphs.append(
-            f"### Virtual Data Scientist Findings (Active Dataset Analysis)\n\n"
-            f"Based on the evaluated **{len(df)} experimental runs** across factors `{', '.join(f_cols)}` for response **{first_resp}**:\n\n"
-            f"1. **Model Fit & ANOVA Significance**:\n"
-            f"   - **Overall Model F-value**: {f_val_str} ($p = {p_val_str}$, statistically significant).\n"
-            f"   - **Coefficient of Determination ($R^2$)**: {r2_str} (Adjusted $R^2$: {adj_r2_str}).\n"
-            f"   - **Lack-of-Fit Test**: $F = {lof_f_str}$ ($p = {lof_p_str}$), confirming adequate mathematical representation.\n\n"
+            f"### Virtual Data Scientist Findings: {compound_name} Process Evaluation\n\n"
+            f"Based on **{len(df)} physical experimental runs** across parameters `{', '.join(f_cols)}` targeting response **{first_resp}**:\n\n"
+            f"1. **ANOVA & Model Significance (ICH Q8 Standards)**:\n"
+            f"   - **Overall Model F-value**: {f_val_str} ($p = {p_val_str}$, statistically significant regression).\n"
+            f"   - **Coefficients of Determination**: $R^2 = {r2_str}$ | Adjusted $R^2 = {adj_r2_str}$.\n"
+            f"   - **Lack-of-Fit Test**: $F = {lof_f_str}$ ($p = {lof_p_str}$), indicating adequate quadratic surface representation.\n\n"
             f"2. **Critical Process Parameters (CPPs)**:\n"
-            f"   - Factors demonstrating statistical significance ($p < 0.05$): **{', '.join(sig_names) if sig_names else 'None (p > 0.05)'}**.\n"
-            f"   - These parameters exhibit strong direct effects on {first_resp} and must be strictly controlled within the Proven Acceptable Range (PAR).\n\n"
-            f"3. **Optimization & Visual Space**:\n"
-            f"   - The interactive charts below illustrate the standardized effect rankings and multi-dimensional sweet spot operating region."
+            f"   - Statistically significant terms ($p < 0.05$): **{', '.join(sig_names) if sig_names else 'None (p > 0.05)'}**.\n"
+            f"   - These factors directly govern conversion and quality attributes for {compound_name} and must be operated strictly within the Proven Acceptable Range (PAR).\n\n"
+            f"3. **Optimization & Visual Design Space**:\n"
+            f"   - Standardized effect rankings, sweet spot operating regions, and residual diagnostics are rendered interactively below."
         )
+
+        # Include Optimum coordinates if available from project context
+        if project_ctx and project_ctx.get("final_optimum"):
+            fo = project_ctx["final_optimum"]
+            opt_mean = fo.get("predicted_mean")
+            mean_str = f"{opt_mean:.3f}" if isinstance(opt_mean, (int, float)) else str(opt_mean or "")
+            settings_str = ", ".join([f"`{k}`: {v}" for k, v in fo.get("factor_settings", {}).items()])
+            response_paragraphs.append(
+                f"4. **Global Optimum Factor Setpoints**:\n"
+                f"   - **Predicted Optimum Mean**: **{mean_str}** (95% CI: {fo.get('confidence_95')})\n"
+                f"   - **Optimal Coordinates**: {settings_str}"
+            )
 
     else:
         response_paragraphs.append(
-            f"As your Virtual Data Scientist, I have evaluated the current session's {len(df)} runs. "
-            f"You can ask me to fit models, generate 2D contour maps, render Pareto charts with significance thresholds, "
-            f"or explain ICH Q8/Q9 regulatory differences like NOR vs. PAR."
+            f"As Lead Process Development Scientist for **{compound_name}**, I have evaluated the project dataset ({len(df)} runs). "
+            f"You can request 2D contour maps of the sweet spot, Pareto charts with Bonferroni thresholds, "
+            f"4-in-1 residual diagnostic plots, or query ICH Q8/Q9 regulatory distinctions like NOR vs. PAR."
         )
 
     full_text = "\n\n".join(response_paragraphs)

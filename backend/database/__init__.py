@@ -8,7 +8,12 @@ from dotenv import load_dotenv
 
 load_dotenv(pathlib.Path(__file__).parent.parent / ".env")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./doe_workflow.db")
+_backend_dir = pathlib.Path(__file__).resolve().parent.parent
+_env_db = os.getenv("DATABASE_URL")
+if not _env_db or _env_db == "sqlite:///./doe_workflow.db":
+    DATABASE_URL = f"sqlite:///{(_backend_dir / 'doe_workflow.db').as_posix()}"
+else:
+    DATABASE_URL = _env_db
 
 engine = create_engine(
     DATABASE_URL,

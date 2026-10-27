@@ -283,6 +283,66 @@ def test_chat_request_schema_with_charts_in_history():
 
 
 # =============================================================================
+# Test 6: Project Context Aggregator & Markdown Formatter
+# =============================================================================
+
+def test_full_project_context_aggregator():
+    """Verify that build_full_project_context and format_project_context_markdown compile the pharmaceutical dossier."""
+    from backend.database import get_db, crud
+    from backend.services.project_context import build_full_project_context, format_project_context_markdown
+
+    db = next(get_db())
+    projs = crud.get_projects(db)
+    if projs:
+        pid = projs[0].id
+        ctx = build_full_project_context(pid, db)
+        assert ctx["project_id"] == pid
+        assert "compound" in ctx
+        assert "qtpp" in ctx
+        assert "cqas" in ctx
+        assert "stages" in ctx
+        assert "factors" in ctx
+        assert "responses" in ctx
+
+        dossier = format_project_context_markdown(ctx)
+        assert len(dossier) > 100
+        assert ctx["compound"] in dossier or ctx["name"] in dossier
+
+
+# =============================================================================
+# Test 7: 4-in-1 Residual Diagnostics Visualization
+# =============================================================================
+
+def test_residual_diagnostics_plot():
+    """Verify that create_residual_diagnostics returns a 4-in-1 Plotly dashboard specification."""
+    from src.viz_engine import create_residual_diagnostics
+
+    sample_model = {
+        "response": "Purity",
+        "fitted_values": [90.0, 92.5, 95.0, 91.5, 94.0],
+        "residuals": [0.2, -0.3, 0.1, -0.4, 0.4]
+    }
+    diag = create_residual_diagnostics(sample_model, response_name="Purity")
+    assert "data" in diag
+    assert "layout" in diag
+    assert len(diag["data"]) >= 4
+    types = [t["type"] for t in diag["data"]]
+    assert "scatter" in types
+    assert "histogram" in types
+
+
+# =============================================================================
+# Test 8: Agent Context Dossier Grounding
+# =============================================================================
+
+def test_agent_context_dossier_grounding():
+    """Verify that DoEAgent injects project dossier into system prompt."""
+    dossier = "Target Compound: Rocuronium Bromide. CQA: Impurity A <= 0.15%."
+    agent = DoEAgent(project_dossier=dossier, api_key="dummy_key")
+    assert agent.project_dossier == dossier
+
+
+# =============================================================================
 # Standalone execution
 # =============================================================================
 
@@ -302,5 +362,14 @@ if __name__ == "__main__":
 
     test_chat_request_schema_with_charts_in_history()
     print("[PASS] Test 5: Chat request schema with charts in history passed.")
+
+    test_full_project_context_aggregator()
+    print("[PASS] Test 6: Full project context aggregator passed.")
+
+    test_residual_diagnostics_plot()
+    print("[PASS] Test 7: 4-in-1 residual diagnostics plot passed.")
+
+    test_agent_context_dossier_grounding()
+    print("[PASS] Test 8: Agent context dossier grounding passed.")
     
-    print("\nAll 5 Groq Orchestrator tests PASSED successfully!")
+    print("\nAll 8 Groq Orchestrator tests PASSED successfully!")

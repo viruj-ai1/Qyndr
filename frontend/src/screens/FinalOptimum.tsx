@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import { Optimization } from '../services/api'
 import PlotlyChart from '../components/PlotlyChart'
+import { MarkdownMessage } from '../components/MarkdownMessage'
 import toast from 'react-hot-toast'
 
 interface ChatMsg {
@@ -65,7 +66,7 @@ export default function FinalOptimum() {
       // Send lightweight history containing only role and text content (avoid sending heavy plot payloads)
       const cleanHistory = chatMessages.map(m => ({
         role: m.role,
-        content: m.content
+        content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content)
       }))
       const data = await Optimization.llmChat(currentProject!.id, msg, cleanHistory, 0)
       setChatMessages([...newHistory, { 
@@ -271,9 +272,14 @@ export default function FinalOptimum() {
 
           {/* AI Chat Interaction Section */}
           <div className="card mb-2" style={{ borderTop: '4px solid var(--primary-light)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <div className="card-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span>💬</span> Chat with Virtual Data Scientist
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div className="card-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>💬</span> Chat with Virtual Data Scientist
+                </div>
+                <span className="badge badge-primary" style={{ fontSize: '0.74rem', letterSpacing: '0.04em', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary-light)', border: '1px solid rgba(99, 102, 241, 0.28)' }}>
+                  Active Context: {currentProject?.compound || currentProject?.name || 'Active Project'} · {fr?.n_obs || 0} Runs
+                </span>
               </div>
               <span className="badge badge-accent" style={{ fontSize: '0.72rem', letterSpacing: '0.05em' }}>
                 GROQ LLAMA-3.3-70B + DoE RAG
@@ -281,16 +287,18 @@ export default function FinalOptimum() {
             </div>
 
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-              Query QbD regulatory guidance (ICH Q8/Q9/Q10/Q14), inspect ANOVA and Pareto significance, or request interactive 2D/3D response surface plots.
+              Query QbD regulatory guidance (ICH Q8/Q9/Q10/Q14), inspect ANOVA and Pareto significance, request interactive 2D/3D response surface plots, or generate 4-in-1 model diagnostics.
             </p>
 
             {/* Quick Action Suggestion Pills */}
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
               {[
-                "Difference between NOR & PAR (ICH Q8)",
-                "Generate 2D contour map of sweet spot",
+                `Difference between NOR & PAR (${currentProject?.compound || 'ICH Q8'})`,
+                "Generate 2D sweet spot contour map",
                 "Show Pareto chart of effects with Bonferroni line",
-                "Which factors are statistically significant CPPs?"
+                "Show 4-in-1 residual diagnostics",
+                "Identify critical interaction effects & CPPs",
+                "Recommend next validation run settings"
               ].map((suggestion, sIdx) => (
                 <button
                   key={sIdx}
@@ -328,7 +336,7 @@ export default function FinalOptimum() {
             }}>
               {chatMessages.length === 0 && (
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', padding: '1.5rem' }}>
-                  Ask me any questions about your DoE dataset, optimal settings, ANOVA models, or QbD regulatory standards!
+                  Ask me any questions about your DoE dataset, optimal settings, ANOVA models, or QbD regulatory standards for {currentProject?.compound || 'your API'}!
                 </div>
               )}
               {chatMessages.map((msg, idx) => (
@@ -358,9 +366,11 @@ export default function FinalOptimum() {
                     {msg.role === 'user' ? 'You' : 'Virtual Data Scientist'}
                   </div>
 
-                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.65 }}>
-                    {msg.content}
-                  </div>
+                  {msg.role === 'assistant' ? (
+                    <MarkdownMessage content={msg.content} />
+                  ) : (
+                    <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{msg.content}</div>
+                  )}
 
                   {/* Inline Plotly Charts */}
                   {msg.charts && msg.charts.length > 0 && (

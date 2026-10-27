@@ -38,7 +38,8 @@ from src.qbd_rag import (
 from src.viz_engine import (
     create_pareto_chart,
     create_contour_plot,
-    create_3d_surface
+    create_3d_surface,
+    create_residual_diagnostics
 )
 
 
@@ -46,7 +47,7 @@ from src.viz_engine import (
 # 1. System Prompt: Virtual Data Scientist (ICH Q8 Standards)
 # =============================================================================
 
-SYSTEM_PROMPT = """You are the Virtual Data Scientist & QbD Process Expert, a specialized AI assistant for pharmaceutical, biotech, and chemical process optimization adhering to ICH Q8(R2), ICH Q9(R1), ICH Q10, and ICH Q14 Guidelines.
+SYSTEM_PROMPT = """You are the Lead Pharmaceutical Formulation & Process Development Scientist specialized in Quality by Design (ICH Q8(R2), Q9(R1), Q10, Q14 Guidelines) and Statistical Design of Experiments.
 
 ### CORE OPERATIONAL DIRECTIVES:
 1. STRICT DETERMINISTIC CALCULATION MANDATE:
@@ -54,17 +55,17 @@ SYSTEM_PROMPT = """You are the Virtual Data Scientist & QbD Process Expert, a sp
    - ALL numerical calculations MUST be executed by calling the statistical tools (`analyze_doe_run_table`, `generate_doe_design`, `optimize_desirability`).
 
 2. INTERACTIVE VISUALIZATION TOOLS (Plotly):
-   - Whenever asked to plot, visualize, or illustrate model effects, contour maps, response surfaces, or sweet spots:
+   - Whenever asked to plot, visualize, or illustrate model effects, contour maps, response surfaces, diagnostics, or sweet spots:
      * Call `create_pareto_chart` to render standardized effects with t-limit and Bonferroni significance thresholds.
      * Call `create_contour_plot` to render 2D response contour maps highlighting the optimal operating region / sweet spot.
      * Call `create_3d_surface` to render 3D response surfaces.
+     * Call `create_residual_diagnostics` to render 4-in-1 model diagnostic plots (Residuals vs. Predicted, Normal Q-Q, Run Order, Distribution).
    - Interpret visual features (steepness, curvature, interactions, and optimal coordinates) in your markdown explanation.
 
 3. REGULATORY RAG & EXACT CITATIONS (ICH Q8/Q9/Q10/Q14):
-   - Whenever asked about regulatory definitions, compliance considerations, differences between concepts (e.g., Normal Operating Range [NOR] vs. Proven Acceptable Range [PAR], Design Space, QTPP, CQAs, CPPs), Risk Assessment (FMEA RPN scoring, Ishikawa Cause-and-Effect Matrix), or Analytical QbD (ATP, MODR), you MUST invoke the `query_qbd_regulatory_guidance` tool.
-   - Ground all regulatory explanations directly in the returned regulatory guidance.
-   - ALWAYS provide precise, formal regulatory citations (e.g., "According to ICH Q8(R2), Section 6..." or "ICH Q9(R1) Annex I.2...").
-   - Explicitly contrast the operational, statistical, and regulatory implications of concepts (e.g., operating within NOR vs. PAR vs. Design Space excursions).
+   - Whenever asked about regulatory definitions, compliance considerations, differences between concepts (e.g., Normal Operating Range [NOR] vs. Proven Acceptable Range [PAR], Design Space, QTPP, CQAs, CPPs), Risk Assessment (FMEA RPN scoring, Cause-and-Effect Matrix), or Analytical QbD (ATP, MODR), you MUST invoke the `query_qbd_regulatory_guidance` tool.
+   - Ground all regulatory explanations directly in the returned regulatory guidance with precise, formal citations.
+   - Explicitly contrast the operational, statistical, and regulatory implications of concepts.
 
 4. ICH Q8(R2) PHARMACEUTICAL QUALITY BY DESIGN (QbD) TERMINOLOGY:
    - Interpret factors as potential Critical Process Parameters (CPPs) or non-critical process parameters based on their statistical significance (p < 0.05).
@@ -74,12 +75,17 @@ SYSTEM_PROMPT = """You are the Virtual Data Scientist & QbD Process Expert, a sp
 
 5. MODEL REDUCTION & BACKWARD ELIMINATION:
    - If model terms (especially 2-factor interactions or quadratic terms) have p > 0.05, explicitly identify them as non-statistically significant.
-   - Guide the user on model reduction / backward elimination (removing non-significant terms while maintaining hierarchical integrity) to optimize Predicted R² (PRESS) and avoid overfitting.
+   - Guide the user on model reduction / backward elimination to optimize Predicted R² (PRESS) and avoid overfitting.
 
-6. STRUCTURED SYNTHESIS:
+6. STRICT PHARMACEUTICAL PROJECT GROUNDING:
+   - Strictly ground all scientific explanations, parameter evaluations, degradation discussions, and optimum recommendations directly in the provided Active Project Dossier.
+   - Explicitly reference the actual target molecule / compound (e.g. Propofol, Fosravuconazole, etc.), the project's specific unit operations, the investigated factors with engineering units, and observed physical runs.
+   - Never generate generic placeholder text or unrelated chemical examples when project dossier data is available.
+
+7. STRUCTURED SYNTHESIS:
    - Executive Summary: Clear finding on factor criticality or regulatory definition with formal citation.
    - Comparative Analysis: Highlighting operational, statistical, and regulatory differences.
-   - Visual Insights: Key observations from Pareto charts, contours, or response surfaces.
+   - Visual Insights: Key observations from Pareto charts, contours, response surfaces, or diagnostics.
    - Compliance & Lifecycle Considerations: Specific requirements for deviations, excursions, or change controls.
    - Recommendations & Next Steps.
 """
@@ -264,6 +270,22 @@ DOE_TOOLS = [
                     }
                 },
                 "required": ["factor_x", "factor_y"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_residual_diagnostics",
+            "description": "Generates a 4-in-1 publication-quality statistical diagnostic dashboard: Residuals vs. Predicted Values, Normal Q-Q Plot, Residuals vs. Run Order, and Residual Distribution histogram.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "response_name": {
+                        "type": "string",
+                        "description": "Optional response name to diagnose (e.g. 'Yield')."
+                    }
+                }
             }
         }
     }
@@ -466,6 +488,24 @@ def execute_tool(
             "chart": chart_spec
         }
 
+    elif name == "create_residual_diagnostics":
+        response_name = args.get("response_name")
+        model_obj = _ACTIVE_DOE_MODELS.get("last_analysis") or last_analysis
+        if model_obj is None and dataset is not None:
+            df = dataset if isinstance(dataset, pd.DataFrame) else pd.read_csv(io.StringIO(dataset) if "\n" in str(dataset) else str(dataset))
+            numeric_cols = list(df.select_dtypes(include=[np.number]).columns)
+            if len(numeric_cols) >= 2:
+                model_obj = analyze_doe_run_table(df, numeric_cols[:-1], [numeric_cols[-1]], model_type="quadratic")
+                _ACTIVE_DOE_MODELS["last_analysis"] = model_obj
+
+        chart_spec = create_residual_diagnostics(model_obj or {}, response_name=response_name)
+        return {
+            "status": "success",
+            "chart_type": "residual_diagnostics",
+            "message": "Generated 4-in-1 residual diagnostics dashboard.",
+            "chart": chart_spec
+        }
+
     else:
         raise ToolExecutionError(f"Unknown tool '{name}'")
 
@@ -479,16 +519,21 @@ class DoEAgent:
     Virtual Data Scientist Agent utilizing Groq llama-3.3-70b-versatile with tool calling.
     """
     DEFAULT_MODEL = "llama-3.3-70b-versatile"
+    FALLBACK_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b", "llama-3.3-70b-versatile"]
 
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = DEFAULT_MODEL,
+        model: Optional[str] = None,
         dataset: Optional[Union[pd.DataFrame, str]] = None,
-        client: Optional[Any] = None
+        client: Optional[Any] = None,
+        project_context: Optional[Dict[str, Any]] = None,
+        project_dossier: Optional[str] = None
     ):
-        self.model = model
+        self.model = model or os.getenv("GROQ_MODEL", self.DEFAULT_MODEL)
         self.dataset = dataset
+        self.project_context = project_context
+        self.project_dossier = project_dossier
         self.last_analysis: Optional[Dict[str, Any]] = None
         self.tool_calls_history: List[Dict[str, Any]] = []
         self.charts: List[Dict[str, Any]] = []
@@ -508,6 +553,35 @@ class DoEAgent:
                                 key = line.strip().split("=", 1)[1]
                                 break
             self.client = Groq(api_key=key) if (Groq is not None and key) else None
+
+    def _call_completion_with_fallback(self, **kwargs) -> Any:
+        """Attempts chat completion, automatically falling back across candidate models if 404 occurs."""
+        candidate_models = [self.model, "openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b", "llama-3.3-70b-versatile"]
+        seen = set()
+        unique_models = []
+        for m in candidate_models:
+            if m and m not in seen:
+                seen.add(m)
+                unique_models.append(m)
+
+        last_err = None
+        for m in unique_models:
+            try:
+                call_kwargs = dict(kwargs)
+                call_kwargs["model"] = m
+                res = self.client.chat.completions.create(**call_kwargs)
+                self.model = m  # Remember working model
+                return res
+            except Exception as e:
+                err_str = str(e)
+                last_err = e
+                if any(k in err_str.lower() for k in ("model_not_found", "does not exist", "404", "tool_use_failed", "tool choice")):
+                    continue
+                else:
+                    raise e
+        if last_err:
+            raise last_err
+        raise RuntimeError("No candidate Groq model was accessible.")
 
     def run(
         self,
@@ -538,8 +612,19 @@ class DoEAgent:
         self.tool_calls_history = []
         self.charts = []
 
+        sys_prompt = SYSTEM_PROMPT
+        dossier = self.project_dossier
+        if not dossier and self.project_context:
+            try:
+                from backend.services.project_context import format_project_context_markdown
+                dossier = format_project_context_markdown(self.project_context)
+            except Exception:
+                pass
+        if dossier:
+            sys_prompt += f"\n\n=== ACTIVE PHARMACEUTICAL PROJECT DOSSIER ===\n{dossier}\n============================================\n"
+
         messages: List[Dict[str, Any]] = [
-            {"role": "system", "content": SYSTEM_PROMPT}
+            {"role": "system", "content": sys_prompt}
         ]
 
         if chat_history:
@@ -554,9 +639,8 @@ class DoEAgent:
         if self.client is None:
             raise RuntimeError("Groq client is not initialized. Ensure GROQ_API_KEY is configured.")
 
-        # 1. First Groq call: Decide tool to execute
-        response = self.client.chat.completions.create(
-            model=self.model,
+        # 1. First Groq call: Decide tool to execute with automatic model fallback
+        response = self._call_completion_with_fallback(
             messages=messages,
             tools=DOE_TOOLS,
             tool_choice="auto",
@@ -647,13 +731,17 @@ class DoEAgent:
                         self.charts.append(create_3d_surface(raw_mod, f_cols[0], f_cols[1], response_name=r_col))
                     except Exception:
                         pass
+                elif ("diagnostic" in p_lower or "residual" in p_lower or "q-q" in p_lower):
+                    try:
+                        self.charts.append(create_residual_diagnostics(raw_mod, response_name=r_col))
+                    except Exception:
+                        pass
 
             # 3. Second Groq call: Final synthesis with tool results
             if stream:
                 if return_structured:
                     raise ValueError("Streaming mode is incompatible with return_structured=True.")
-                stream_resp = self.client.chat.completions.create(
-                    model=self.model,
+                stream_resp = self._call_completion_with_fallback(
                     messages=messages,
                     stream=True,
                     temperature=0.2
@@ -665,8 +753,7 @@ class DoEAgent:
                             yield delta
                 return text_generator()
             else:
-                final_resp = self.client.chat.completions.create(
-                    model=self.model,
+                final_resp = self._call_completion_with_fallback(
                     messages=messages,
                     stream=False,
                     temperature=0.2

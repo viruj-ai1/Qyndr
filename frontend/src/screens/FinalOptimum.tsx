@@ -62,7 +62,12 @@ export default function FinalOptimum() {
     setChatMessages(newHistory)
     setLoadingChat(true)
     try {
-      const data = await Optimization.llmChat(currentProject!.id, msg, chatMessages, 0)
+      // Send lightweight history containing only role and text content (avoid sending heavy plot payloads)
+      const cleanHistory = chatMessages.map(m => ({
+        role: m.role,
+        content: m.content
+      }))
+      const data = await Optimization.llmChat(currentProject!.id, msg, cleanHistory, 0)
       setChatMessages([...newHistory, { 
         role: 'assistant', 
         content: data.response || data.response_text || '',

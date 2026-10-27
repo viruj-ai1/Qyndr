@@ -16,8 +16,9 @@ from unittest.mock import MagicMock
 import numpy as np
 import pandas as pd
 
-# Add workspace root to sys.path
+# Add workspace root and backend to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
 
 from src.agent import (
     DoEAgent,
@@ -253,6 +254,35 @@ def test_doe_tools_schemas():
 
 
 # =============================================================================
+# Test 5: Chat Request Schema with Charts in History
+# =============================================================================
+
+def test_chat_request_schema_with_charts_in_history():
+    """Verify that chat history containing non-string fields like charts parses cleanly without Pydantic validation errors."""
+    from backend.api.optimization import LLMChatRequest
+    from backend.api.chat import ChatRequest
+
+    payload = {
+        "project_id": 1,
+        "message": "What is the difference between NOR and PAR?",
+        "chat_history": [
+            {"role": "user", "content": "Show me the Pareto chart"},
+            {"role": "assistant", "content": "Here is the Pareto chart", "charts": [{"data": [{"x": [1, 2], "y": [3, 4]}], "layout": {}}]}
+        ]
+    }
+
+    # Should parse without 422 "Input should be a valid string" error
+    req_opt = LLMChatRequest(**payload)
+    assert req_opt.project_id == 1
+    assert len(req_opt.chat_history) == 2
+    assert "charts" in req_opt.chat_history[1]
+
+    req_chat = ChatRequest(**payload)
+    assert req_chat.message == "What is the difference between NOR and PAR?"
+    assert len(req_chat.chat_history) == 2
+
+
+# =============================================================================
 # Standalone execution
 # =============================================================================
 
@@ -269,5 +299,8 @@ if __name__ == "__main__":
     
     test_agent_streaming_execution()
     print("[PASS] Test 4: Streaming execution passed.")
+
+    test_chat_request_schema_with_charts_in_history()
+    print("[PASS] Test 5: Chat request schema with charts in history passed.")
     
-    print("\nAll 4 Groq Orchestrator tests PASSED successfully!")
+    print("\nAll 5 Groq Orchestrator tests PASSED successfully!")

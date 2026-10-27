@@ -152,7 +152,7 @@ def handle_chat_execution(
     if groq_key:
         try:
             agent = DoEAgent(dataset=df, api_key=groq_key)
-            result = agent.run_structured(user_msg, dataset=df)
+            result = agent.run_structured(user_msg, dataset=df, chat_history=body.chat_history)
             return {
                 "status": "success",
                 "response": result["response_text"],

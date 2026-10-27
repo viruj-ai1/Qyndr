@@ -514,7 +514,8 @@ class DoEAgent:
         prompt: str,
         dataset: Optional[Union[pd.DataFrame, str]] = None,
         stream: bool = False,
-        return_structured: bool = False
+        return_structured: bool = False,
+        chat_history: Optional[List[Dict[str, Any]]] = None
     ) -> Union[str, Dict[str, Any], Generator[str, None, None]]:
         """
         Executes the full agentic loop:
@@ -526,6 +527,7 @@ class DoEAgent:
             stream: Whether to stream the final synthesized response chunks
             return_structured: When True, returns a structured dictionary:
                                {"response_text": str, "charts": List[Dict[str, Any]]}
+            chat_history: Optional prior conversation history list
 
         Returns:
             Synthesized string response (if stream=False and return_structured=False),
@@ -537,9 +539,17 @@ class DoEAgent:
         self.charts = []
 
         messages: List[Dict[str, Any]] = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
+            {"role": "system", "content": SYSTEM_PROMPT}
         ]
+
+        if chat_history:
+            for item in chat_history:
+                role = item.get("role", "user")
+                content = item.get("content", "")
+                if role in ("user", "assistant") and content:
+                    messages.append({"role": role, "content": str(content)})
+
+        messages.append({"role": "user", "content": prompt})
 
         if self.client is None:
             raise RuntimeError("Groq client is not initialized. Ensure GROQ_API_KEY is configured.")
@@ -695,14 +705,15 @@ class DoEAgent:
     def run_structured(
         self,
         prompt: str,
-        dataset: Optional[Union[pd.DataFrame, str]] = None
+        dataset: Optional[Union[pd.DataFrame, str]] = None,
+        chat_history: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """
         Executes the agentic loop and returns a structured JSON response containing:
         - response_text: Markdown explanation of the statistical findings.
         - charts: Array of Plotly JSON objects (if a plot was requested or relevant).
         """
-        return self.run(prompt, dataset=dataset, stream=False, return_structured=True)
+        return self.run(prompt, dataset=dataset, stream=False, return_structured=True, chat_history=chat_history)
 
 
 # Helper function for quick execution

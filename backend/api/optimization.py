@@ -280,13 +280,17 @@ def get_llm_summary(body: schemas.BayesRecommendRequest, db: Session = Depends(g
     return result
 
 from pydantic import BaseModel 
-from typing import List, Dict
+from typing import List, Dict, Any, Optional, Union
 
 class LLMChatRequest(BaseModel):
     project_id: int
-    response_idx: int = 0
+    response_idx: Optional[int] = 0
     message: str
-    chat_history: List[Dict[str, str]] = []
+    chat_history: Optional[List[Dict[str, Any]]] = []
+    dataset: Optional[Union[List[Dict[str, Any]], Dict[str, Any], str]] = None
+    factor_cols: Optional[List[str]] = None
+    response_cols: Optional[List[str]] = None
+    stream: Optional[bool] = False
 
 @router.post("/llm-chat")
 def get_llm_chat(body: LLMChatRequest, db: Session = Depends(get_db)):
@@ -296,9 +300,13 @@ def get_llm_chat(body: LLMChatRequest, db: Session = Depends(get_db)):
     
     chat_req = ChatRequest(
         message=body.message,
-        chat_history=body.chat_history,
+        chat_history=body.chat_history or [],
         project_id=body.project_id,
-        response_idx=body.response_idx
+        response_idx=body.response_idx or 0,
+        dataset=body.dataset,
+        factor_cols=body.factor_cols,
+        response_cols=body.response_cols,
+        stream=body.stream or False
     )
     result = handle_chat_execution(chat_req, db)
     return result

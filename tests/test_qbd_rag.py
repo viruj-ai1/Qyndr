@@ -17,6 +17,7 @@ from unittest.mock import MagicMock
 
 # Add workspace root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
 
 from src.qbd_rag import (
     query_qbd_regulatory_guidance,
@@ -29,6 +30,7 @@ from src.agent import (
     DOE_TOOLS,
     SYSTEM_PROMPT
 )
+from backend.api.chat import handle_chat_execution, ChatRequest
 
 
 # =============================================================================
@@ -210,6 +212,51 @@ def test_agent_orchestrator_regulatory_rag():
     assert "Proven Acceptable Range (PAR)" in final_output
     assert "Design Space" in final_output
     assert "univariate" in final_output or "keeping other parameters constant" in final_output
+
+
+# =============================================================================
+# Test 5: Regulatory RAG Fallback - "Not Found in Knowledge Base" (Rule 3)
+# =============================================================================
+
+def test_regulatory_rag_not_found_fallback(monkeypatch):
+    """Verify that off-topic queries return 'not found in knowledge base'."""
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    unrelated_query = "What is the orbital velocity of the International Space Station in low Earth orbit?"
+    result = query_qbd_regulatory_guidance(query=unrelated_query)
+
+    assert result["status"] == "not_found"
+    assert result["total_results"] == 0
+    assert result["results"] == []
+    assert result["message"] == "not found in knowledge base"
+    assert result["top_citation"] == "not found in knowledge base"
+
+    # Also test via Chat API endpoint
+    req = ChatRequest(message="What is the orbital speed of Mars according to ICH Q8?")
+    chat_res = handle_chat_execution(req)
+    assert chat_res["status"] == "not_found"
+    assert "not found in knowledge base" in chat_res["response_text"].lower()
+    assert chat_res["charts"] == []
+
+
+# =============================================================================
+# Test 6: Regulatory Claims Strict Citation Format (Rule 3)
+# =============================================================================
+
+def test_regulatory_citations_strict_format():
+    """Verify that successful regulatory retrieval provides formal document + section citations."""
+    query = "What is the definition of Design Space according to ICH Q8?"
+    result = query_qbd_regulatory_guidance(query=query, guideline="ICH Q8")
+
+    assert result["status"] == "success"
+    assert result["total_results"] > 0
+    top_citation = result["top_citation"]
+    assert "ICH Q8" in top_citation
+    assert "Section" in top_citation or "Design Space" in top_citation
+
+    # Verify results contain citation metadata
+    for item in result["results"]:
+        assert "citation" in item
+        assert "ICH Q8" in item["citation"]
 
 
 # =============================================================================

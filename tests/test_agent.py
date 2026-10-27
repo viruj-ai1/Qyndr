@@ -24,9 +24,11 @@ from src.agent import (
     DoEAgent,
     execute_tool,
     DOE_TOOLS,
-    SYSTEM_PROMPT
+    SYSTEM_PROMPT,
+    is_vague_message
 )
 from src.doe_engine import generate_doe_design
+from backend.api.chat import handle_chat_execution, ChatRequest
 
 
 # =============================================================================
@@ -131,7 +133,7 @@ def test_agent_tool_calling_orchestration():
         "- **Temperature** is a statistically significant Critical Process Parameter (CPP) (p < 0.0001, t = 49.3).\n"
         "- **Reaction Time** is also a significant CPP (p < 0.001, t = -32.1) with a negative effect.\n"
         "- **Model Significance**: The overall quadratic model is highly significant (F = 215.4, p < 0.0001) with R² = 0.996 and Adj R² = 0.991.\n"
-        "- **Lack-of-Fit**: p = 0.65 (> 0.05), confirming adequate model fit with no significant lack of fit.\n"
+        "- **Lack-of-Fit**: p = 0.65 (> 0.05), indicating no statistically significant lack of fit.\n"
         "ICH Q8 Guidance: Both parameters should be bounded within the Proven Acceptable Range (PAR) to maintain CQA Yield >= 85%."
     )
     mock_final_response = MagicMock()
@@ -340,6 +342,103 @@ def test_agent_context_dossier_grounding():
     dossier = "Target Compound: Rocuronium Bromide. CQA: Impurity A <= 0.15%."
     agent = DoEAgent(project_dossier=dossier, api_key="dummy_key")
     assert agent.project_dossier == dossier
+
+
+# =============================================================================
+# Test 9: Vague Message Returns Single Clarifying Question (Rule 5)
+# =============================================================================
+
+def test_vague_messages_return_single_clarifying_question():
+    """Verify that vague/underspecified queries receive exactly one clarifying question with 0 charts."""
+    # 1. Direct helper test
+    for vague_prompt in ["what", "?", "help", "explain", "hi", "test"]:
+        is_vague, clarifying_q = is_vague_message(vague_prompt)
+        assert is_vague is True
+        assert isinstance(clarifying_q, str)
+        assert len(clarifying_q) > 10
+
+    # Non-vague prompt
+    is_vague, _ = is_vague_message("Analyze the effect of Temperature and Reaction Time on Yield")
+    assert is_vague is False
+
+    # 2. DoEAgent execution test with mock client
+    mock_client = MagicMock()
+    agent = DoEAgent(client=mock_client)
+    res = agent.run("what", return_structured=True)
+    assert isinstance(res, dict)
+    assert res["charts"] == []
+    assert "?" in res["response_text"]
+    assert mock_client.chat.completions.create.call_count == 0
+
+    # 3. Chat controller endpoint test
+    req = ChatRequest(message="what")
+    api_res = handle_chat_execution(req)
+    assert api_res["status"] == "success"
+    assert api_res["charts"] == []
+    assert "?" in api_res["response_text"]
+    assert "ANOVA" not in api_res["response_text"]
+
+
+# =============================================================================
+# Test 10: Statistical Integrity Guardrails (Rule 4)
+# =============================================================================
+
+def test_statistical_guardrails_no_confirmed_or_adequate_when_na(monkeypatch):
+    """
+    Verify that when lack-of-fit is N/A (no replicate center runs), the narrative
+    never uses 'confirmed' or 'adequate' and explicitly notes adequacy cannot be confirmed.
+    """
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    # Create dataset with no replicate points (all runs unique, no center runs)
+    df_no_replicates = pd.DataFrame({
+        "Temperature": [60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0],
+        "Reaction_Time": [20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0],
+        "Catalyst": [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5],
+        "Yield": [75.2, 78.4, 82.1, 85.0, 87.3, 89.1, 90.2, 91.5]
+    })
+
+    req = ChatRequest(
+        message="Evaluate the regression model and lack-of-fit test for our process",
+        dataset=df_no_replicates.to_dict(orient="records"),
+        factor_cols=["Temperature", "Reaction_Time", "Catalyst"],
+        response_cols=["Yield"]
+    )
+
+    result = handle_chat_execution(req)
+    text = result["response_text"].lower()
+
+    # Rule 4 mandates: Never say "confirmed" or "adequate" when statistic is N/A or suspicious
+    assert "adequate quadratic surface" not in text
+    assert "confirming adequate" not in text
+    assert "adequate model" not in text
+    # Explicitly reports lack of replicate center runs and inability to evaluate
+    assert "cannot be evaluated" in text or "cannot be confirmed" in text or "n/a" in text
+
+
+# =============================================================================
+# Test 11: Deterministic Numbers Passed as JSON (Rule 2)
+# =============================================================================
+
+def test_deterministic_numbers_passed_as_json():
+    """Verify all statistical values originate from deterministic code and serialize cleanly to JSON."""
+    df = get_sample_17_run_bbd()
+    args = {
+        "factor_cols": ["Temperature", "Reaction_Time", "Catalyst"],
+        "response_cols": ["Yield"],
+        "model_type": "quadratic"
+    }
+
+    result = execute_tool("analyze_doe_run_table", args, dataset=df)
+    assert result["status"] == "success"
+
+    # Must be valid serializable JSON
+    json_str = json.dumps(result, default=str)
+    parsed = json.loads(json_str)
+
+    assert "metrics" in parsed
+    assert isinstance(parsed["metrics"]["r_squared"], float)
+    assert isinstance(parsed["metrics"]["f_stat"], float)
+    assert isinstance(parsed["metrics"]["p_value"], float)
 
 
 # =============================================================================

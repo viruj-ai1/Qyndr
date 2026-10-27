@@ -24,7 +24,7 @@ if _root_dir not in sys.path:
 
 from database import get_db, crud
 from services.project_context import build_full_project_context, format_project_context_markdown
-from src.agent import DoEAgent
+from src.agent import DoEAgent, is_vague_message
 from src.doe_engine import analyze_doe_run_table, generate_doe_design, optimize_desirability
 from src.qbd_rag import query_qbd_regulatory_guidance
 from src.viz_engine import (
@@ -196,7 +196,18 @@ def handle_chat_execution(
     msg_lower = user_msg.lower()
     compound_name = (project_ctx.get("compound") if project_ctx else None) or "Active API"
 
-    # 2. Attempt dynamic agent invocation with Groq (with model fallback)
+    # 0. Intercept vague / underspecified messages (Rule 5: one clarifying question, not a report)
+    is_vague, clarifying_q = is_vague_message(user_msg)
+    if is_vague and clarifying_q:
+        return {
+            "status": "success",
+            "response": clarifying_q,
+            "response_text": clarifying_q,
+            "charts": [],
+            "n_obs": len(df)
+        }
+
+    # 1. Attempt dynamic agent invocation with Groq (with model fallback)
     groq_key = os.getenv("GROQ_API_KEY")
     if groq_key:
         try:
@@ -218,11 +229,11 @@ def handle_chat_execution(
             err_str = str(e)
             print(f"[DoE Agent Info] LLM execution fallback engaged: {err_str}")
 
-    # 3. Active Data-Driven Dynamic Fallback Engine
+    # 2. Active Data-Driven Dynamic Fallback Engine
     charts = []
     response_paragraphs = []
 
-    # Check A: Regulatory / ICH Standards Inquiry
+    # Check A: Regulatory / ICH Standards Inquiry (Rule 3)
     import re
     qbd_patterns = [
         r"\bich\b", r"\bq8\b", r"\bq9\b", r"\bq10\b", r"\bq14\b",
@@ -255,6 +266,20 @@ def handle_chat_execution(
                 "response": "\n\n".join(response_paragraphs),
                 "response_text": "\n\n".join(response_paragraphs),
                 "charts": charts,
+                "n_obs": len(df)
+            }
+        else:
+            not_found_msg = (
+                f"### Regulatory Guidance for {compound_name}\n\n"
+                f"**Status**: not found in knowledge base\n\n"
+                f"The requested regulatory topic or standard could not be located in the local QbD regulatory knowledge base. "
+                f"Please consult the relevant ICH guidelines (ICH Q8(R2), Q9(R1), Q10, Q14) or specify an indexed QbD concept (e.g., NOR vs. PAR, QTPP, CQA, Design Space, FMEA)."
+            )
+            return {
+                "status": "not_found",
+                "response": not_found_msg,
+                "response_text": not_found_msg,
+                "charts": [],
                 "n_obs": len(df)
             }
 
@@ -327,13 +352,36 @@ def handle_chat_execution(
         lof_p = lof.get("p_value")
         lof_p_str = f"{lof_p:.4f}" if isinstance(lof_p, (int, float)) else str(lof_p or "N/A")
 
+        # Lack-of-Fit evaluation adhering to Rule 4 (never say "confirmed" or "adequate" when N/A or suspicious)
+        if lof_p is None or lof_p_str == "N/A":
+            lof_line = "- **Lack-of-Fit Test**: N/A (no replicate center runs available). Model adequacy cannot be evaluated without experimental replicates."
+        elif isinstance(lof_p, (int, float)) and lof_p < 0.05:
+            lof_line = f"- **Lack-of-Fit Test**: $F = {lof_f_str}$ ($p = {lof_p_str} < 0.05$). Statistically significant lack-of-fit detected; model may require higher-order interaction or curvature terms."
+        else:
+            lof_line = f"- **Lack-of-Fit Test**: $F = {lof_f_str}$ ($p = {lof_p_str} \\ge 0.05$). Lack-of-fit is not statistically significant at alpha = 0.05."
+
+        # Model significance evaluation
+        if p_val is None or p_val_str == "N/A":
+            f_line = f"- **Overall Model F-value**: {f_val_str} (p-value N/A; regression significance cannot be evaluated)."
+        elif isinstance(p_val, (int, float)) and p_val < 0.05:
+            f_line = f"- **Overall Model F-value**: {f_val_str} ($p = {p_val_str}$, statistically significant regression)."
+        else:
+            f_line = f"- **Overall Model F-value**: {f_val_str} ($p = {p_val_str}$, regression is not statistically significant at alpha = 0.05)."
+
+        # Suspicious statistics check (e.g. R2 = 1.0 with tiny sample, or adj_r2 < 0)
+        warning_note = ""
+        if isinstance(r2, (int, float)) and r2 >= 0.999 and len(df) <= 5:
+            warning_note = "\n   - *Statistical Warning*: Small sample size with near-unity $R^2$; degrees of freedom are saturated. Model adequacy cannot be confirmed without independent validation runs."
+        elif isinstance(adj_r2, (int, float)) and adj_r2 < 0:
+            warning_note = "\n   - *Statistical Warning*: Negative adjusted $R^2$ indicates model terms do not explain variation beyond random chance."
+
         response_paragraphs.append(
             f"### Virtual Data Scientist Findings: {compound_name} Process Evaluation\n\n"
             f"Based on **{len(df)} physical experimental runs** across parameters `{', '.join(f_cols)}` targeting response **{first_resp}**:\n\n"
             f"1. **ANOVA & Model Significance (ICH Q8 Standards)**:\n"
-            f"   - **Overall Model F-value**: {f_val_str} ($p = {p_val_str}$, statistically significant regression).\n"
-            f"   - **Coefficients of Determination**: $R^2 = {r2_str}$ | Adjusted $R^2 = {adj_r2_str}$.\n"
-            f"   - **Lack-of-Fit Test**: $F = {lof_f_str}$ ($p = {lof_p_str}$), indicating adequate quadratic surface representation.\n\n"
+            f"   {f_line}\n"
+            f"   - **Coefficients of Determination**: $R^2 = {r2_str}$ | Adjusted $R^2 = {adj_r2_str}.{warning_note}\n"
+            f"   {lof_line}\n\n"
             f"2. **Critical Process Parameters (CPPs)**:\n"
             f"   - Statistically significant terms ($p < 0.05$): **{', '.join(sig_names) if sig_names else 'None (p > 0.05)'}**.\n"
             f"   - These factors directly govern conversion and quality attributes for {compound_name} and must be operated strictly within the Proven Acceptable Range (PAR).\n\n"

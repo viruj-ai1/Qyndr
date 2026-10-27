@@ -10,6 +10,7 @@ Virtual Data Scientist agent orchestrating deterministic DoE analysis:
 
 from typing import Dict, List, Any, Optional, Union, Generator, Tuple
 import os
+import re
 import json
 import numpy as np
 import pandas as pd
@@ -44,6 +45,55 @@ from src.viz_engine import (
 
 
 # =============================================================================
+# Helper: Vague Message Detection
+# =============================================================================
+
+def is_vague_message(msg: str) -> Tuple[bool, Optional[str]]:
+    """
+    Evaluates if user message is underspecified or vague (e.g. 'what', '?', single-word queries).
+    Returns (True, clarifying_question) if vague, otherwise (False, None).
+    """
+    if not msg:
+        return True, "Could you please specify which aspect of your process or DoE study you would like me to evaluate?"
+
+    cleaned = msg.strip().lower()
+    if not cleaned:
+        return True, "Could you please specify which aspect of your process or DoE study you would like me to evaluate?"
+
+    # Check for short symbol or length <= 3
+    if len(cleaned) <= 3 or cleaned in {"???", "...", "!?", "?!"}:
+        return True, (
+            "Could you please specify what aspect of the study you would like to explore? "
+            "For example, I can evaluate factor significance for your CQAs, generate 2D contour or Pareto charts, "
+            "predict optimal factor setpoints, or explain specific QbD/ICH regulatory guidelines."
+        )
+
+    # Tokenize words
+    tokens = re.findall(r'\b[a-z0-9_]+\b', cleaned)
+    vague_tokens = {
+        "what", "why", "how", "who", "when", "where",
+        "explain", "help", "details", "run", "analyze", "analysis",
+        "test", "stats", "statistics", "doe", "optimum", "info",
+        "hi", "hello", "hey", "ok", "yes", "no", "report"
+    }
+
+    if len(tokens) == 1 and tokens[0] in vague_tokens:
+        return True, (
+            f"Could you please clarify your question regarding '{tokens[0]}'? "
+            "For example, I can analyze factor significance for your responses, render contour and Pareto plots, "
+            "or provide regulatory guidance on ICH Q8/Q9/Q14 standards."
+        )
+
+    if len(tokens) <= 2 and all(t in vague_tokens for t in tokens):
+        return True, (
+            "Could you please specify what aspect of the process or dataset you would like me to examine? "
+            "For example, you can ask for ANOVA factor effects, 2D contour maps, residual diagnostics, or NOR vs. PAR distinctions."
+        )
+
+    return False, None
+
+
+# =============================================================================
 # 1. System Prompt: Virtual Data Scientist (ICH Q8 Standards)
 # =============================================================================
 
@@ -53,8 +103,20 @@ SYSTEM_PROMPT = """You are the Lead Pharmaceutical Formulation & Process Develop
 1. STRICT DETERMINISTIC CALCULATION MANDATE:
    - NEVER calculate, guess, estimate, or extrapolate statistical values, ANOVA tables, p-values, F-statistics, R-squared values, coefficients, or optimal factor setpoints.
    - ALL numerical calculations MUST be executed by calling the statistical tools (`analyze_doe_run_table`, `generate_doe_design`, `optimize_desirability`).
+   - Every number returned must originate directly from the tool JSON outputs.
 
-2. INTERACTIVE VISUALIZATION TOOLS (Plotly):
+2. STATISTICAL INTEGRITY & RESTRAINT MANDATE:
+   - NEVER use the words 'confirmed' or 'adequate' when a statistic (including Lack-of-Fit, F-value, p-value, or R²) is N/A, missing, None, or suspicious (e.g., negative variance, lack of degrees of freedom, R² = 1.0 on small sample, or lack of replicate center runs).
+   - If a statistic is unavailable or cannot be evaluated, explicitly state that it cannot be evaluated and that adequacy is unconfirmed.
+
+3. REGULATORY CLAIMS & CITATIONS MANDATE:
+   - Any regulatory claim or standard reference MUST cite a retrieved source in the exact format: `[Document, Section]` (e.g., `ICH Q8(R2), Section 2.4`).
+   - If no matching document/section is retrieved by `query_qbd_regulatory_guidance` or the tool returns status `not_found`, you MUST state: 'not found in knowledge base'. Never invent, guess, or extrapolate regulatory requirements or guideline sections.
+
+4. VAGUE USER QUERIES MANDATE:
+   - If the user sends a vague, ambiguous, or underspecified message (e.g. 'what', '?', 'explain', 'help'), provide exactly ONE targeted clarifying question asking which aspect of the project or DoE/QbD workflow they would like to explore. Do NOT output a full statistical report.
+
+5. INTERACTIVE VISUALIZATION TOOLS (Plotly):
    - Whenever asked to plot, visualize, or illustrate model effects, contour maps, response surfaces, diagnostics, or sweet spots:
      * Call `create_pareto_chart` to render standardized effects with t-limit and Bonferroni significance thresholds.
      * Call `create_contour_plot` to render 2D response contour maps highlighting the optimal operating region / sweet spot.
@@ -62,27 +124,22 @@ SYSTEM_PROMPT = """You are the Lead Pharmaceutical Formulation & Process Develop
      * Call `create_residual_diagnostics` to render 4-in-1 model diagnostic plots (Residuals vs. Predicted, Normal Q-Q, Run Order, Distribution).
    - Interpret visual features (steepness, curvature, interactions, and optimal coordinates) in your markdown explanation.
 
-3. REGULATORY RAG & EXACT CITATIONS (ICH Q8/Q9/Q10/Q14):
-   - Whenever asked about regulatory definitions, compliance considerations, differences between concepts (e.g., Normal Operating Range [NOR] vs. Proven Acceptable Range [PAR], Design Space, QTPP, CQAs, CPPs), Risk Assessment (FMEA RPN scoring, Cause-and-Effect Matrix), or Analytical QbD (ATP, MODR), you MUST invoke the `query_qbd_regulatory_guidance` tool.
-   - Ground all regulatory explanations directly in the returned regulatory guidance with precise, formal citations.
-   - Explicitly contrast the operational, statistical, and regulatory implications of concepts.
-
-4. ICH Q8(R2) PHARMACEUTICAL QUALITY BY DESIGN (QbD) TERMINOLOGY:
+6. ICH Q8(R2) PHARMACEUTICAL QUALITY BY DESIGN (QbD) TERMINOLOGY:
    - Interpret factors as potential Critical Process Parameters (CPPs) or non-critical process parameters based on their statistical significance (p < 0.05).
    - Interpret responses as Critical Quality Attributes (CQAs) linked to the Quality Target Product Profile (QTPP).
    - Frame operational setpoints in terms of the multi-dimensional Design Space, Normal Operating Range (NOR), and Proven Acceptable Range (PAR).
-   - Report Model Significance (Overall model F-value and p-value < 0.05) and Lack-of-Fit (p > 0.05 indicating adequate model representation without missing higher-order terms).
+   - Report Model Significance (Overall model F-value and p-value < 0.05) and Lack-of-Fit (p > 0.05 indicating absence of significant lack-of-fit). Never say 'adequate' if replicate center runs are absent.
 
-5. MODEL REDUCTION & BACKWARD ELIMINATION:
+7. MODEL REDUCTION & BACKWARD ELIMINATION:
    - If model terms (especially 2-factor interactions or quadratic terms) have p > 0.05, explicitly identify them as non-statistically significant.
    - Guide the user on model reduction / backward elimination to optimize Predicted R² (PRESS) and avoid overfitting.
 
-6. STRICT PHARMACEUTICAL PROJECT GROUNDING:
+8. STRICT PHARMACEUTICAL PROJECT GROUNDING:
    - Strictly ground all scientific explanations, parameter evaluations, degradation discussions, and optimum recommendations directly in the provided Active Project Dossier.
    - Explicitly reference the actual target molecule / compound (e.g. Propofol, Fosravuconazole, etc.), the project's specific unit operations, the investigated factors with engineering units, and observed physical runs.
    - Never generate generic placeholder text or unrelated chemical examples when project dossier data is available.
 
-7. STRUCTURED SYNTHESIS:
+9. STRUCTURED SYNTHESIS:
    - Executive Summary: Clear finding on factor criticality or regulatory definition with formal citation.
    - Comparative Analysis: Highlighting operational, statistical, and regulatory differences.
    - Visual Insights: Key observations from Pareto charts, contours, response surfaces, or diagnostics.
@@ -611,6 +668,21 @@ class DoEAgent:
         active_dataset = dataset if dataset is not None else self.dataset
         self.tool_calls_history = []
         self.charts = []
+
+        # Intercept vague / underspecified messages (Rule 5)
+        is_vague, clarifying_q = is_vague_message(prompt)
+        if is_vague and clarifying_q:
+            if return_structured:
+                return {
+                    "response_text": clarifying_q,
+                    "charts": []
+                }
+            elif stream:
+                def single_token_gen():
+                    yield clarifying_q
+                return single_token_gen()
+            else:
+                return clarifying_q
 
         sys_prompt = SYSTEM_PROMPT
         dossier = self.project_dossier

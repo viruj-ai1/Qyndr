@@ -201,6 +201,18 @@ def parse_qbd_knowledge_directory(data_dir: str) -> List[QbDDocumentChunk]:
 # 2. QbD Retrieval Engine (SQLite FTS5 + Hybrid TF-IDF)
 # =============================================================================
 
+# Stopwords excluded from FTS tokenization and title overlap, preserving QbD acronyms
+QBD_STOP_WORDS = {
+    "a", "an", "the", "and", "or", "in", "on", "at", "to", "for", "with", "by", "of", "from",
+    "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did",
+    "what", "which", "who", "whom", "this", "that", "these", "those", "am", "it", "its", "as",
+    "according", "how", "between"
+}
+QBD_ACRONYMS = {"nor", "par", "qtpp", "cqa", "cpp", "cma", "fmea", "rpn", "atp", "modr", "q8", "q9", "q10", "q14"}
+GUIDELINE_NAMES = {"ich", "q8", "q9", "q10", "q14"}
+TOPIC_ACRONYMS = {"nor", "par", "qtpp", "cqa", "cpp", "cma", "fmea", "rpn", "atp", "modr"}
+
+
 class QbDKnowledgeEngine:
     """
     Deterministic, high-performance local RAG engine for QbD regulatory guidance.
@@ -307,22 +319,21 @@ class QbDKnowledgeEngine:
         """Sanitizes raw query for safe, effective SQLite FTS5 matching."""
         # Replace non-alphanumeric characters with spaces
         clean_text = re.sub(r'[^a-zA-Z0-9_\s]', ' ', query)
-        tokens = [t.strip() for t in clean_text.split() if len(t.strip()) > 1]
+        tokens = [
+            t.strip() for t in clean_text.split()
+            if len(t.strip()) > 1 and t.lower() not in QBD_STOP_WORDS and t.lower() not in GUIDELINE_NAMES
+        ]
         if not tokens:
             return ""
 
-        # Highlight key QbD acronyms
-        acronyms = {"nor", "par", "qtpp", "cqa", "cpp", "cma", "fmea", "rpn", "atp", "modr", "q8", "q9", "q10", "q14"}
-        matched_acronyms = [t for t in tokens if t.lower() in acronyms]
-
-        # Combine with OR, but boost acronyms if present
         return " OR ".join(tokens)
 
     def search(
         self,
         query: str,
         guideline: Optional[str] = None,
-        top_k: int = 3
+        top_k: int = 3,
+        min_score: float = 0.20
     ) -> List[Dict[str, Any]]:
         """
         Executes hybrid search combining SQLite FTS5 BM25 ranking and TF-IDF cosine similarity.
@@ -346,8 +357,43 @@ class QbDKnowledgeEngine:
                 guideline_filter = "Q14"
             else:
                 guideline_filter = g_clean
+        else:
+            q_clean = clean_query.upper()
+            if "ICH Q8" in q_clean or "Q8" in q_clean:
+                guideline_filter = "Q8"
+            elif "ICH Q9" in q_clean or "Q9" in q_clean:
+                guideline_filter = "Q9"
+            elif "ICH Q10" in q_clean or "Q10" in q_clean:
+                guideline_filter = "Q10"
+            elif "ICH Q14" in q_clean or "Q14" in q_clean:
+                guideline_filter = "Q14"
 
-        # 1. FTS5 BM25 search
+        # 1. TF-IDF Cosine Similarity Search & Semantic Relevance Guard
+        tfidf_scores: Dict[str, float] = {}
+        max_tfidf = 0.0
+        if SKLEARN_AVAILABLE and self.vectorizer is not None and self.tfidf_matrix is not None:
+            try:
+                # Strip guideline names to evaluate true topic relevance
+                topic_query = re.sub(r'\b(ich|q8|q9|q10|q14)\b', ' ', clean_query, flags=re.IGNORECASE)
+                q_vec = self.vectorizer.transform([topic_query])
+                cos_sims = cosine_similarity(q_vec, self.tfidf_matrix)[0]
+                for idx, sim in enumerate(cos_sims):
+                    chunk_id = self.chunks[idx].chunk_id
+                    tfidf_scores[chunk_id] = float(sim)
+                if len(cos_sims) > 0:
+                    max_tfidf = float(np.max(cos_sims))
+            except Exception:
+                tfidf_scores = {}
+                max_tfidf = 0.0
+
+        clean_tokens = set(re.findall(r'\b[a-zA-Z0-9_]+\b', clean_query.lower()))
+        has_topic_acronym = bool(clean_tokens.intersection(TOPIC_ACRONYMS))
+
+        # Off-topic guard: reject queries with near-zero TF-IDF and zero QbD topic acronyms
+        if max_tfidf < 0.09 and not has_topic_acronym:
+            return []
+
+        # 2. FTS5 BM25 search
         fts_scores: Dict[str, float] = {}
         if fts_query:
             try:
@@ -356,42 +402,24 @@ class QbDKnowledgeEngine:
                     SELECT chunk_id, bm25(qbd_chunks_fts) as rank
                     FROM qbd_chunks_fts
                     WHERE qbd_chunks_fts MATCH ?
+                    ORDER BY rank ASC
+                    LIMIT 10
                 """
                 cursor.execute(sql, (fts_query,))
                 rows = cursor.fetchall()
                 if rows:
-                    # BM25 in sqlite gives negative numbers where lower is better
-                    raw_ranks = [r["rank"] for r in rows]
-                    min_r = min(raw_ranks)
-                    max_r = max(raw_ranks)
-                    span = (max_r - min_r) if max_r != min_r else 1.0
-
                     for r in rows:
-                        # Normalize to [0.0, 1.0], higher is better
-                        norm_score = 1.0 - ((r["rank"] - min_r) / span)
+                        # Absolute BM25 scaling with ceiling 10.0
+                        norm_score = min(abs(float(r["rank"])) / 10.0, 1.0)
                         fts_scores[r["chunk_id"]] = float(norm_score)
             except Exception:
-                # Fallback silently if query structure fails
                 fts_scores = {}
-
-        # 2. TF-IDF Cosine Similarity Search
-        tfidf_scores: Dict[str, float] = {}
-        if SKLEARN_AVAILABLE and self.vectorizer is not None and self.tfidf_matrix is not None:
-            try:
-                q_vec = self.vectorizer.transform([clean_query])
-                cos_sims = cosine_similarity(q_vec, self.tfidf_matrix)[0]
-                for idx, sim in enumerate(cos_sims):
-                    chunk_id = self.chunks[idx].chunk_id
-                    tfidf_scores[chunk_id] = float(sim)
-            except Exception:
-                tfidf_scores = {}
 
         # 3. Combine Hybrid Scores
         all_chunk_ids = set(self.chunks_by_id.keys())
         scored_candidates: List[Tuple[str, float]] = []
 
-        # Check for query keyword priority (e.g. "NOR", "PAR" exact mentions)
-        query_terms = set(re.findall(r'\b[a-zA-Z0-9_]+\b', clean_query.lower()))
+        query_terms = clean_tokens - QBD_STOP_WORDS
 
         for cid in all_chunk_ids:
             chunk = self.chunks_by_id[cid]
@@ -405,9 +433,9 @@ class QbDKnowledgeEngine:
             t_score = tfidf_scores.get(cid, 0.0)
 
             # Extra weight if key acronyms or exact titles appear
-            title_terms = set(re.findall(r'\b[a-zA-Z0-9_]+\b', chunk.section_title.lower()))
+            title_terms = set(re.findall(r'\b[a-zA-Z0-9_]+\b', chunk.section_title.lower())) - QBD_STOP_WORDS
             overlap = len(query_terms.intersection(title_terms))
-            boost = 0.25 * overlap if overlap > 0 else 0.0
+            boost = 0.20 * overlap if overlap >= 2 else (0.15 if overlap == 1 and has_topic_acronym else 0.0)
 
             # Hybrid formula
             if fts_scores and tfidf_scores:
@@ -417,7 +445,8 @@ class QbDKnowledgeEngine:
             else:
                 combined_score = t_score + boost
 
-            scored_candidates.append((cid, combined_score))
+            if combined_score >= min_score:
+                scored_candidates.append((cid, combined_score))
 
         # Sort descending by score
         scored_candidates.sort(key=lambda x: x[1], reverse=True)
@@ -450,7 +479,8 @@ def get_qbd_engine() -> QbDKnowledgeEngine:
 
 def query_qbd_regulatory_guidance(
     query: str,
-    guideline: Optional[str] = None
+    guideline: Optional[str] = None,
+    min_score: float = 0.20
 ) -> Dict[str, Any]:
     """
     Deterministic retrieval tool for Quality by Design (QbD) standards and regulatory guidelines.
@@ -460,26 +490,30 @@ def query_qbd_regulatory_guidance(
         query: Natural language question or regulatory term, e.g.:
                "What is the difference between Normal Operating Range (NOR) and Proven Acceptable Range (PAR) according to ICH Q8?"
         guideline: Optional guideline filter, e.g. "ICH Q8", "ICH Q9", "ICH Q10", "ICH Q14", or None for cross-guideline search.
+        min_score: Minimum relevance score threshold to return matches.
 
     Returns:
         Structured dictionary containing:
-        - status: "success" or "no_matches"
+        - status: "success" or "not_found"
         - query: Original user query
         - guideline_filter: Applied guideline filter
         - total_results: Number of matched regulatory sections
-        - top_citation: Primary formal regulatory citation
+        - top_citation: Primary formal regulatory citation or "not found in knowledge base"
+        - message: "not found in knowledge base" if no matches found
         - results: List of matched sections with definitions, compliance considerations, citations, and full text.
     """
     engine = get_qbd_engine()
-    results = engine.search(query=query, guideline=guideline, top_k=3)
+    results = engine.search(query=query, guideline=guideline, top_k=3, min_score=min_score)
 
     if not results:
         return {
-            "status": "no_matches",
+            "status": "not_found",
             "query": query,
             "guideline_filter": guideline,
             "total_results": 0,
-            "message": f"No regulatory guidance matched query '{query}'."
+            "top_citation": "not found in knowledge base",
+            "message": "not found in knowledge base",
+            "results": []
         }
 
     top_citation = results[0]["citation"]

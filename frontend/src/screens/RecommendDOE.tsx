@@ -3,6 +3,23 @@ import { useStore } from '../store/useStore'
 import { DOE, Projects } from '../services/api'
 import toast from 'react-hot-toast'
 import PreRunDiagnosticsModal from './PreRunDiagnosticsModal'
+import DoEManualModal from '../components/DoEManualModal'
+import { DoECategory } from '../utils/doeManualData'
+import { BookOpen, ExternalLink, Sparkles, ArrowRight } from 'lucide-react'
+
+const KEY_TO_MANUAL_ID: Record<string, string> = {
+  PB: 'pb',
+  FF: 'fractional_factorial',
+  FF_S: 'fractional_factorial',
+  TAGUCHI: 'taguchi',
+  DSD: 'dsd',
+  CCD_FC: 'ccd',
+  CCD_ROT: 'ccd',
+  BBD: 'bbd',
+  MIXTURE: 'mixture',
+  D_OPTIMAL: 'd_optimal',
+  BAYESIAN_GP: 'bayesian_gp'
+}
 
 export default function RecommendDOE() {
   const { currentProject, setProject, setStep } = useStore()
@@ -12,16 +29,26 @@ export default function RecommendDOE() {
   const [loading, setLoading]       = useState(false)
   const [errorMsg, setErrorMsg]     = useState<string | null>(null)
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false)
+  const [showManualModal, setShowManualModal]           = useState(false)
+  const [manualInitialTab, setManualInitialTab]         = useState<'wizard' | 'matrix' | 'deep-dives'>('wizard')
+  const [manualInitialDesignId, setManualInitialDesignId] = useState<string | undefined>(undefined)
 
-  async function loadOptions(ph: string) {
+  async function loadOptions(ph: string, preferredKey?: string) {
     if (!currentProject?.id) return
     setLoading(true)
     setErrorMsg(null)
     try {
       const data = await DOE.recommend(currentProject.id, ph)
-      setOptions(data.options || [])
-      const rec = data.options?.find((o: any) => o.recommended)
-      setSelected(rec?.key || data.options?.[0]?.key || '')
+      const opts = data.options || []
+      setOptions(opts)
+      const targetKey = preferredKey || selected
+      const keyExists = opts.some((o: any) => o.key === targetKey)
+      if (keyExists && targetKey) {
+        setSelected(targetKey)
+      } else {
+        const rec = opts.find((o: any) => o.recommended)
+        setSelected(rec?.key || opts[0]?.key || '')
+      }
     } catch (e: any) {
       const detail = e.response?.data?.detail || e.message || 'Failed to load recommendations'
       setErrorMsg(detail)
@@ -35,6 +62,17 @@ export default function RecommendDOE() {
   }, [phase, currentProject?.id])
 
   const { setExperiments } = useStore()
+
+  function handleSelectFromManual(designKey: string, category: DoECategory) {
+    const targetPhase: 'screening' | 'optimization' = category === 'Screening' ? 'screening' : 'optimization'
+    setSelected(designKey)
+    if (phase !== targetPhase) {
+      setPhase(targetPhase)
+      loadOptions(targetPhase, designKey)
+    }
+    setShowManualModal(false)
+    toast.success(`Applied ${designKey} design from Manual`, { icon: '🎯' })
+  }
 
   async function handleNext() {
     if (!selected) { toast.error('Please select a design'); return }
@@ -86,7 +124,76 @@ export default function RecommendDOE() {
       <div className="page-header">
         <div className="page-header-tag">Step 09</div>
         <h1 className="page-title">Recommend DOE</h1>
-        <p className="page-desc">The system suggests the best experiment plan.</p>
+        <p className="page-desc">The system suggests the best experiment plan based on quality-by-design principles.</p>
+      </div>
+
+      {/* Top Banner: DoE Selection Manual & Strategy Guide */}
+      <div
+        className="card mb-2"
+        style={{
+          background: 'linear-gradient(135deg, rgba(0, 91, 170, 0.08) 0%, rgba(0, 174, 179, 0.08) 100%)',
+          border: '1.5px solid rgba(0, 91, 170, 0.25)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '1.1rem 1.35rem',
+          borderRadius: '14px',
+          boxShadow: '0 4px 15px rgba(0, 91, 170, 0.06)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff',
+              fontSize: '1.35rem',
+              boxShadow: '0 4px 12px rgba(0, 91, 170, 0.22)',
+              flexShrink: 0
+            }}
+          >
+            📖
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.15rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                DoE Selection Wizard & Strategy Guide
+              </h3>
+              <span className="badge badge-accent" style={{ fontSize: '0.7rem', padding: '1px 7px', fontWeight: 700 }}>
+                ICH Q8(R2) Aligned
+              </span>
+            </div>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+              Minimal 3-question guided visual stepper to recommend the optimal experimental design in under 10 seconds.
+            </p>
+          </div>
+        </div>
+
+        <button
+          className="btn btn-primary"
+          onClick={() => {
+            setManualInitialDesignId(undefined)
+            setShowManualModal(true)
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            whiteSpace: 'nowrap',
+            fontWeight: 700,
+            padding: '0.55rem 1.15rem',
+            borderRadius: '8px'
+          }}
+        >
+          <BookOpen size={16} />
+          <span>Open 3-Question Wizard</span>
+          <ArrowRight size={15} />
+        </button>
       </div>
 
       {/* Phase toggle */}
@@ -128,24 +235,71 @@ export default function RecommendDOE() {
                 key={opt.key}
                 className={`design-option ${isSelected ? 'selected' : ''}`}
                 onClick={() => setSelected(opt.key)}
-                style={{ cursor: 'pointer', padding: '1rem', border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`, borderRadius: '8px', background: isSelected ? 'rgba(99,102,241,0.06)' : 'transparent' }}
+                style={{
+                  cursor: 'pointer',
+                  padding: '1.15rem',
+                  border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                  borderRadius: '10px',
+                  background: isSelected ? 'rgba(0, 91, 170, 0.05)' : '#ffffff',
+                  boxShadow: isSelected ? '0 4px 15px rgba(0, 91, 170, 0.08)' : 'var(--shadow-sm)',
+                  transition: 'all 0.18s'
+                }}
               >
                 {opt.recommended && (
-                  <div style={{ marginBottom: '0.4rem', color: 'var(--success-light)', fontWeight: 600, fontSize: '0.82rem' }}>
-                    ✨ Recommended Option
+                  <div style={{ marginBottom: '0.4rem', color: 'var(--success)', fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Sparkles size={14} color="var(--success)" />
+                    <span>Algorithmic Top Recommendation for Active Factor Set</span>
                   </div>
                 )}
                 <div style={{ display:'flex', alignItems:'flex-start', gap:'1rem' }}>
-                  <div style={{ fontSize:'1.8rem', lineHeight:1 }}>{icons[opt.key]||'📐'}</div>
+                  <div style={{ fontSize:'2rem', lineHeight:1 }}>{icons[opt.key]||'📐'}</div>
                   <div style={{ flex:1 }}>
-                    <div className="design-option-title" style={{ fontWeight: 700, fontSize: '1rem' }}>{opt.label}</div>
-                    <div style={{ fontSize:'0.82rem', color:'var(--primary-light)', marginBottom:'0.3rem' }}>{opt.design_type}</div>
-                    <div style={{ fontSize:'0.78rem', color:'var(--text-secondary)', lineHeight:1.5 }}>{opt.description}</div>
-                    <div style={{ display:'flex', gap:'0.5rem', marginTop:'0.5rem', flexWrap:'wrap' }}>
-                      <span className="badge badge-accent">Total: {opt.n_runs} runs</span>
-                      <span className="badge badge-primary">{opt.resolution}</span>
-                      {opt.n_center > 0 && <span className="badge badge-warning">{opt.n_center} center pts</span>}
-                      {opt.n_axial > 0  && <span className="badge badge-warning">{opt.n_axial} axial pts</span>}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <div className="design-option-title" style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{opt.label}</div>
+                      <div style={{ fontSize:'0.78rem', color:'var(--primary)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>Key: {opt.key}</div>
+                    </div>
+                    <div style={{ fontSize:'0.82rem', color:'var(--primary)', marginBottom:'0.3rem', fontWeight: 600 }}>{opt.design_type}</div>
+                    <div style={{ fontSize:'0.8rem', color:'var(--text-secondary)', lineHeight:1.5 }}>{opt.description}</div>
+                    
+                    {/* Badges & Inline Rationale Link */}
+                    <div style={{ display:'flex', justifyContent: 'space-between', alignItems: 'center', marginTop:'0.75rem', flexWrap:'wrap', gap:'0.6rem' }}>
+                      <div style={{ display:'flex', gap:'0.5rem', flexWrap:'wrap' }}>
+                        <span className="badge badge-accent">Total: {opt.n_runs} runs</span>
+                        <span className="badge badge-primary">{opt.resolution}</span>
+                        {opt.n_center > 0 && <span className="badge badge-warning">{opt.n_center} center pts</span>}
+                        {opt.n_axial > 0  && <span className="badge badge-warning">{opt.n_axial} axial pts</span>}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const targetId = KEY_TO_MANUAL_ID[opt.key] || 'dsd'
+                          setManualInitialDesignId(targetId)
+                          setManualInitialTab('deep-dives')
+                          setShowManualModal(true)
+                        }}
+                        style={{
+                          background: 'rgba(0, 91, 170, 0.08)',
+                          border: '1px solid rgba(0, 91, 170, 0.25)',
+                          padding: '0.3rem 0.65rem',
+                          borderRadius: '6px',
+                          color: 'var(--primary)',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0, 91, 170, 0.15)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(0, 91, 170, 0.08)')}
+                      >
+                        <BookOpen size={13} />
+                        <span>Why this design? View scientific rationale in Manual</span>
+                        <ExternalLink size={12} />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -159,6 +313,17 @@ export default function RecommendDOE() {
         <button className="btn btn-secondary" onClick={() => setStep('define-factors')}>← Back</button>
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              setManualInitialDesignId(undefined)
+              setShowManualModal(true)
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <BookOpen size={15} />
+            <span>🧙‍♂️ DoE Selection Wizard</span>
+          </button>
           <button
             className="btn btn-accent"
             onClick={() => setShowDiagnosticsModal(true)}
@@ -183,8 +348,16 @@ export default function RecommendDOE() {
           }}
         />
       )}
+
+      <DoEManualModal
+        isOpen={showManualModal}
+        onClose={() => setShowManualModal(false)}
+        onSelectDesign={handleSelectFromManual}
+        initialTab={manualInitialTab}
+        initialDesignId={manualInitialDesignId}
+      />
     </div>
   )
-
 }
+
 

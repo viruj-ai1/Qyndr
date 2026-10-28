@@ -190,17 +190,6 @@ export default function QTPPDefinition() {
     setItems(updated)
   }
 
-  const handleAutoSuggest = () => {
-    if (!currentProject) return
-    const suggested = generateContextAwareQTPP(currentProject)
-    const formatted = formatItems(suggested)
-    setItems(formatted)
-    setQtpp(formatted)
-    if (currentProject.id) {
-      Projects.savePhase0(currentProject.id, { qtpp: formatted }).catch(() => {})
-    }
-    toast.success(`Loaded ${formatted.length} compendial specifications for ${currentProject.compound || 'API'}!`)
-  }
 
   const handleClearAll = () => {
     setItems([])
@@ -263,14 +252,6 @@ export default function QTPPDefinition() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={handleAutoSuggest}
-              title="Auto-suggest compendial specifications based on compound"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-            >
-              <span>⚡</span> Auto-Suggest Standards
-            </button>
             {items.length > 0 && (
               <button
                 className="btn btn-secondary btn-sm"
@@ -286,29 +267,6 @@ export default function QTPPDefinition() {
           </div>
         </div>
 
-        {items.length > 0 && (
-          <div style={{
-            background: 'rgba(56, 189, 248, 0.08)',
-            border: '1px solid rgba(56, 189, 248, 0.22)',
-            borderRadius: '8px',
-            padding: '0.6rem 0.9rem',
-            marginBottom: '1rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '0.82rem'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '1.05rem' }}>✨</span>
-              <span>
-                <strong>{items.length} Quality Attributes defined</strong> for <strong>{currentProject?.compound || 'this API'}</strong>. Changes are auto-saved in real-time.
-              </span>
-            </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
-              ICH Q8(R2) / Pharmacopoeial Spec
-            </div>
-          </div>
-        )}
 
         <div style={{ overflowX: 'auto' }}>
           <table className="data-table" style={{ width: '100%', fontSize: '0.85rem' }}>
@@ -331,13 +289,10 @@ export default function QTPPDefinition() {
                       No QTPP Attributes Defined Yet
                     </div>
                     <div style={{ fontSize: '0.82rem', maxWidth: '480px', margin: '0 auto 1.25rem', lineHeight: 1.5 }}>
-                      Target specifications establish the foundation of Quality by Design (QbD). You can auto-generate pharmacopoeial standards for <strong>{currentProject?.compound || 'this API'}</strong> or add custom attributes manually.
+                      Target specifications establish the foundation of Quality by Design (QbD). Add custom attributes manually to define the target quality profile for <strong>{currentProject?.compound || 'this API'}</strong>.
                     </div>
                     <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-                      <button className="btn btn-primary btn-sm" onClick={handleAutoSuggest}>
-                        ⚡ Auto-Suggest Compendial Specifications
-                      </button>
-                      <button className="btn btn-secondary btn-sm" onClick={handleAddRow}>
+                      <button className="btn btn-primary btn-sm" onClick={handleAddRow}>
                         + Add Quality Attribute
                       </button>
                     </div>

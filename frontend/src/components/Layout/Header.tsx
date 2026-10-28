@@ -1,7 +1,7 @@
 import { useStore } from '../../store/useStore'
 
 export default function Header() {
-  const { currentProject, stages, activeStageId, setStep, setProject } = useStore()
+  const { currentProject, stages, activeStageId, setStep, reset } = useStore()
 
   const activeStage = stages.find(s => s.id === activeStageId)
 
@@ -38,7 +38,7 @@ export default function Header() {
           </svg>
           Dashboard
         </button>
-        <button className="btn btn-primary btn-sm" onClick={() => { setProject(null); setStep('create-project'); }}>
+        <button className="btn btn-primary btn-sm" onClick={() => { reset(); setStep('create-project'); }}>
           <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>

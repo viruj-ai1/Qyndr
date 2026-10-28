@@ -20,7 +20,6 @@ export default function BayesianOpt() {
   return (
     <div>
       <div className="page-header">
-        <div className="page-header-tag">Step 14</div>
         <h1 className="page-title">Bayesian Optimization</h1>
         <p className="page-desc">Choose the next experiment that may give a better result.</p>
       </div>

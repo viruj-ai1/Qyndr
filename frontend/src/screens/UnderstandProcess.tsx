@@ -112,7 +112,6 @@ export default function UnderstandProcess() {
     <div>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <div className="page-header-tag">Step 01 · Process Details</div>
           <h1 className="page-title">Create Project & Process Details</h1>
           <p className="page-desc">Create the project and enter the API, goal, and process details.</p>
         </div>

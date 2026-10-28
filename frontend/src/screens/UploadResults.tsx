@@ -113,7 +113,6 @@ export default function UploadResults() {
   return (
     <div>
       <div className="page-header">
-        <div className="page-header-tag">Step 12</div>
         <h1 className="page-title">Upload Results</h1>
         <p className="page-desc">Enter the results obtained from the experiments.</p>
       </div>

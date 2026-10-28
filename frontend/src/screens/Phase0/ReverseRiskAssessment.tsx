@@ -224,10 +224,7 @@ export default function ReverseRiskAssessment() {
   return (
     <div className="screen-container">
       <div className="page-header" style={{ marginBottom: '1.25rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div className="badge badge-accent">Step 05 · Phase 0</div>
-          <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Reverse Risk Assessment</h1>
-        </div>
+        <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Reverse Risk Assessment</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.3rem' }}>
           Identify Critical Process Parameters (CPPs) and Material Attributes (CMAs) impacting CQAs in{' '}
           <strong style={{ color: 'var(--primary-light)' }}>{currentStage.name}</strong>.
@@ -497,7 +494,7 @@ export default function ReverseRiskAssessment() {
         <button className="btn btn-primary" onClick={handleConfirmAndNextStage}>
           {safeStageIndex < stages.length - 1
             ? `Confirm & Move to ${(stages[safeStageIndex + 1]?.name || '').split(':')[0] || `Stage ${safeStageIndex + 2}`} →`
-            : 'Confirm & View Phase 0 Handoff Summary →'}
+            : 'Confirm & View Stage Overview →'}
         </button>
       </div>
     </div>

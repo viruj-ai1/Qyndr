@@ -22,7 +22,6 @@ export default function Report() {
   return (
     <div>
       <div className="page-header">
-        <div className="page-header-tag">Step 17</div>
         <h1 className="page-title">Generate Report</h1>
         <p className="page-desc">Create a report showing everything done in the project and the final result.</p>
       </div>

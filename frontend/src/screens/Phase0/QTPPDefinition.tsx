@@ -234,10 +234,7 @@ export default function QTPPDefinition() {
   return (
     <div className="screen-container">
       <div className="page-header" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div className="badge badge-accent">Step 02 · Phase 0</div>
-          <h1 style={{ fontSize: '1.4rem', margin: 0 }}>QTPP Definition</h1>
-        </div>
+        <h1 style={{ fontSize: '1.4rem', margin: 0 }}>QTPP Definition</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.3rem' }}>
           Define what quality the final API should have.
         </p>

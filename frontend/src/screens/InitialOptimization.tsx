@@ -61,7 +61,6 @@ export default function InitialOptimization() {
   return (
     <div>
       <div className="page-header">
-        <div className="page-header-tag">Step 11 · Initial Optimum</div>
         <h1 className="page-title">Initial Optimum</h1>
         <p className="page-desc">Find the first best settings for the process.</p>
       </div>

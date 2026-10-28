@@ -185,18 +185,24 @@ export const useStore = create<Store>()(
   persist(
     (set, get) => ({
       ...INITIAL,
-      setProject:     p  => set(state => {
+      setProject: p => set(state => {
         const step = p ? normalizeStep(p.current_step) : 'create-project'
         return {
           currentProject: p ? { ...p, current_step: step } : null,
           currentStep: step,
+          activeStageId: null,
           qtpp: p ? (p.qtpp_data || []) : [],
           cqas: p ? (p.cqas_data || []) : [],
           stages: p ? (p.stages_data || []) : [],
           riskAssessments: p ? (p.risk_assessment_data || {}) : {},
           auditLogs: p ? (p.audit_logs || []) : [],
           lockedCampaigns: p ? (p.locked_campaigns || []) : [],
-          experiments: p?.experiments ?? []
+          experiments: p?.experiments ?? [],
+          // CRITICAL: Always wipe model results from previous projects
+          analysisResults: {},
+          optimumResult: null,
+          bayesResult: null,
+          finalResult: null,
         }
       }),
       setStep:         s  => set(st => ({

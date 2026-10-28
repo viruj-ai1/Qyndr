@@ -82,7 +82,6 @@ export default function NewExperiment() {
   return (
     <div>
       <div className="page-header">
-        <div className="page-header-tag">Step 15</div>
         <h1 className="page-title">New Experiment</h1>
         <p className="page-desc">Do the new experiment and add its results.</p>
       </div>

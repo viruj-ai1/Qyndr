@@ -57,7 +57,6 @@ export default function CreateProject() {
   return (
     <div>
       <div className="page-header">
-        <div className="page-header-tag">Step 01</div>
         <h1 className="page-title">Create Project</h1>
         <p className="page-desc">Create the project and enter the API, goal, and process details.</p>
       </div>

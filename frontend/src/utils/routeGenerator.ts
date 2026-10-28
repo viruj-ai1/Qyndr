@@ -13,7 +13,7 @@ import {
  * Attempts to parse explicit stages or unit operations directly from the user's project description text.
  * E.g.: "Stage 1: ...", "Step 1: ...", "1. Alkylation: ...", "Unit Op 1: ..."
  */
-function parseStagesFromDescription(description: string, compound: string): StageItem[] | null {
+export function parseStagesFromDescription(description: string, compound: string): StageItem[] | null {
   if (!description || description.trim().length === 0) return null
 
   const lines = description.split(/\r?\n/).map(l => l.trim()).filter(Boolean)

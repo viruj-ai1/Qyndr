@@ -50,12 +50,9 @@ export default function Phase0Summary() {
   return (
     <div className="screen-container">
       <div className="page-header" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div className="badge badge-accent">Step 06 · Phase 0</div>
-          <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Phase 0 Summary</h1>
-        </div>
+        <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Stage Overview</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.3rem' }}>
-          Get a summary of the quality and risk assessment for each stage.
+          Review process parameters and critical quality attributes across all synthesis stages.
         </p>
       </div>
 

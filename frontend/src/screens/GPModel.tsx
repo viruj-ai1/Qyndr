@@ -101,7 +101,6 @@ export default function GPModel() {
   return (
     <div>
       <div className="page-header">
-        <div className="page-header-tag">Step 13 · Machine Learning</div>
         <h1 className="page-title">Gaussian Process Surrogate Model</h1>
         <p className="page-desc">
           Fits a non-parametric Bayesian Gaussian Process with Matérn kernel to your analytical response data to model nonlinear curvature and quantify prediction uncertainty across the experimental space.

@@ -28,7 +28,6 @@ export default function LabExperiments() {
   return (
     <div>
       <div className="page-header">
-        <div className="page-header-tag">Step 11</div>
         <h1 className="page-title">Laboratory Runs</h1>
         <p className="page-desc">Perform the planned experiments in the lab.</p>
       </div>

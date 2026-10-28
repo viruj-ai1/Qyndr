@@ -20,10 +20,7 @@ export default function CampaignDashboard() {
   return (
     <div className="screen-container">
       <div className="page-header" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div className="badge badge-primary">Step 07</div>
-          <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Campaign Dashboard</h1>
-        </div>
+        <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Campaign Dashboard</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.3rem' }}>
           See the overall status of all process stages and experiments.
         </p>

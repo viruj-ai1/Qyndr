@@ -98,7 +98,6 @@ export default function RecommendDOE() {
     return (
       <div style={{ maxWidth: '860px' }}>
         <div className="page-header">
-          <div className="page-header-tag">Step 04</div>
           <h1 className="page-title">Recommend DOE Design</h1>
           <p className="page-desc">Choose the right design for your experiment. The system recommends optimal classical & QbD designs based on your factors.</p>
         </div>
@@ -122,7 +121,6 @@ export default function RecommendDOE() {
   return (
     <div>
       <div className="page-header">
-        <div className="page-header-tag">Step 09</div>
         <h1 className="page-title">Recommend DOE</h1>
         <p className="page-desc">The system suggests the best experiment plan based on quality-by-design principles.</p>
       </div>

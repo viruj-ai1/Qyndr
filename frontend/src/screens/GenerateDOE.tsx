@@ -430,7 +430,6 @@ export default function GenerateDOE() {
     <div>
       {/* ── Page Header & Stats ── */}
       <div className="page-header">
-        <div className="page-header-tag">Step 10 · DOE Campaign</div>
         <h1 className="page-title">DOE Matrix & Results</h1>
         <p className="page-desc">
           Review experimental design setpoints, log benchtop execution, and enter analytical response results.

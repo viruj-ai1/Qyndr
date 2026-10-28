@@ -9,7 +9,7 @@ const WORKFLOW_STEPS: StepDef[] = [
   { key: 'cqa',                  label: '03. CQA Derivation',       icon: '03', category: 'Phase 0' },
   { key: 'route-mapping',        label: '04. Route Mapping',        icon: '04', category: 'Phase 0' },
   { key: 'risk-assessment',      label: '05. Risk Assessment',      icon: '05', category: 'Phase 0' },
-  { key: 'phase0-summary',       label: '06. Phase 0 Summary',      icon: '06', category: 'Phase 0' },
+  { key: 'phase0-summary',       label: '06. Stage Overview',       icon: '06', category: 'Phase 0' },
   { key: 'campaign-dashboard',   label: '07. Campaign Dashboard',   icon: '07', category: 'Dashboard' },
   { key: 'define-factors',       label: '08. Define Factors & Responses', icon: '08', category: 'DOE Campaign' },
   { key: 'recommend-doe',        label: '09. Recommend DOE',        icon: '09', category: 'DOE Campaign' },
@@ -32,50 +32,78 @@ function stepIndex(s: Step) {
 
 function isStepDone(stepKey: Step, idx: number, currentIdx: number, store: any): boolean {
   const { currentProject, qtpp, cqas, stages, riskAssessments, experiments, optimumResult, finalResult } = store
+
+  // 1. Mandatory guard: New project or no project loaded -> ZERO checkmarks
+  if (!currentProject || !currentProject.id) {
+    return false
+  }
+
+  // 2. Strict evaluation for valid active project
   switch (stepKey) {
     case 'create-project':
-      return Boolean(currentProject?.name)
+      return Boolean(currentProject.name && currentProject.name.trim().length > 0)
+
     case 'qtpp':
-      return Boolean((qtpp && qtpp.length > 0) || (currentProject?.qtpp_data && currentProject.qtpp_data.length > 0))
+      return Boolean((qtpp && qtpp.length > 0) || (currentProject.qtpp_data && currentProject.qtpp_data.length > 0))
+
     case 'cqa':
-      return Boolean((cqas && cqas.length > 0) || (currentProject?.cqas_data && currentProject.cqas_data.length > 0))
+      return Boolean((cqas && cqas.length > 0) || (currentProject.cqas_data && currentProject.cqas_data.length > 0))
+
     case 'route-mapping':
-      return Boolean((stages && stages.length > 0) || (currentProject?.stages_data && currentProject.stages_data.length > 0))
+      return Boolean((stages && stages.length > 0) || (currentProject.stages_data && currentProject.stages_data.length > 0))
+
     case 'risk-assessment':
       return Boolean(
         (riskAssessments && Object.keys(riskAssessments).length > 0) ||
-        (currentProject?.risk_assessment_data && Object.keys(currentProject.risk_assessment_data).length > 0)
+        (currentProject.risk_assessment_data && Object.keys(currentProject.risk_assessment_data).length > 0)
       )
+
     case 'phase0-summary':
-      return Boolean((stages && stages.length > 0) || (currentProject?.stages_data && currentProject.stages_data.length > 0))
+      // Done only if both stages AND risk assessment are completed
+      return Boolean(
+        ((stages && stages.length > 0) || (currentProject.stages_data && currentProject.stages_data.length > 0)) &&
+        ((riskAssessments && Object.keys(riskAssessments).length > 0) || (currentProject.risk_assessment_data && Object.keys(currentProject.risk_assessment_data).length > 0))
+      )
+
     case 'campaign-dashboard':
-      return Boolean(currentProject)
+      return Boolean(currentProject.factors && currentProject.factors.length > 0)
+
     case 'define-factors':
-      return Boolean(currentProject?.factors && currentProject.factors.length > 0)
+      return Boolean(currentProject.factors && currentProject.factors.length > 0 && currentProject.responses && currentProject.responses.length > 0)
+
     case 'recommend-doe':
-      return Boolean(currentProject?.doe_type)
+      return Boolean(currentProject.doe_type)
+
     case 'generate-doe':
       return Boolean(
         experiments &&
         experiments.length > 0 &&
         experiments.some((e: any) => e.is_completed || (e.result_values && e.result_values.some((v: any) => v != null)))
       )
+
     case 'initial-optimization':
-      return Boolean(optimumResult)
+      return Boolean(optimumResult && currentProject.experiments && currentProject.experiments.length > 0)
+
     case 'enough-data':
       return Boolean(optimumResult)
+
     case 'gp-model':
-      return Boolean(store.bayesResult || optimumResult)
+      return Boolean(store.bayesResult && currentProject.experiments && currentProject.experiments.length > 0)
+
     case 'bayesian-opt':
       return Boolean(store.bayesResult)
+
     case 'new-experiment':
       return Boolean(experiments && experiments.some((e: any) => e.run_type === 'Bayesian'))
+
     case 'final-optimum':
-      return Boolean(finalResult || optimumResult)
+      return Boolean(finalResult)
+
     case 'report':
-      return Boolean(finalResult || optimumResult)
+      return Boolean(finalResult && currentProject.id)
+
     default:
-      return idx < currentIdx
+      return false
   }
 }
 

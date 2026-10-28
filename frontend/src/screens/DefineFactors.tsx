@@ -149,32 +149,6 @@ export default function DefineFactors() {
         </div>
       </div>
 
-      {/* ── Physicochemical Safety Guardrails ── */}
-      <div className="card mb-2" style={{ borderLeft: '4px solid var(--warning)' }}>
-        <div className="card-title mb-2">Physicochemical Safety Guardrails</div>
-        <p className="card-sub mb-2">Define any physical or chemical limits to prevent dangerous lab conditions during execution.</p>
-        <div className="grid-2">
-          <div>
-            <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Max Temperature Limit (°C)</label>
-            <input className={inputCls} placeholder="e.g. 75 (Solvent Boiling Point)" />
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Prevents DOE from recommending runs above this temperature.</div>
-          </div>
-          <div>
-            <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Max Exotherm / Heat Flow Limit</label>
-            <input className={inputCls} placeholder="e.g. 50 W/kg" />
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Safety threshold for thermal runaway.</div>
-          </div>
-          <div>
-            <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Min Reagent Ratio Limit</label>
-            <input className={inputCls} placeholder="e.g. 1.05 eq" />
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Minimum stoichiometry required to avoid incomplete reaction.</div>
-          </div>
-          <div>
-            <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Custom Safety Constraint</label>
-            <input className={inputCls} placeholder="e.g. Pressure < 2 atm" />
-          </div>
-        </div>
-      </div>
 
       {/* ── Responses ── */}
       <div className="card">

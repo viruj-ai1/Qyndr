@@ -10,9 +10,6 @@ export default function GenerateDOE() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [showActuals, setShowActuals] = useState(false)
-  const [showCalc, setShowCalc] = useState(false)
-  const [scaleValue, setScaleValue] = useState(10.0)
-  const [scaleUnit, setScaleUnit] = useState('mmol')
 
   // Editable analytical results: { [experimentId]: [val0, val1, ...] }
   const [results, setResults] = useState<Record<number, (number | null)[]>>({})
@@ -549,14 +546,6 @@ export default function GenerateDOE() {
         </div>
 
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => setShowCalc(prev => !prev)}
-            style={{ fontSize: '0.78rem' }}
-          >
-            {showCalc ? '🔼 Hide Stoichiometry' : '🧪 Scale & Stoichiometry'}
-          </button>
-
           <label
             style={{
               display: 'flex',
@@ -583,84 +572,6 @@ export default function GenerateDOE() {
           </label>
         </div>
       </div>
-
-      {/* ── Optional Collapsible: Scale & Stoichiometry Calculator ── */}
-      {showCalc && (
-        <div className="card mb-2" style={{ borderLeft: '4px solid var(--primary)', background: '#fcfdfd' }}>
-          <div className="flex-between mb-2">
-            <div>
-              <div className="card-title" style={{ fontSize: '0.98rem' }}>
-                Scale & Stoichiometry Calculator
-              </div>
-              <div className="card-sub">Calculate reagent weights, molar ratios, and solvent volumes per run.</div>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Target Scale:</label>
-              <input
-                type="number"
-                step="any"
-                className="form-input"
-                style={{ width: '90px', padding: '0.25rem 0.5rem' }}
-                value={scaleValue}
-                onChange={e => setScaleValue(parseFloat(e.target.value) || 0)}
-              />
-              <select
-                className="form-select"
-                style={{ padding: '0.25rem', paddingRight: '1.5rem', width: '90px' }}
-                value={scaleUnit}
-                onChange={e => setScaleUnit(e.target.value)}
-              >
-                <option value="mmol">mmol</option>
-                <option value="g">grams</option>
-              </select>
-            </div>
-          </div>
-
-          <div style={{ overflowX: 'auto', marginBottom: '0.75rem' }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Run #</th>
-                  <th>Substrate (1.0 Eq)</th>
-                  {factors
-                    .filter((f: any) => f.unit === 'eq' || f.name.toLowerCase().includes('ratio') || f.name.toLowerCase().includes('reagent'))
-                    .map((f: any) => (
-                      <th key={f.name}>{f.name} (Reagent)</th>
-                    ))}
-                  <th>Solvent Volume (5 mL/mmol)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayedExperiments.slice(0, 5).map((e: any) => (
-                  <tr key={e.id || e.run_number}>
-                    <td style={{ fontWeight: 700 }}>Run {e.run_number}</td>
-                    <td className="mono">
-                      {scaleValue.toFixed(1)} {scaleUnit} ({(scaleValue * 0.25).toFixed(2)} g)
-                    </td>
-                    {factors
-                      .filter((f: any) => f.unit === 'eq' || f.name.toLowerCase().includes('ratio') || f.name.toLowerCase().includes('reagent'))
-                      .map((f: any, i: number) => {
-                        const factorIndex = factors.findIndex((x: any) => x.name === f.name)
-                        const eqValue = e.actual_values?.[factorIndex] ?? 1.0
-                        return (
-                          <td key={i} className="mono">
-                            {eqValue.toFixed(2)} eq / {(eqValue * scaleValue).toFixed(2)} {scaleUnit}
-                          </td>
-                        )
-                      })}
-                    <td className="mono">{(scaleValue * 5.0).toFixed(1)} mL</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {displayedExperiments.length > 5 && (
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'right' }}>
-              Showing first 5 runs. Complete stoichiometry included in CSV export.
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ── Main Unified Interactive Table ── */}
       <div className="card">

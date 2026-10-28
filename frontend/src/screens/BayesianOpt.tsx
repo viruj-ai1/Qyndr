@@ -61,23 +61,60 @@ export default function BayesianOpt() {
           {/* Recommended factor settings */}
           <div className="card mb-2">
             <div className="card-title mb-2">Recommended Next Experiment</div>
-            <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               {factors.map((f: any, i: number) => {
                 const val = rec.actual_values?.[i]
-                const pct = val != null ? ((val - f.low) / (f.high - f.low)) * 100 : 50
+                const range = (f.high - f.low) || 1
+                const rawPct = val != null ? ((val - f.low) / range) * 100 : 50
+                // Strictly clamp percentage between 0% and 100%, guarding against Infinity/NaN
+                const pct = Math.max(0, Math.min(100, isNaN(rawPct) || !isFinite(rawPct) ? 50 : rawPct))
+
                 return (
-                  <div key={i} style={{ display:'flex', alignItems:'center', gap:'1rem' }}>
-                    <div style={{ width:'140px', fontSize:'0.82rem', fontWeight:600, color:'var(--text-secondary)', flexShrink:0 }}>
-                      {f.name} <span style={{ color:'var(--text-muted)', fontWeight:400 }}>({f.unit})</span>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ width: '160px', fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>
+                      {f.name} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({f.unit || 'units'})</span>
                     </div>
-                    <div style={{ flex:1, height:'8px', background:'var(--border)', borderRadius:'999px', overflow:'visible', position:'relative' }}>
-                      <div style={{ position:'absolute', left:0, top:0, height:'100%', width:`${pct}%`, background:'linear-gradient(90deg, var(--primary), var(--accent))', borderRadius:'999px', transition:'width 0.5s ease' }}/>
-                      <div style={{ position:'absolute', top:'-4px', left:`calc(${pct}% - 8px)`, width:'16px', height:'16px', borderRadius:'50%', background:'var(--accent)', border:'2px solid var(--bg-base)', boxShadow:'0 2px 8px rgba(6,182,212,0.5)' }}/>
+                    
+                    {/* Track container with explicit clipping boundaries */}
+                    <div style={{ flex: 1, height: '8px', background: 'var(--border)', borderRadius: '999px', position: 'relative', minWidth: '140px' }}>
+                      {/* Active filled line strictly clamped within track */}
+                      <div 
+                        style={{ 
+                          position: 'absolute', 
+                          left: 0, 
+                          top: 0, 
+                          height: '100%', 
+                          width: `${pct}%`, 
+                          maxWidth: '100%',
+                          background: 'linear-gradient(90deg, var(--primary), var(--accent))', 
+                          borderRadius: '999px', 
+                          transition: 'width 0.4s ease' 
+                        }}
+                      />
+                      {/* Position indicator dot clamped within track limits */}
+                      <div 
+                        style={{ 
+                          position: 'absolute', 
+                          top: '-4px', 
+                          left: `calc(${pct}% - 8px)`, 
+                          width: '16px', 
+                          height: '16px', 
+                          borderRadius: '50%', 
+                          background: 'var(--accent)', 
+                          border: '2px solid var(--bg-base)', 
+                          boxShadow: '0 2px 8px rgba(6, 182, 212, 0.4)',
+                          pointerEvents: 'none'
+                        }}
+                      />
                     </div>
-                    <div style={{ width:'80px', textAlign:'right', fontFamily:'JetBrains Mono', fontSize:'0.88rem', fontWeight:700, color:'var(--success)', flexShrink:0 }}>
-                      {val?.toFixed(3)}
+
+                    {/* Formatted Value & Unit */}
+                    <div style={{ width: '85px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.88rem', fontWeight: 700, color: 'var(--success)', flexShrink: 0 }}>
+                      {typeof val === 'number' && !isNaN(val) ? val.toFixed(3) : '—'}
                     </div>
-                    <div style={{ width:'30px', fontSize:'0.72rem', color:'var(--text-muted)', flexShrink:0 }}>{f.unit}</div>
+                    <div style={{ width: '35px', fontSize: '0.74rem', color: 'var(--text-muted)', flexShrink: 0 }}>
+                      {f.unit || ''}
+                    </div>
                   </div>
                 )
               })}

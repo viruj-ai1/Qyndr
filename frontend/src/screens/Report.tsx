@@ -140,9 +140,9 @@ export default function Report() {
         {[
           { icon: '🎯', title: 'QbD Foundation Traceability', desc: 'Complete QTPP → CQA → CPP/CMA risk matrix' },
           { icon: '🏢', title: 'AI Executive Summary',    desc: 'Quantitative Wins, Process Mass Intensity (PMI), E-Factor, Cost' },
-          { icon: '⚗️', title: 'Factors & Responses',    desc: 'All input variables, physical guardrails, and response definitions' },
+          { icon: '⚗️', title: 'Factors & Responses',    desc: 'All input variables and response definitions' },
           { icon: '🔢', title: 'Experiment Matrix',       desc: 'Complete run table with actual executed values, lab notes, and HPLC references' },
-          { icon: '⚖️', title: 'Batch Recipes',           desc: 'Stoichiometry sheet and scale-up notes based on generated runs' },
+          { icon: '⚖️', title: 'Batch Recipes',           desc: 'Batch recipe sheets and scale-up notes based on generated runs' },
           { icon: '📊', title: 'Statistical Analysis',    desc: 'ANOVA, 4-in-1 residual diagnostics, Lack of fit, R² statistics' },
           { icon: '🌐', title: 'Design Space (PAR/NOR)',  desc: 'Safe operating ranges, sweet spot overlay, edge-of-failure warnings' },
           { icon: '🤖', title: 'Bayesian Optimization',   desc: 'GP model history and iteration-by-iteration improvement' },

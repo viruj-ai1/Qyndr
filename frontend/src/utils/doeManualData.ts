@@ -85,7 +85,7 @@ export const DOE_MANUAL_DESIGNS: DoEDesignManualEntry[] = [
         'Reaction Temperature (40–80°C)',
         'Stirrer Speed (200–500 RPM)',
         'Catalyst Loading (0.5–2.5 mol%)',
-        'Base Stoichiometry (1.0–1.4 eq)',
+        'Base Ratio (1.0–1.4 eq)',
         'Reagent Addition Time (15–60 min)',
         'Solvent Moisture (0.05–0.5% v/v)',
         'Solvent-to-Substrate Ratio (4–10 L/kg)',
@@ -95,7 +95,7 @@ export const DOE_MANUAL_DESIGNS: DoEDesignManualEntry[] = [
         'Aging Period (1–6 hours)'
       ],
       monitoredCQAs: ['Crude Yield (%)', 'Dimer Impurity A (%)', 'Residual Starting Material (%)'],
-      outcome: 'A 12-run Plackett-Burman screen demonstrated that Catalyst Loading, Base Stoichiometry, and Temperature accounted for 88% of impurity variability. The remaining 8 factors were confirmed non-critical and locked to standard operating setpoints.'
+      outcome: 'A 12-run Plackett-Burman screen demonstrated that Catalyst Loading, Base Ratio, and Temperature accounted for 88% of impurity variability. The remaining 8 factors were confirmed non-critical and locked to standard operating setpoints.'
     }
   },
   {
@@ -222,7 +222,7 @@ export const DOE_MANUAL_DESIGNS: DoEDesignManualEntry[] = [
       inputFactors: [
         'Residence Time (0.5–4.0 min)',
         'Microreactor Temperature (60–120°C)',
-        'Stoichiometric Ratio (1.05–1.40 eq)',
+        'Reagent Molar Ratio (1.05–1.40 eq)',
         'System Backpressure (3–10 bar)',
         'Solvent Flow Rate Ratio (0.2–0.8 v/v)',
         'Catalyst Concentration (0.1–0.8 M)'
@@ -269,7 +269,7 @@ export const DOE_MANUAL_DESIGNS: DoEDesignManualEntry[] = [
         'Cooling Rate (0.1–0.8 °C/min)'
       ],
       monitoredCQAs: ['Chiral Purity (% ee)', 'Crystalline Yield (%)', 'Aspect Ratio (Length/Width)'],
-      outcome: 'An 11-run 2^3 full factorial with 3 center points revealed a critical 3-way interaction between resolving agent stoichiometry, seeding temp, and cooling rate, establishing the definitive commercial crystallization operating envelope.'
+      outcome: 'An 11-run 2^3 full factorial with 3 center points revealed a critical 3-way interaction between resolving agent molar ratio, seeding temp, and cooling rate, establishing the definitive commercial crystallization operating envelope.'
     }
   },
   {

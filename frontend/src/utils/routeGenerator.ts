@@ -1041,7 +1041,7 @@ export function generateContextAwareRiskParameters(
         occurrence: 3,
         detectability: 2,
         rpn: 24,
-        rationale: 'Sub-stoichiometric ratio leaves unreacted starting material; excess burdens downstream purification and causes dimer impurities.',
+        rationale: 'Sub-optimal reagent ratio leaves unreacted starting material; excess burdens downstream purification and causes dimer impurities.',
         criticalFlag: true,
         overrideReason: ''
       },
@@ -1447,7 +1447,7 @@ export function generateContextAwareRiskParameters(
       occurrence: 3,
       detectability: 2,
       rpn: 24,
-      rationale: 'Controls stoichiometric balance and limits unreacted residual components.',
+      rationale: 'Controls reagent balance and limits unreacted residual components.',
       criticalFlag: true,
       overrideReason: ''
     },

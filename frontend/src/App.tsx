@@ -9,8 +9,7 @@ import QTPPDefinition       from './screens/Phase0/QTPPDefinition'
 import CQADerivation        from './screens/Phase0/CQADerivation'
 import RouteMapping         from './screens/Phase0/RouteMapping'
 import ReverseRiskAssessment from './screens/Phase0/ReverseRiskAssessment'
-import Phase0Summary        from './screens/Phase0/Phase0Summary'
-import CampaignDashboard    from './screens/CampaignDashboard'
+import StageCampaignMatrix  from './screens/StageCampaignMatrix'
 
 // Existing Screens
 import Welcome             from './screens/Welcome'
@@ -26,6 +25,7 @@ import BayesianOpt         from './screens/BayesianOpt'
 import NewExperiment       from './screens/NewExperiment'
 import FinalOptimum        from './screens/FinalOptimum'
 import Report              from './screens/Report'
+import { useEffect }       from 'react'
 
 const SCREEN_MAP: Record<string, React.FC> = {
   'welcome':               Welcome,
@@ -34,8 +34,10 @@ const SCREEN_MAP: Record<string, React.FC> = {
   'cqa':                   CQADerivation,
   'route-mapping':         RouteMapping,
   'risk-assessment':       ReverseRiskAssessment,
-  'phase0-summary':        Phase0Summary,
-  'campaign-dashboard':    CampaignDashboard,
+  'stage-campaign-matrix': StageCampaignMatrix,
+  'stage-overview':        StageCampaignMatrix,
+  'phase0-summary':        StageCampaignMatrix,
+  'campaign-dashboard':    StageCampaignMatrix,
   'understand-process':    UnderstandProcess,
   'define-factors':        DefineFactors,
   'recommend-doe':         RecommendDOE,
@@ -57,7 +59,20 @@ const SCREEN_MAP: Record<string, React.FC> = {
 
 
 export default function App() {
-  const { currentStep } = useStore()
+  const { currentStep, setStep } = useStore()
+
+  // URL route handling & redirect from /campaign-dashboard to /stage-campaign-matrix
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const pathname = window.location.pathname.toLowerCase().replace(/\/$/, '')
+    if (pathname === '/campaign-dashboard' || pathname === '/phase0-summary') {
+      window.history.replaceState(null, '', '/stage-campaign-matrix')
+      setStep('stage-campaign-matrix')
+    } else if (pathname === '/stage-campaign-matrix' || pathname === '/stage-overview') {
+      setStep('stage-campaign-matrix')
+    }
+  }, [setStep])
+
   const normalized = normalizeStep(currentStep)
   const Screen = SCREEN_MAP[normalized] || SCREEN_MAP[currentStep] || Welcome
 

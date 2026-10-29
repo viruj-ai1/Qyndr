@@ -571,7 +571,7 @@ export default function Welcome() {
                     <span>Stage 1: Planning</span>
                   </span>
                   <span style={{ fontSize: '0.75rem', fontWeight: 600, opacity: 0.85, background: '#fef3c7', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
-                    Steps 01–07
+                    Steps 01–06
                   </span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.8125rem', color: '#92400e', lineHeight: 1.5 }}>
@@ -580,8 +580,7 @@ export default function Welcome() {
                   <div>03. Critical Quality Attributes (CQAs)</div>
                   <div>04. Synthetic Route & Unit Operations</div>
                   <div>05. Reverse Risk Assessment (FMEA / RPN)</div>
-                  <div>06. Phase 0 Foundation Summary</div>
-                  <div>07. Campaign Dashboard & Scoping</div>
+                  <div>06. Stage Campaign Matrix</div>
                 </div>
               </div>
 
@@ -593,18 +592,18 @@ export default function Welcome() {
                     <span>Stage 2: On-going</span>
                   </span>
                   <span style={{ fontSize: '0.75rem', fontWeight: 600, opacity: 0.85, background: '#dbeafe', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
-                    Steps 08–15
+                    Steps 07–14
                   </span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.8125rem', color: '#1e40af', lineHeight: 1.5 }}>
-                  <div>08. Factors & Responses Specification</div>
-                  <div>09. DOE Algorithm Recommendation</div>
-                  <div>10. DOE Execution & Measurement Results</div>
-                  <div>11. Initial Response Surface Optimum</div>
-                  <div>12. Diagnostic Evaluation (Enough Data?)</div>
-                  <div>13. Gaussian Process Surrogate Modeling</div>
-                  <div>14. Bayesian Optimization & Acquisition</div>
-                  <div>15. Adaptive Loop Iterations</div>
+                  <div>07. Factors & Responses Specification</div>
+                  <div>08. DOE Algorithm Recommendation</div>
+                  <div>09. DOE Execution & Measurement Results</div>
+                  <div>10. Initial Response Surface Optimum</div>
+                  <div>11. Diagnostic Evaluation (Enough Data?)</div>
+                  <div>12. Gaussian Process Surrogate Modeling</div>
+                  <div>13. Bayesian Optimization & Acquisition</div>
+                  <div>14. Adaptive Loop Iterations</div>
                 </div>
               </div>
 
@@ -616,12 +615,12 @@ export default function Welcome() {
                     <span>Stage 3: Completed</span>
                   </span>
                   <span style={{ fontSize: '0.75rem', fontWeight: 600, opacity: 0.85, background: '#d1fae5', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
-                    Steps 16–17
+                    Steps 15–16
                   </span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.8125rem', color: '#065f46', lineHeight: 1.5 }}>
-                  <div>16. Final Optimum & Process Design Space</div>
-                  <div>17. Comprehensive PDF / Excel Report</div>
+                  <div>15. Final Optimum & Process Design Space</div>
+                  <div>16. Comprehensive PDF / Excel Report</div>
                   <div style={{ marginTop: '0.5rem', paddingTop: '0.45rem', borderTop: '1px dashed #a7f3d0', fontSize: '0.75rem', opacity: 0.9, fontStyle: 'italic', lineHeight: 1.45 }}>
                     Locked design space verification and regulatory submission dossier generation.
                   </div>

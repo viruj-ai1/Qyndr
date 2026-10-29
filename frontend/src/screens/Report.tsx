@@ -189,7 +189,7 @@ export default function Report() {
 
       <div className="step-nav">
         <button className="btn btn-secondary" onClick={() => setStep('final-optimum')}>← Back</button>
-        <button className="btn btn-secondary" onClick={() => setStep('campaign-dashboard')}>🏠 Campaign Matrix</button>
+        <button className="btn btn-secondary" onClick={() => setStep('stage-campaign-matrix')}>🏠 Campaign Matrix</button>
       </div>
     </div>
   )

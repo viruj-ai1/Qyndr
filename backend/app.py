@@ -1,6 +1,7 @@
 # ============================================================
 #  app.py  –  FastAPI Application Entry Point (reload)
 # ============================================================
+# Updated with api_targets support
 import sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 

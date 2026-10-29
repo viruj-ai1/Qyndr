@@ -200,7 +200,7 @@ export default function ReverseRiskAssessment() {
     if (safeStageIndex < stages.length - 1) {
       setCurrentStageIndex(safeStageIndex + 1)
     } else {
-      setStep('phase0-summary')
+      setStep('stage-campaign-matrix')
     }
   }
 
@@ -494,7 +494,7 @@ export default function ReverseRiskAssessment() {
         <button className="btn btn-primary" onClick={handleConfirmAndNextStage}>
           {safeStageIndex < stages.length - 1
             ? `Confirm & Move to ${(stages[safeStageIndex + 1]?.name || '').split(':')[0] || `Stage ${safeStageIndex + 2}`} →`
-            : 'Confirm & View Stage Overview →'}
+            : 'Confirm & View Stage Campaign Matrix →'}
         </button>
       </div>
     </div>

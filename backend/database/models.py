@@ -28,6 +28,7 @@ class Project(Base):
     risk_assessment_data = Column(JSON, default=dict)
     audit_logs           = Column(JSON, default=list)
     locked_campaigns     = Column(JSON, default=list)
+    api_targets          = Column(JSON, default=list)
     created_at           = Column(DateTime, default=datetime.utcnow)
     updated_at           = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

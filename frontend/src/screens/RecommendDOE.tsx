@@ -109,7 +109,7 @@ export default function RecommendDOE() {
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
             <button className="btn btn-primary" onClick={() => setStep('create-project')}>Create New Project</button>
-            <button className="btn btn-secondary" onClick={() => setStep('campaign-dashboard')}>Campaign Matrix</button>
+            <button className="btn btn-secondary" onClick={() => setStep('stage-campaign-matrix')}>Campaign Matrix</button>
           </div>
         </div>
       </div>

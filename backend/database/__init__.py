@@ -47,7 +47,8 @@ def init_db():
                     "stages_data": "TEXT DEFAULT '[]'",
                     "risk_assessment_data": "TEXT DEFAULT '{}'",
                     "audit_logs": "TEXT DEFAULT '[]'",
-                    "locked_campaigns": "TEXT DEFAULT '[]'"
+                    "locked_campaigns": "TEXT DEFAULT '[]'",
+                    "api_targets": "TEXT DEFAULT '[]'"
                 }
                 for col_name, col_type in new_cols.items():
                     if col_name not in existing_cols:

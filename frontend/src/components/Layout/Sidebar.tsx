@@ -4,23 +4,22 @@ import { Projects } from '../../services/api'
 interface StepDef { key: Step; label: string; icon: string; category?: string }
 
 const WORKFLOW_STEPS: StepDef[] = [
-  { key: 'create-project',       label: '01. Create Project',       icon: '01', category: 'Project' },
-  { key: 'qtpp',                 label: '02. QTPP Definition',      icon: '02', category: 'Phase 0' },
-  { key: 'cqa',                  label: '03. CQA Derivation',       icon: '03', category: 'Phase 0' },
-  { key: 'route-mapping',        label: '04. Route Mapping',        icon: '04', category: 'Phase 0' },
-  { key: 'risk-assessment',      label: '05. Risk Assessment',      icon: '05', category: 'Phase 0' },
-  { key: 'phase0-summary',       label: '06. Stage Overview',       icon: '06', category: 'Phase 0' },
-  { key: 'campaign-dashboard',   label: '07. Campaign Dashboard',   icon: '07', category: 'Dashboard' },
-  { key: 'define-factors',       label: '08. Define Factors & Responses', icon: '08', category: 'DOE Campaign' },
-  { key: 'recommend-doe',        label: '09. Recommend DOE',        icon: '09', category: 'DOE Campaign' },
-  { key: 'generate-doe',         label: '10. DOE Matrix & Results', icon: '10', category: 'DOE Campaign' },
-  { key: 'initial-optimization', label: '11. Initial Optimum',      icon: '11', category: 'DOE Campaign' },
-  { key: 'enough-data',          label: '12. Enough Data?',         icon: '12', category: 'DOE Campaign' },
-  { key: 'gp-model',             label: '13. GP Model',             icon: '13', category: 'DOE Campaign' },
-  { key: 'bayesian-opt',         label: '14. Bayesian Optimization',icon: '14', category: 'DOE Campaign' },
-  { key: 'new-experiment',       label: '15. New Experiment',       icon: '15', category: 'DOE Campaign' },
-  { key: 'final-optimum',        label: '16. Final Optimum',        icon: '16', category: 'DOE Campaign' },
-  { key: 'report',               label: '17. Generate Report',      icon: '17', category: 'Report' },
+  { key: 'create-project',       label: '01. Create Project',             icon: '01', category: 'Project' },
+  { key: 'qtpp',                 label: '02. QTPP Definition',            icon: '02', category: 'Phase 0' },
+  { key: 'cqa',                  label: '03. CQA Derivation',             icon: '03', category: 'Phase 0' },
+  { key: 'route-mapping',        label: '04. Route Mapping',              icon: '04', category: 'Phase 0' },
+  { key: 'risk-assessment',      label: '05. Risk Assessment',            icon: '05', category: 'Phase 0' },
+  { key: 'stage-campaign-matrix',label: '06. Stage Campaign Matrix',      icon: '06', category: 'Phase 0' },
+  { key: 'define-factors',       label: '07. Define Factors & Responses', icon: '07', category: 'DOE Campaign' },
+  { key: 'recommend-doe',        label: '08. Recommend DOE',              icon: '08', category: 'DOE Campaign' },
+  { key: 'generate-doe',         label: '09. DOE Matrix & Results',       icon: '09', category: 'DOE Campaign' },
+  { key: 'initial-optimization', label: '10. Initial Optimum',            icon: '10', category: 'DOE Campaign' },
+  { key: 'enough-data',          label: '11. Enough Data?',               icon: '11', category: 'DOE Campaign' },
+  { key: 'gp-model',             label: '12. GP Model',                   icon: '12', category: 'DOE Campaign' },
+  { key: 'bayesian-opt',         label: '13. Bayesian Optimization',      icon: '13', category: 'DOE Campaign' },
+  { key: 'new-experiment',       label: '14. New Experiment',             icon: '14', category: 'DOE Campaign' },
+  { key: 'final-optimum',        label: '15. Final Optimum',              icon: '15', category: 'DOE Campaign' },
+  { key: 'report',               label: '16. Generate Report',            icon: '16', category: 'Report' },
 ]
 
 const STEP_ORDER = WORKFLOW_STEPS.map(s => s.key)
@@ -58,15 +57,14 @@ function isStepDone(stepKey: Step, idx: number, currentIdx: number, store: any):
         (currentProject.risk_assessment_data && Object.keys(currentProject.risk_assessment_data).length > 0)
       )
 
+    case 'stage-campaign-matrix':
     case 'phase0-summary':
+    case 'campaign-dashboard':
       // Done only if both stages AND risk assessment are completed
       return Boolean(
         ((stages && stages.length > 0) || (currentProject.stages_data && currentProject.stages_data.length > 0)) &&
         ((riskAssessments && Object.keys(riskAssessments).length > 0) || (currentProject.risk_assessment_data && Object.keys(currentProject.risk_assessment_data).length > 0))
       )
-
-    case 'campaign-dashboard':
-      return Boolean(currentProject.factors && currentProject.factors.length > 0)
 
     case 'define-factors':
       return Boolean(currentProject.factors && currentProject.factors.length > 0 && currentProject.responses && currentProject.responses.length > 0)
@@ -149,7 +147,7 @@ export default function Sidebar() {
       <div style={{ margin: '1rem 1rem 0.5rem', padding: '0.75rem', background: 'rgba(99,102,241,0.08)', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.15)' }}>
         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Bayesian Loop</div>
         <div style={{ fontSize: '0.75rem', color: 'var(--primary-light)', lineHeight: 1.45 }}>
-          Steps 14–15 repeat per stage until optimization convergence
+          Steps 13–14 repeat per stage until optimization convergence
         </div>
       </div>
     </nav>

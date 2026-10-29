@@ -5,9 +5,9 @@ export type ProjectStage = 'planning' | 'ongoing' | 'completed';
 
 /**
  * Classifies a project into one of the three workflow stages:
- * - Planning: Steps 1 – 7 or status === 'PLANNING'
- * - On-going: Steps 8 – 15 or status === 'ON-GOING' / 'ONGOING'
- * - Completed: Steps 16 – 17 or status === 'COMPLETED' or isFinished
+ * - Planning: Steps 1 – 6 or status === 'PLANNING'
+ * - On-going: Steps 7 – 14 or status === 'ON-GOING' / 'ONGOING'
+ * - Completed: Steps 15 – 16 or status === 'COMPLETED' or isFinished
  */
 export function getProjectStage(
   currentStep: number,
@@ -15,10 +15,10 @@ export function getProjectStage(
   status?: string
 ): ProjectStage {
   const normStatus = (status || '').trim().toUpperCase();
-  if (normStatus === 'COMPLETED' || isFinished || currentStep >= 16) return 'completed';
-  if (normStatus === 'ON-GOING' || normStatus === 'ONGOING' || (currentStep >= 8 && currentStep <= 15)) return 'ongoing';
-  if (normStatus === 'PLANNING' || currentStep <= 7) return 'planning';
-  return currentStep >= 16 ? 'completed' : currentStep >= 8 ? 'ongoing' : 'planning';
+  if (normStatus === 'COMPLETED' || isFinished || currentStep >= 15) return 'completed';
+  if (normStatus === 'ON-GOING' || normStatus === 'ONGOING' || (currentStep >= 7 && currentStep <= 14)) return 'ongoing';
+  if (normStatus === 'PLANNING' || currentStep <= 6) return 'planning';
+  return currentStep >= 15 ? 'completed' : currentStep >= 7 ? 'ongoing' : 'planning';
 }
 
 export const STEP_KEY_TO_NUMBER: Record<string, number> = {
@@ -28,24 +28,27 @@ export const STEP_KEY_TO_NUMBER: Record<string, number> = {
   'cqa': 3,
   'route-mapping': 4,
   'risk-assessment': 5,
+  'stage-campaign-matrix': 6,
   'phase0-summary': 6,
-  'campaign-dashboard': 7,
-  'understand-process': 8,
-  'define-factors': 8,
-  'recommend-doe': 9,
-  'generate-doe': 10,
-  'lab-experiments': 10,
-  'upload-results': 10,
-  'initial-optimization': 11,
-  'enough-data': 12,
-  'more-improvement': 12,
-  'gp-model': 13,
-  'update-model': 13,
-  'bayesian-opt': 14,
-  'new-experiment': 15,
-  'lab-new': 15,
-  'final-optimum': 16,
-  'report': 17,
+  'stage-overview': 6,
+  'campaign-dashboard': 6,
+  'understand-process': 7,
+  'define-factors': 7,
+  'recommend-doe': 8,
+  'generate-doe': 9,
+  'lab-experiments': 9,
+  'upload-results': 9,
+  'initial-optimization': 10,
+  'statistical-analysis': 10,
+  'enough-data': 11,
+  'more-improvement': 11,
+  'gp-model': 12,
+  'update-model': 12,
+  'bayesian-opt': 13,
+  'new-experiment': 14,
+  'lab-new': 14,
+  'final-optimum': 15,
+  'report': 16,
 };
 
 export const STEP_NUMBER_TO_LABEL: Record<number, string> = {
@@ -54,26 +57,25 @@ export const STEP_NUMBER_TO_LABEL: Record<number, string> = {
   3: '03. CQA Derivation',
   4: '04. Route Mapping',
   5: '05. Risk Assessment',
-  6: '06. Phase 0 Summary',
-  7: '07. Campaign Dashboard',
-  8: '08. Factors & Responses',
-  9: '09. Recommend DOE',
-  10: '10. DOE Matrix & Results',
-  11: '11. Initial Optimum',
-  12: '12. Enough Data?',
-  13: '13. GP Model',
-  14: '14. Bayesian Optimization',
-  15: '15. New Experiment',
-  16: '16. Final Optimum',
-  17: '17. Generate Report',
+  6: '06. Stage Campaign Matrix',
+  7: '07. Define Factors & Responses',
+  8: '08. Recommend DOE',
+  9: '09. DOE Matrix & Results',
+  10: '10. Initial Optimum',
+  11: '11. Enough Data?',
+  12: '12. GP Model',
+  13: '13. Bayesian Optimization',
+  14: '14. New Experiment',
+  15: '15. Final Optimum',
+  16: '16. Generate Report',
 };
 
 /**
- * Resolves any step value (string key, number, or undefined) to a 1..17 step number.
+ * Resolves any step value (string key, number, or undefined) to a 1..16 step number.
  */
 export function getStepNumber(currentStep: string | number | undefined): number {
   if (typeof currentStep === 'number') {
-    return Math.max(1, Math.min(17, currentStep));
+    return Math.max(1, Math.min(16, currentStep));
   }
   if (!currentStep) return 1;
   return STEP_KEY_TO_NUMBER[currentStep] || 1;
@@ -107,9 +109,9 @@ export const STAGE_META: Record<ProjectStage, StageMeta> = {
     key: 'planning',
     title: 'Planning',
     statusLabel: 'PLANNING',
-    stepRange: 'Steps 1 – 7',
-    subtitle: 'QbD Foundation & Scoping · Steps 1–7',
-    includedSteps: 'Step 01 (Create Project) through Step 07 (Campaign Dashboard)',
+    stepRange: 'Steps 1 – 6',
+    subtitle: 'QbD Foundation & Scoping · Steps 1–6',
+    includedSteps: 'Step 01 (Create Project) through Step 06 (Stage Campaign Matrix)',
     badgeClasses: 'bg-amber-50 text-amber-700 border-amber-200',
     icon: '📋',
     accentColor: '#F59E0B',
@@ -121,9 +123,9 @@ export const STAGE_META: Record<ProjectStage, StageMeta> = {
     key: 'ongoing',
     title: 'On-going',
     statusLabel: 'ON-GOING',
-    stepRange: 'Steps 8 – 15',
-    subtitle: 'DoE Runs & Bayesian Loop · Steps 8–15',
-    includedSteps: 'Step 08 (Factors & Responses) through Step 15 (New Experiment / Bayesian Iterations)',
+    stepRange: 'Steps 7 – 14',
+    subtitle: 'DoE Runs & Bayesian Loop · Steps 7–14',
+    includedSteps: 'Step 07 (Define Factors & Responses) through Step 14 (New Experiment / Bayesian Iterations)',
     badgeClasses: 'bg-blue-50 text-blue-700 border-blue-200',
     icon: '🧪',
     accentColor: '#2563EB',
@@ -135,9 +137,9 @@ export const STAGE_META: Record<ProjectStage, StageMeta> = {
     key: 'completed',
     title: 'Completed',
     statusLabel: 'COMPLETED',
-    stepRange: 'Steps 16 – 17',
-    subtitle: 'Optimum & Final Reports · Steps 16–17',
-    includedSteps: 'Step 16 (Final Optimum) and Step 17 (Generate Report)',
+    stepRange: 'Steps 15 – 16',
+    subtitle: 'Optimum & Final Reports · Steps 15–16',
+    includedSteps: 'Step 15 (Final Optimum) and Step 16 (Generate Report)',
     badgeClasses: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     icon: '✅',
     accentColor: '#10B981',

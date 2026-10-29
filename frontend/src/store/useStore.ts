@@ -4,7 +4,7 @@ import { persist } from 'zustand/middleware'
 
 export type Step =
   | 'welcome' | 'create-project' | 'qtpp' | 'cqa' | 'route-mapping'
-  | 'risk-assessment' | 'phase0-summary' | 'campaign-dashboard'
+  | 'risk-assessment' | 'stage-campaign-matrix' | 'stage-overview' | 'phase0-summary' | 'campaign-dashboard'
   | 'understand-process' | 'define-factors'
   | 'recommend-doe' | 'generate-doe' | 'lab-experiments' | 'upload-results'
   | 'initial-optimization' | 'enough-data'
@@ -68,6 +68,15 @@ export interface RiskParameter {
   overrideReason?: string
 }
 
+export interface ApiTarget {
+  id: string
+  name: string
+  goal: 'Maximize' | 'Minimize' | 'Match Target / Range' | string
+  specification: string
+  unit: string
+  target_value?: number | null
+}
+
 export interface Factor {
   id?: number; name: string; symbol?: string; unit: string
   low: number; high: number; baseline: number; factor_order?: number
@@ -79,6 +88,7 @@ export interface Response {
   id?: number; name: string; unit: string; goal: string
   target?: number; lower_limit?: number; upper_limit?: number; weight?: number
   stage_id?: string; linked_cqa_ids?: string[]
+  inherited_from_target?: boolean
 }
 
 export function isPercentageResponse(r?: Partial<Response> | null): boolean {
@@ -104,6 +114,7 @@ export interface Project {
   qtpp_data?: QTPPItem[]; cqas_data?: CQAMapping[]; stages_data?: StageItem[]
   risk_assessment_data?: Record<string, { parameters: RiskParameter[] }>
   audit_logs?: any[]; locked_campaigns?: string[]
+  api_targets?: ApiTarget[]
   factors: Factor[]; responses: Response[]; experiments?: Experiment[]
   created_at?: string; updated_at?: string
 }
@@ -126,6 +137,7 @@ interface Store {
   riskAssessments: Record<string, { parameters: RiskParameter[] }>
   auditLogs:      any[]
   lockedCampaigns: string[]
+  apiTargets:      ApiTarget[]
   experiments:    Experiment[]
   analysisResults: Record<number, any>
   optimumResult:   any
@@ -142,6 +154,7 @@ interface Store {
   setCqas:         (items: CQAMapping[]) => void
   setStages:       (items: StageItem[]) => void
   setRiskAssessments: (data: Record<string, { parameters: RiskParameter[] }>) => void
+  setApiTargets:   (items: ApiTarget[]) => void
   addAuditLog:     (action: string, details: string) => void
   setExperiments:  (e: Experiment[]) => void
   setAnalysis:     (idx: number, data: any) => void
@@ -152,7 +165,7 @@ interface Store {
   reset:           () => void
 }
 
-const INITIAL: Omit<Store, keyof { setProject: any; setStep: any; setActiveStageId: any; setRpnThreshold: any; setQtpp: any; setCqas: any; setStages: any; setRiskAssessments: any; addAuditLog: any; setExperiments: any; setAnalysis: any; setOptimum: any; setBayes: any; setFinal: any; setLoading: any; reset: any }> = {
+const INITIAL: Omit<Store, keyof { setProject: any; setStep: any; setActiveStageId: any; setRpnThreshold: any; setQtpp: any; setCqas: any; setStages: any; setRiskAssessments: any; setApiTargets: any; addAuditLog: any; setExperiments: any; setAnalysis: any; setOptimum: any; setBayes: any; setFinal: any; setLoading: any; reset: any }> = {
   currentProject:  null,
   currentStep:     'welcome',
   activeStageId:   null,
@@ -163,6 +176,7 @@ const INITIAL: Omit<Store, keyof { setProject: any; setStep: any; setActiveStage
   riskAssessments: {},
   auditLogs:       [],
   lockedCampaigns: [],
+  apiTargets:      [],
   experiments:     [],
   analysisResults: {},
   optimumResult:   null,
@@ -173,6 +187,7 @@ const INITIAL: Omit<Store, keyof { setProject: any; setStep: any; setActiveStage
 
 export function normalizeStep(s?: string | null): Step {
   if (!s) return 'qtpp'
+  if (s === 'phase0-summary' || s === 'campaign-dashboard' || s === 'stage-overview') return 'stage-campaign-matrix'
   if (s === 'statistical-analysis') return 'initial-optimization'
   if (s === 'lab-experiments' || s === 'upload-results') return 'generate-doe'
   if (s === 'lab-new') return 'new-experiment'
@@ -197,6 +212,7 @@ export const useStore = create<Store>()(
           riskAssessments: p ? (p.risk_assessment_data || {}) : {},
           auditLogs: p ? (p.audit_logs || []) : [],
           lockedCampaigns: p ? (p.locked_campaigns || []) : [],
+          apiTargets: p ? (p.api_targets || []) : [],
           experiments: p?.experiments ?? [],
           // CRITICAL: Always wipe model results from previous projects
           analysisResults: {},
@@ -227,6 +243,10 @@ export const useStore = create<Store>()(
         riskAssessments: data,
         currentProject: st.currentProject ? { ...st.currentProject, risk_assessment_data: data } : null
       })),
+      setApiTargets:   items => set(st => ({
+        apiTargets: items,
+        currentProject: st.currentProject ? { ...st.currentProject, api_targets: items } : null
+      })),
       addAuditLog:     (action, details) => set(st => ({
         auditLogs: [
           ...st.auditLogs,
@@ -254,6 +274,7 @@ export const useStore = create<Store>()(
         riskAssessments: s.riskAssessments,
         auditLogs: s.auditLogs,
         lockedCampaigns: s.lockedCampaigns,
+        apiTargets: s.apiTargets,
         experiments: s.experiments,
         analysisResults: s.analysisResults,
         optimumResult: s.optimumResult,

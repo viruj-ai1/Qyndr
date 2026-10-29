@@ -115,6 +115,7 @@ class ProjectBase(BaseModel):
     objective: str = ""
     description: str = ""
     current_step: Optional[str] = "qtpp"
+    api_targets: List[Any] = []
 
 class ProjectCreate(ProjectBase): pass
 
@@ -132,6 +133,7 @@ class ProjectUpdate(BaseModel):
     risk_assessment_data: Optional[dict] = None
     audit_logs: Optional[List[dict]] = None
     locked_campaigns: Optional[List[str]] = None
+    api_targets: Optional[List[Any]] = None
 
 # ── Experiment ───────────────────────────────────────────────
 class ExperimentOut(BaseModel):
@@ -161,6 +163,7 @@ class ProjectOut(ProjectBase):
     risk_assessment_data: dict = Field(default_factory=dict)
     audit_logs: List[Any] = []
     locked_campaigns: List[str] = []
+    api_targets: List[Any] = []
     created_at: datetime
     updated_at: datetime
     factors: List[FactorOut] = []

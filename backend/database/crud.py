@@ -147,12 +147,17 @@ def add_bayesian_experiment(db: Session, project_id: int, actual_values: list,
 
 # ── Analysis ─────────────────────────────────────────────────
 def upsert_analysis(db: Session, project_id: int, response_idx: int, **kwargs) -> models.Analysis:
-    rec = db.query(models.Analysis).filter(
+    recs = db.query(models.Analysis).filter(
         models.Analysis.project_id == project_id,
         models.Analysis.response_idx == response_idx
-    ).first()
-    if rec:
+    ).order_by(models.Analysis.id.desc()).all()
+    if recs:
+        rec = recs[0]
         for k, v in kwargs.items(): setattr(rec, k, v)
+        # Delete any duplicate analysis records
+        if len(recs) > 1:
+            for extra in recs[1:]:
+                db.delete(extra)
     else:
         rec = models.Analysis(project_id=project_id, response_idx=response_idx, **kwargs)
         db.add(rec)
@@ -160,7 +165,20 @@ def upsert_analysis(db: Session, project_id: int, response_idx: int, **kwargs) -
     return rec
 
 def get_analyses(db: Session, project_id: int) -> List[models.Analysis]:
-    return db.query(models.Analysis).filter(models.Analysis.project_id == project_id).all()
+    recs = db.query(models.Analysis).filter(models.Analysis.project_id == project_id).order_by(models.Analysis.id.desc()).all()
+    seen = set()
+    deduped = []
+    has_dupes = False
+    for r in recs:
+        if r.response_idx not in seen:
+            seen.add(r.response_idx)
+            deduped.append(r)
+        else:
+            db.delete(r)
+            has_dupes = True
+    if has_dupes:
+        db.commit()
+    return sorted(deduped, key=lambda x: x.response_idx)
 
 
 # ── GP Iterations ─────────────────────────────────────────────

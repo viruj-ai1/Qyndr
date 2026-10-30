@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useStore, isPercentageResponse } from '../store/useStore'
 import { Projects, Optimization } from '../services/api'
+import { simplifyResponseName } from '../utils/targetParser'
 import toast from 'react-hot-toast'
 
 export default function NewExperiment() {
@@ -119,14 +120,14 @@ export default function NewExperiment() {
               : rawVal
             return (
               <div key={i} className="form-group">
-                <label className="form-label">{r.name} {r.unit && `(${r.unit})`} — Goal: {r.goal}</label>
+                <label className="form-label">{simplifyResponseName(r.name)} {r.unit && `(${r.unit})`} — Goal: {r.goal}</label>
                 <input
                   type="number"
                   step="any"
                   min={isPercent ? 0 : undefined}
                   max={isPercent ? 100 : undefined}
                   className="form-input"
-                  placeholder={`Measured ${r.name}…`}
+                  placeholder={`Measured ${simplifyResponseName(r.name)}…`}
                   value={val ?? ''}
                   onChange={e => setVal(i, e.target.value)}
                   style={{ fontFamily:'JetBrains Mono, monospace', fontSize:'1.1rem' }}

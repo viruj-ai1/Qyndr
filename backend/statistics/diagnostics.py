@@ -53,14 +53,15 @@ def calculate_lack_of_fit(X: np.ndarray, y_obs: np.ndarray, y_pred: np.ndarray) 
     }
 
 
-def calculate_press_and_pred_r2(X: np.ndarray, y_obs: np.ndarray, leverage: np.ndarray) -> Dict[str, Any]:
+def calculate_press_and_pred_r2(X: np.ndarray, y_obs: np.ndarray, leverage: np.ndarray, y_pred: np.ndarray = None) -> Dict[str, Any]:
     """
     Calculate PRESS (Prediction Error Sum of Squares) and Predicted R-squared.
     PRESS = sum( (e_i / (1 - h_ii))^2 )
     Pred_R2 = 1 - (PRESS / SST)
     """
     n = len(y_obs)
-    y_pred = X @ np.linalg.pinv(X.T @ X) @ y_obs
+    if y_pred is None:
+        y_pred = X @ np.linalg.pinv(X.T @ X) @ X.T @ y_obs
     residuals = y_obs - y_pred
     
     press_terms = []
@@ -148,7 +149,7 @@ def leverage_and_influence(X: np.ndarray, y: np.ndarray,
 
     influential = np.where(cooks > 4 / n)[0].tolist()
 
-    press_info = calculate_press_and_pred_r2(X, y, h)
+    press_info = calculate_press_and_pred_r2(X, y, h, y_pred)
 
     return {
         "leverage":         [round(float(v), 4) for v in h],

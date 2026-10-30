@@ -2,7 +2,60 @@
 // Intelligent parser to extract structured API Targets and Response Variables
 // directly from Project Description, Primary Objective, and Compound name.
 
-import { ApiTarget, Response } from '../store/useStore'
+import type { ApiTarget, Response } from '../store/useStore'
+
+/**
+ * Converts technical chemical / IUPAC names into simple, plain terms: Purity, Yield, Impurity
+ */
+export function simplifyResponseName(name: string, goal?: string): string {
+  if (!name) return 'Response';
+  const lower = name.toLowerCase().trim();
+  const isMinimize = goal ? String(goal).toLowerCase().includes('min') : false;
+
+  // Safety override: Any response to be minimized that is named "Purity" (due to previous substring overwrite) is an Impurity!
+  if (isMinimize && (lower === 'purity' || (lower.includes('purity') && !lower.includes('impur')))) {
+    return 'Impurity';
+  }
+
+  // 1. Impurities / Degradants (MUST be checked BEFORE Purity because "impurity" contains the substring "purity"!)
+  if (
+    lower.includes('impurity') || 
+    lower.includes('impurities') || 
+    lower.includes('compound') || 
+    lower.includes('regioisomer') || 
+    lower.includes('byproduct') || 
+    lower.includes('benzoquinone') ||
+    lower.includes('deacetyl') ||
+    (isMinimize && !lower.includes('yield') && !lower.includes('conversion') && !lower.includes('recovery'))
+  ) {
+    if ((lower.includes('total') && lower.includes('impur')) || lower.includes('total related') || lower.includes('total substances')) {
+      return 'Total Impurities';
+    }
+    // Check if it specifies a distinct letter e.g., "Impurity A", "Compound C", "Impurity J"
+    const letterMatch = name.match(/\b(?:impurity|compound|regioisomer)[\s\-_]+([a-zA-Z0-9]+)\b/i) || name.match(/\b(?:impurity|compound)\s+([a-zA-Z0-9]+)\b/i);
+    if (letterMatch && ['a', 'b', 'c', 'd'].includes(letterMatch[1].toLowerCase()) && !lower.includes('critical regioisomer')) {
+      return `Impurity ${letterMatch[1].toUpperCase()}`;
+    }
+    return 'Impurity';
+  }
+
+  // 2. Yield
+  if (lower.includes('yield') || lower.includes('conversion') || lower.includes('recovery')) {
+    return 'Yield';
+  }
+
+  // 3. Purity / Assay (explicitly exclude any impurity)
+  if (
+    lower.includes('assay') || 
+    (lower.includes('purity') && !lower.includes('impur')) || 
+    lower.includes('2,6-diisopropylphenol') || 
+    lower.includes('rocuronium')
+  ) {
+    return 'Purity';
+  }
+
+  return name;
+}
 
 /**
  * Standard QbD reference presets for known pharmaceutical compounds
@@ -19,35 +72,35 @@ export const COMPOUND_DEFAULTS: Record<string, {
   yieldSpec: string
 }> = {
   propofol: {
-    assayName: 'API Assay (2,6-diisopropylphenol)',
+    assayName: 'Purity',
     assayVal: 97.0,
     assaySpec: '> 97.0%',
-    impName: 'Critical Regioisomer Impurity J',
+    impName: 'Impurity',
     impVal: 0.15,
     impSpec: '< 0.15%',
-    yieldName: 'Chemical Reaction Yield',
+    yieldName: 'Yield',
     yieldVal: 85.0,
     yieldSpec: '> 85.0%'
   },
   rocuronium: {
-    assayName: 'API Assay (Rocuronium Bromide)',
+    assayName: 'Purity',
     assayVal: 98.5,
     assaySpec: '> 98.5%',
-    impName: 'Related Impurity C (Deacetyl)',
+    impName: 'Impurity',
     impVal: 0.20,
     impSpec: '< 0.20%',
-    yieldName: 'Isolated Crystalline Yield',
+    yieldName: 'Yield',
     yieldVal: 80.0,
     yieldSpec: '> 80.0%'
   },
   generic: {
-    assayName: 'Final API Chemical Assay',
+    assayName: 'Purity',
     assayVal: 98.0,
     assaySpec: '> 98.0%',
-    impName: 'Total Organic Impurities',
+    impName: 'Impurity',
     impVal: 0.50,
     impSpec: '< 0.50%',
-    yieldName: 'Overall Process Yield',
+    yieldName: 'Yield',
     yieldVal: 85.0,
     yieldSpec: '> 85.0%'
   }
@@ -105,7 +158,7 @@ export function extractTargetsFromDescription(
 
   extracted.push({
     id: 'target-1',
-    name: assayName,
+    name: simplifyResponseName(assayName, 'maximize'),
     goal: 'Maximize',
     specification: assaySpec,
     unit: '%',
@@ -147,7 +200,7 @@ export function extractTargetsFromDescription(
 
   extracted.push({
     id: 'target-2',
-    name: impName,
+    name: simplifyResponseName(impName, 'minimize'),
     goal: 'Minimize',
     specification: impSpec,
     unit: '%',
@@ -178,7 +231,7 @@ export function extractTargetsFromDescription(
 
   extracted.push({
     id: 'target-3',
-    name: yieldName,
+    name: simplifyResponseName(yieldName, 'maximize'),
     goal: 'Maximize',
     specification: yieldSpec,
     unit: '%',
@@ -207,7 +260,7 @@ export function mapTargetToResponse(t: ApiTarget): Response {
   }
 
   return {
-    name: t.name,
+    name: simplifyResponseName(t.name, goal),
     unit: t.unit || '%',
     goal,
     target: numericVal,

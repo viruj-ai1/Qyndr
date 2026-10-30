@@ -1,9 +1,9 @@
-// src/screens/FinalOptimum.tsx
 import { useState, useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import { Optimization } from '../services/api'
 import PlotlyChart from '../components/PlotlyChart'
 import { MarkdownMessage } from '../components/MarkdownMessage'
+import { simplifyResponseName } from '../utils/targetParser'
 import toast from 'react-hot-toast'
 
 interface ChatMsg {
@@ -16,6 +16,7 @@ export default function FinalOptimum() {
   const { currentProject, setStep, setFinal, finalResult } = useStore()
   const factors   = currentProject?.factors   || []
   const responses = currentProject?.responses || []
+  const [selResp, setSelResp] = useState(0)
   const [loading, setLoading] = useState(false)
   const [aiSummary, setAiSummary] = useState<any>(null)
   const [loadingAi, setLoadingAi] = useState(false)
@@ -23,13 +24,15 @@ export default function FinalOptimum() {
   const [chatInput, setChatInput] = useState('')
   const [loadingChat, setLoadingChat] = useState(false)
 
-  async function loadFinal() {
+  async function loadFinal(respIdx?: number) {
     if (!currentProject?.id) return
+    const targetIdx = respIdx !== undefined ? respIdx : selResp
     setLoading(true)
     try {
-      const data = await Optimization.final(currentProject.id, 0)
+      const data = await Optimization.final(currentProject.id, targetIdx)
       setFinal(data)
-      toast.success('Final optimum calculated')
+      const respName = simplifyResponseName(responses[targetIdx]?.name, responses[targetIdx]?.goal) || `Response ${targetIdx + 1}`
+      toast.success(`Final optimum calculated for ${respName}`)
     } catch (e: any) {
       toast.error(e.response?.data?.detail || 'Failed – run analysis + GP first')
     } finally { setLoading(false) }
@@ -37,7 +40,7 @@ export default function FinalOptimum() {
 
   useEffect(() => {
     if (currentProject?.id) {
-      loadFinal()
+      loadFinal(selResp)
     }
   }, [currentProject?.id])
 
@@ -46,7 +49,7 @@ export default function FinalOptimum() {
   async function handleGenerateAi() {
     setLoadingAi(true)
     try {
-      const data = await Optimization.llmSummary(currentProject!.id, 0)
+      const data = await Optimization.llmSummary(currentProject!.id, selResp)
       setAiSummary(data)
       toast.success('AI Executive Summary generated!')
     } catch (e: any) {
@@ -90,6 +93,34 @@ export default function FinalOptimum() {
         <p className="page-desc">Find the best final settings after all experiments.</p>
       </div>
 
+      {/* Response Selector & Recalculate Button */}
+      {responses.length > 0 && (
+        <div style={{ display:'flex', gap:'0.6rem', marginBottom:'1.2rem', flexWrap:'wrap', alignItems:'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginRight: '0.25rem' }}>
+              Active Response:
+            </span>
+            {responses.map((r: any, i: number) => (
+              <button
+                key={i}
+                className={`btn ${selResp===i ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                style={{ fontWeight: selResp===i ? 700 : 500 }}
+                onClick={() => {
+                  setSelResp(i)
+                  loadFinal(i)
+                }}
+              >
+                {simplifyResponseName(r.name, r.goal)} {r.unit ? `(${r.unit})` : ''}
+              </button>
+            ))}
+          </div>
+
+          <button className="btn btn-accent btn-sm" onClick={() => loadFinal(selResp)} disabled={loading}>
+            {loading ? <><div className="spinner"/>Calculating…</> : '↺ Recalculate Final Optimum'}
+          </button>
+        </div>
+      )}
+
       {loading && <div className="loading-overlay"><div className="spinner"/>Computing final optimum…</div>}
 
       {fr && !loading && (
@@ -118,7 +149,7 @@ export default function FinalOptimum() {
                 <div>
                   <div style={{ fontSize:'0.72rem', color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Best Observed Value</div>
                   <div style={{ fontSize:'1.4rem', fontWeight:800, color:'var(--success)' }}>{fr.best_observed.value?.toFixed(3)}</div>
-                  <div style={{ fontSize:'0.72rem', color:'var(--text-muted)' }}>Run #{fr.best_observed.run_number}</div>
+                  <div style={{ fontSize:'0.72rem', color:'var(--text-muted)' }}>Run #{fr.best_observed.run_number} {responses[selResp] ? `· ${simplifyResponseName(responses[selResp].name, responses[selResp].goal)}` : ''}</div>
                 </div>
               )}
               <div>
@@ -444,7 +475,7 @@ export default function FinalOptimum() {
       <div className="step-nav">
         <button className="btn btn-secondary" onClick={() => setStep('more-improvement')}>← Back</button>
         <div style={{ display:'flex', gap:'0.75rem' }}>
-          <button className="btn btn-secondary" onClick={loadFinal} disabled={loading}>↺ Recalculate</button>
+          <button className="btn btn-secondary" onClick={() => loadFinal()} disabled={loading}>↺ Recalculate</button>
           <button className="btn btn-primary" onClick={() => setStep('report')}>
             Generate Report →
           </button>

@@ -66,6 +66,15 @@ def run_analysis(experiments: list, response_idx: int,
         except Exception as ex:
             rsm = {"error": str(ex)}
 
+    # Ensure descriptive stats are also attached to anova and rsm
+    if anova is None or not isinstance(anova, dict):
+        anova = dict(desc)
+    else:
+        anova.update(desc)
+
+    if rsm is not None and isinstance(rsm, dict):
+        rsm.update(desc)
+
     # Diagnostics
     diagnostics = {}
     if rsm and rsm.get("converged") and rsm.get("y_pred"):
@@ -119,15 +128,41 @@ def run_optimization(analyses: list, factors: list,
                 beta = [c["coeff"] for c in rsm["coefficients"] if isinstance(c, dict) and "coeff" in c]
 
             if beta:
+                desc = _get_val(a, "descriptive") or {}
                 anova_dict = _get_val(a, "anova") or {}
-                y_mean = anova_dict.get("y_mean", 0) if isinstance(anova_dict, dict) else 0
-                y_min = anova_dict.get("y_min", y_mean - 5) if isinstance(anova_dict, dict) else 0
-                y_max = anova_dict.get("y_max", y_mean + 5) if isinstance(anova_dict, dict) else 1
+
+                # Priority: desc -> rsm -> anova -> y_pred -> defaults
+                y_min = desc.get("y_min")
+                if y_min is None and isinstance(rsm, dict):
+                    y_min = rsm.get("y_min")
+                if y_min is None and isinstance(anova_dict, dict):
+                    y_min = anova_dict.get("y_min")
+
+                y_max = desc.get("y_max")
+                if y_max is None and isinstance(rsm, dict):
+                    y_max = rsm.get("y_max")
+                if y_max is None and isinstance(anova_dict, dict):
+                    y_max = anova_dict.get("y_max")
+
+                if (y_min is None or y_max is None) and isinstance(rsm, dict) and rsm.get("y_pred"):
+                    preds = [float(p) for p in rsm["y_pred"]]
+                    if y_min is None and preds: y_min = min(preds)
+                    if y_max is None and preds: y_max = max(preds)
+
+                if y_min is None:
+                    y_mean = anova_dict.get("y_mean", 0) if isinstance(anova_dict, dict) else 0
+                    y_min = y_mean - 5 if y_mean != 0 else 0.0
+                if y_max is None:
+                    y_mean = anova_dict.get("y_mean", 0) if isinstance(anova_dict, dict) else 0
+                    y_max = y_mean + 5 if y_mean != 0 else 1.0
+
+                is_mixture = bool(rsm.get("is_mixture", False))
                 models.append({
                     "beta": beta,
                     "k": len(factors),
-                    "y_min": y_min,
-                    "y_max": y_max
+                    "y_min": float(y_min),
+                    "y_max": float(y_max),
+                    "is_mixture": is_mixture
                 })
             else:
                 models.append({"beta": [], "k": len(factors), "y_min": 0, "y_max": 1})

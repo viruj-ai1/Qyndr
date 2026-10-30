@@ -9,6 +9,7 @@ Virtual Data Scientist agent orchestrating deterministic DoE analysis:
 """
 
 from typing import Dict, List, Any, Optional, Union, Generator, Tuple
+import io
 import os
 import re
 import json

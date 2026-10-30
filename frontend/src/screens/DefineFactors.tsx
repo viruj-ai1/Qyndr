@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useStore, Factor, Response, isPercentageResponse } from '../store/useStore'
 import { Projects } from '../services/api'
-import { mapTargetToResponse, extractResponsesFromDescription } from '../utils/targetParser'
+import { mapTargetToResponse, extractResponsesFromDescription, simplifyResponseName } from '../utils/targetParser'
 import toast from 'react-hot-toast'
 
 const emptyFactor = (): Factor => ({ name: '', unit: '', low: 0, high: 1, baseline: 0.5 })
@@ -20,7 +20,9 @@ export default function DefineFactors() {
   // Pre-seed responses: Use existing project responses if present, else auto-extract from Project Description / api_targets
   const getInitialResponses = (): Response[] => {
     if (currentProject?.responses && currentProject.responses.length > 0) {
-      const filtered = currentProject.responses.filter((r: any) => !['impurity b', 'impurity c'].includes(r.name.toLowerCase().trim()))
+      const filtered = currentProject.responses
+        .filter((r: any) => !['impurity b', 'impurity c'].includes(r.name.toLowerCase().trim()))
+        .map((r: any) => ({ ...r, name: simplifyResponseName(r.name, r.goal) }))
       if (filtered.length > 0) return filtered
     }
 
@@ -149,7 +151,7 @@ export default function DefineFactors() {
         is_categorical: f.is_categorical || false
       })))
       const savedResponses = await Projects.saveResponses(id, responses.map((r, i) => ({
-        name: r.name.trim(),
+        name: simplifyResponseName(r.name.trim(), r.goal),
         unit: r.unit.trim(),
         goal: r.goal || 'maximize',
         target: r.target != null ? Number(r.target) : null,

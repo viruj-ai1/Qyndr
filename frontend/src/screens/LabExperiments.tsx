@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import { Projects } from '../services/api'
+import { simplifyResponseName } from '../utils/targetParser'
 import toast from 'react-hot-toast'
 
 export default function LabExperiments() {
@@ -59,7 +60,7 @@ export default function LabExperiments() {
                 <th rowSpan={2}>Run #</th>
                 <th rowSpan={2}>Type</th>
                 {factors.map((f: any) => <th key={f.name} colSpan={2} style={{ textAlign: 'center', borderBottom: '1px solid var(--border)' }}>{f.name} <span style={{ fontWeight:400, color:'var(--text-muted)', fontSize:'0.68rem' }}>({f.unit})</span></th>)}
-                {responses.map((r: any) => <th key={r.name} rowSpan={2} style={{ color:'var(--accent)' }}>{r.name}<br/><span style={{ fontWeight:400, fontSize:'0.68rem' }}>{r.unit}</span></th>)}
+                {responses.map((r: any) => <th key={r.name} rowSpan={2} style={{ color:'var(--accent)' }}>{simplifyResponseName(r.name, r.goal)}<br/><span style={{ fontWeight:400, fontSize:'0.68rem' }}>{r.unit}</span></th>)}
                 <th rowSpan={2}>Lab Observation Notes</th>
               </tr>
               <tr>

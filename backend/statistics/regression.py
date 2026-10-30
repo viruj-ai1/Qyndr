@@ -3,46 +3,71 @@
 # ============================================================
 import numpy as np
 from scipy import stats
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 
 
-def build_rsm_matrix(coded: np.ndarray) -> Tuple[np.ndarray, List[str]]:
+def build_rsm_matrix(coded: np.ndarray, is_mixture: Optional[bool] = None, use_quad: Optional[bool] = None) -> Tuple[np.ndarray, List[str]]:
     """
-    Build RSM design matrix with intercept, linear, quadratic, and interaction terms.
+    Build RSM design matrix with intercept, linear, interaction, and quadratic terms.
+    For mixture designs (rows sum to ~1.0), fits a Scheffé canonical model (no intercept, no pure quadratics).
+    For sample size n < 10, guards against overparameterization by omitting pure quadratics.
     Returns (X, term_names).
     """
     n, k = coded.shape
-    cols  = [np.ones(n)]
-    names = ["Intercept"]
 
-    # Linear
+    # Detect mixture design where factors sum to ~1.0:
+    if is_mixture is None:
+        row_sums = np.sum(coded, axis=1)
+        is_mixture = bool(np.allclose(row_sums, 1.0, atol=0.05))
+
+    # Guard: If n < 10 or n < (1 + 2*k), do not overparameterize with full quadratic terms
+    if use_quad is None:
+        use_quad = (n >= max(10, 1 + 2 * k)) if n > 1 else (not is_mixture)
+
+    cols = []
+    names = []
+
+    # 1. Intercept (Only if NOT a mixture design)
+    if not is_mixture:
+        cols.append(np.ones(n))
+        names.append("Intercept")
+
+    # 2. Linear terms
     for j in range(k):
         cols.append(coded[:, j])
         names.append(f"X{j+1}")
 
-    # Quadratic
-    for j in range(k):
-        cols.append(coded[:, j] ** 2)
-        names.append(f"X{j+1}²")
-
-    # Interactions
+    # 3. Interactions (Cross products)
     for j1 in range(k - 1):
         for j2 in range(j1 + 1, k):
             cols.append(coded[:, j1] * coded[:, j2])
             names.append(f"X{j1+1}·X{j2+1}")
+
+    # 4. Pure quadratics (only if sufficient observations and not mixture)
+    if use_quad and not is_mixture:
+        for j in range(k):
+            cols.append(coded[:, j] ** 2)
+            names.append(f"X{j+1}²")
 
     return np.column_stack(cols), names
 
 
 def ols(X: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
     """
-    Ordinary Least Squares regression.
+    Ordinary Least Squares regression with multicollinearity protection.
     Returns coefficients, standard errors, t-values, p-values, R², residuals.
     """
     n, p = X.shape
     try:
-        XtX    = X.T @ X
-        XtXinv = np.linalg.pinv(XtX)
+        XtX = X.T @ X
+        # Guard against collinearity & exploding coefficients
+        cond = np.linalg.cond(XtX)
+        if cond > 1e4 or n <= p:
+            # Regularize with small ridge penalty
+            ridge = 1e-3 * (np.trace(XtX) / max(p, 1)) * np.eye(p)
+            XtXinv = np.linalg.pinv(XtX + ridge)
+        else:
+            XtXinv = np.linalg.pinv(XtX)
         beta   = XtXinv @ X.T @ y
         y_pred = X @ beta
     except np.linalg.LinAlgError:
@@ -82,15 +107,25 @@ def ols(X: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
 
 def linear_regression_fallback(coded: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
     n, k = coded.shape
-    X_lin = np.column_stack([np.ones(n)] + [coded[:, j] for j in range(k)])
+    row_sums = np.sum(coded, axis=1)
+    is_mixture = bool(np.allclose(row_sums, 1.0, atol=0.05))
+
+    if is_mixture:
+        X_lin = np.column_stack([coded[:, j] for j in range(k)])
+        lin_names = [f"X{j+1}" for j in range(k)]
+    else:
+        X_lin = np.column_stack([np.ones(n)] + [coded[:, j] for j in range(k)])
+        lin_names = ["Intercept"] + [f"X{j+1}" for j in range(k)]
+
     res = ols(X_lin, y)
     if not res.get("converged"):
         return {"converged": False, "error": "Singular matrix"}
 
-    X_full, full_names = build_rsm_matrix(coded)
+    X_full, full_names = build_rsm_matrix(coded, is_mixture=is_mixture)
     p_full = len(full_names)
     full_beta = np.zeros(p_full)
-    full_beta[:1 + k] = res["beta"]
+    p_lin = len(res["beta"])
+    full_beta[:p_lin] = res["beta"]
 
     coefficients = []
     for i, name in enumerate(full_names):
@@ -98,10 +133,10 @@ def linear_regression_fallback(coded: np.ndarray, y: np.ndarray) -> Dict[str, An
         coefficients.append({
             "term":        name,
             "coeff":       round(val, 6),
-            "se":          round(float(res["se"][i]), 6) if i <= k else 0.0,
-            "t_value":     round(float(res["t_values"][i]), 4) if i <= k else 0.0,
-            "p_value":     round(float(res["p_values"][i]), 4) if i <= k else 1.0,
-            "significant": bool(res["p_values"][i] < 0.05) if i <= k else False
+            "se":          round(float(res["se"][i]), 6) if i < p_lin else 0.0,
+            "t_value":     round(float(res["t_values"][i]), 4) if i < p_lin else 0.0,
+            "p_value":     round(float(res["p_values"][i]), 4) if i < p_lin else 1.0,
+            "significant": bool(res["p_values"][i] < 0.05) if i < p_lin else False
         })
 
     return {
@@ -116,14 +151,21 @@ def linear_regression_fallback(coded: np.ndarray, y: np.ndarray) -> Dict[str, An
         "MSE":            res["MSE"],
         "n_terms":        p_full,
         "k":              k,
-        "fallback":       "linear"
+        "fallback":       "linear",
+        "is_mixture":     is_mixture,
+        "y_min":          round(float(y.min()), 4),
+        "y_max":          round(float(y.max()), 4),
+        "y_mean":         round(float(y.mean()), 4)
     }
 
 
 def rsm_regression(coded: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
-    """Full RSM quadratic regression with linear model fallback if matrix is singular."""
+    """Full RSM quadratic regression or Scheffé canonical regression for mixture designs."""
     k = coded.shape[1]
-    X, term_names = build_rsm_matrix(coded)
+    row_sums = np.sum(coded, axis=1)
+    is_mixture = bool(np.allclose(row_sums, 1.0, atol=0.05))
+
+    X, term_names = build_rsm_matrix(coded, is_mixture=is_mixture)
     result = ols(X, y)
     if not result.get("converged"):
         return linear_regression_fallback(coded, y)
@@ -150,22 +192,52 @@ def rsm_regression(coded: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
         "R2_adj":         result["R2_adj"],
         "MSE":            result["MSE"],
         "n_terms":        len(term_names),
-        "k":              k
+        "k":              k,
+        "is_mixture":     is_mixture,
+        "y_min":          round(float(y.min()), 4),
+        "y_max":          round(float(y.max()), 4),
+        "y_mean":         round(float(y.mean()), 4)
     }
 
 
-def predict_rsm(beta: List[float], x_coded: List[float], k: int = None) -> float:
-    """Predict response at a coded point using RSM model."""
+def predict_rsm(beta: Any, x_coded: List[float], k: int = None) -> float:
+    """Predict response at a coded point using RSM / Scheffé model."""
     if not beta:
         return 0.0
     x_arr = np.array(x_coded, dtype=float).ravel()
+    k_val = len(x_arr) if k is None else k
     x = x_arr.reshape(1, -1)
-    X, _ = build_rsm_matrix(x)
+    row_sum = float(np.sum(x_arr))
+    is_mix = bool(abs(row_sum - 1.0) <= 0.05)
+
+    if isinstance(beta, dict):
+        coeffs = beta.get("coefficients", [])
+        if coeffs:
+            b_map = {c["term"]: float(c["coeff"]) for c in coeffs if "term" in c and "coeff" in c}
+            X, names = build_rsm_matrix(x, is_mixture=is_mix, use_quad=any("²" in c.get("term", "") for c in coeffs))
+            val = sum(X[0, j] * b_map.get(name, 0.0) for j, name in enumerate(names))
+            return float(val)
+        beta = beta.get("beta", [])
+
     b = np.array(beta, dtype=float)
+    p_b = len(b)
+    n_int = k_val * (k_val - 1) // 2
+
+    # Determine model structure from p_b & is_mix
+    if is_mix:
+        X, _ = build_rsm_matrix(x, is_mixture=True, use_quad=False)
+    else:
+        if p_b == 1 + 2 * k_val + n_int:
+            X, _ = build_rsm_matrix(x, is_mixture=False, use_quad=True)
+        elif p_b == 1 + k_val + n_int:
+            X, _ = build_rsm_matrix(x, is_mixture=False, use_quad=False)
+        elif p_b == 1 + k_val:
+            X, _ = build_rsm_matrix(x, is_mixture=False, use_quad=False)
+            X = X[:, :1 + k_val]
+        else:
+            X, _ = build_rsm_matrix(x)
 
     p_X = X.shape[1]
-    p_b = len(b)
-
     if p_X == p_b:
         val = X @ b
         return float(val.ravel()[0])

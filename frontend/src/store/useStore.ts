@@ -1,6 +1,6 @@
-// src/store/useStore.ts  –  Zustand global store
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { simplifyResponseName } from '../utils/targetParser'
 
 export type Step =
   | 'welcome' | 'create-project' | 'qtpp' | 'cqa' | 'route-mapping'
@@ -202,8 +202,27 @@ export const useStore = create<Store>()(
       ...INITIAL,
       setProject: p => set(state => {
         const step = p ? normalizeStep(p.current_step) : 'create-project'
+
+        // Sanitize existing project responses and targets to simple terms
+        const sanitizedResponses = p?.responses?.map(r => ({
+          ...r,
+          name: simplifyResponseName(r.name, r.goal)
+        })) ?? [];
+
+        const sanitizedTargets = p?.api_targets?.map(t => ({
+          ...t,
+          name: simplifyResponseName(t.name, t.goal)
+        })) ?? [];
+
+        const sanitizedProject = p ? {
+          ...p,
+          current_step: step,
+          responses: sanitizedResponses,
+          api_targets: sanitizedTargets
+        } : null;
+
         return {
-          currentProject: p ? { ...p, current_step: step } : null,
+          currentProject: sanitizedProject,
           currentStep: step,
           activeStageId: null,
           qtpp: p ? (p.qtpp_data || []) : [],
@@ -212,7 +231,7 @@ export const useStore = create<Store>()(
           riskAssessments: p ? (p.risk_assessment_data || {}) : {},
           auditLogs: p ? (p.audit_logs || []) : [],
           lockedCampaigns: p ? (p.locked_campaigns || []) : [],
-          apiTargets: p ? (p.api_targets || []) : [],
+          apiTargets: sanitizedTargets,
           experiments: p?.experiments ?? [],
           // CRITICAL: Always wipe model results from previous projects
           analysisResults: {},
@@ -243,10 +262,13 @@ export const useStore = create<Store>()(
         riskAssessments: data,
         currentProject: st.currentProject ? { ...st.currentProject, risk_assessment_data: data } : null
       })),
-      setApiTargets:   items => set(st => ({
-        apiTargets: items,
-        currentProject: st.currentProject ? { ...st.currentProject, api_targets: items } : null
-      })),
+      setApiTargets:   items => {
+        const sanitized = items.map(t => ({ ...t, name: simplifyResponseName(t.name, t.goal) }))
+        return set(st => ({
+          apiTargets: sanitized,
+          currentProject: st.currentProject ? { ...st.currentProject, api_targets: sanitized } : null
+        }))
+      },
       addAuditLog:     (action, details) => set(st => ({
         auditLogs: [
           ...st.auditLogs,
@@ -280,7 +302,29 @@ export const useStore = create<Store>()(
         optimumResult: s.optimumResult,
         bayesResult: s.bayesResult,
         finalResult: s.finalResult
-      })
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state?.currentProject) {
+          if (state.currentProject.responses) {
+            state.currentProject.responses = state.currentProject.responses.map(r => ({
+              ...r,
+              name: simplifyResponseName(r.name, r.goal)
+            }))
+          }
+          if (state.currentProject.api_targets) {
+            state.currentProject.api_targets = state.currentProject.api_targets.map(t => ({
+              ...t,
+              name: simplifyResponseName(t.name, t.goal)
+            }))
+          }
+        }
+        if (state?.apiTargets) {
+          state.apiTargets = state.apiTargets.map(t => ({
+            ...t,
+            name: simplifyResponseName(t.name, t.goal)
+          }))
+        }
+      }
     }
   )
 )

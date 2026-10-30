@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useStore, isPercentageResponse } from '../store/useStore'
 import { Projects } from '../services/api'
+import { simplifyResponseName } from '../utils/targetParser'
 import toast from 'react-hot-toast'
 
 export default function UploadResults() {
-  const { currentProject, experiments, setExperiments, setStep } = useStore()
+  const { currentProject, experiments, setExperiments, setStep, setOptimum, setBayes, setFinal } = useStore()
   const factors   = currentProject?.factors   || []
   const responses = currentProject?.responses || []
 
@@ -80,6 +81,9 @@ export default function UploadResults() {
       
       const freshExps = await Projects.getExperiments(currentProject!.id)
       setExperiments(freshExps)
+      setOptimum(null)
+      setBayes(null)
+      setFinal(null)
       toast.success(`${payload.length} runs saved!`)
       setStep('initial-optimization')
     } catch (e: any) {
@@ -163,7 +167,7 @@ export default function UploadResults() {
                 <th>Type</th>
                 {factors.map((f: any) => <th key={f.name} style={{ color:'var(--text-muted)' }}>{f.name}</th>)}
                 {responses.map((r: any) => <th key={r.name} style={{ color:'var(--accent)' }}>
-                  {r.name} {r.unit && <span style={{ fontWeight:400 }}>({r.unit})</span>}
+                  {simplifyResponseName(r.name, r.goal)} {r.unit && <span style={{ fontWeight:400 }}>({r.unit})</span>}
                 </th>)}
               </tr>
             </thead>

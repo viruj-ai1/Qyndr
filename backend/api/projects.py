@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
-from database import crud, schemas
+from database import crud, schemas, models
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -121,6 +121,10 @@ def upload_results(project_id: int, body: schemas.ResultsUpload,
     for r in body.results:
         cleaned_vals = _clean_response_values(db, project_id, r.result_values)
         crud.update_experiment_results(db, r.experiment_id, cleaned_vals)
+    # Clear stale analysis & downstream models for this project
+    db.query(models.Analysis).filter(models.Analysis.project_id == project_id).delete()
+    db.query(models.GPIteration).filter(models.GPIteration.project_id == project_id).delete()
+    db.commit()
     crud.update_project(db, project_id, schemas.ProjectUpdate(current_step="initial-optimization"))
     return {"ok": True, "updated": len(body.results)}
 
@@ -399,11 +403,15 @@ def load_rocuronium_preset(db: Session = Depends(get_db)):
         # Multi-response desirability optimization
         a_dicts = []
         for a in sorted(analyses_list, key=lambda x: x.response_idx):
-            anova_dict = a.anova if isinstance(a.anova, dict) else {}
-            y_mean = anova_dict.get("y_mean", 0)
+            resp_idx = a.response_idx
+            y_vals = [e["result_values"][resp_idx] for e in exp_dicts if e.get("result_values") and resp_idx < len(e["result_values"]) and e["result_values"][resp_idx] is not None]
+            y_min = float(min(y_vals)) if y_vals else 0.0
+            y_max = float(max(y_vals)) if y_vals else 1.0
+            y_mean = float(sum(y_vals) / len(y_vals)) if y_vals else 0.0
             a_dicts.append({
                 "regression": a.regression,
-                "descriptive": {"y_min": y_mean - 5, "y_max": y_mean + 5} if isinstance(a.anova, dict) else {}
+                "anova": a.anova,
+                "descriptive": {"y_min": y_min, "y_max": y_max, "y_mean": y_mean}
             })
 
         resp_dicts = [{"name": r.name, "goal": r.goal, "target": r.target,

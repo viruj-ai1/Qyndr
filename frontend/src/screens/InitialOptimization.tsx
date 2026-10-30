@@ -1,7 +1,7 @@
-// src/screens/InitialOptimization.tsx
 import { useState, useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import { Analysis, Projects } from '../services/api'
+import { simplifyResponseName } from '../utils/targetParser'
 import toast from 'react-hot-toast'
 
 export default function InitialOptimization() {
@@ -18,6 +18,16 @@ export default function InitialOptimization() {
     try {
       const data = await Analysis.optimize(currentProject.id)
       setOptimum(data)
+      try {
+        const analyses = await Analysis.get(currentProject.id)
+        if (Array.isArray(analyses)) {
+          analyses.forEach((a: any) => {
+            if (a.response_idx != null) setAnalysis(a.response_idx, a)
+          })
+        }
+      } catch (syncErr) {
+        console.warn('Syncing analyses:', syncErr)
+      }
       toast.success('Optimum found!')
     } catch (e: any) {
       const msg = e.response?.data?.detail || 'Optimization failed. Please complete lab runs and statistical analysis first.'
@@ -51,7 +61,7 @@ export default function InitialOptimization() {
   }
 
   useEffect(() => {
-    if (currentProject?.id && !optimumResult) {
+    if (currentProject?.id) {
       runOptimize()
     }
   }, [currentProject?.id])
@@ -95,58 +105,6 @@ export default function InitialOptimization() {
             </div>
           </div>
 
-          {/* AI Executive Summary Overhaul */}
-          <div className="card mb-2" style={{ borderLeft: '4px solid var(--accent)' }}>
-            <div className="card-title mb-2">AI Executive Summary</div>
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-              Quantitative chemistry insights based on optimal factor settings.
-            </p>
-            
-            <div className="grid-3 mb-2">
-              <div className="stat-card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="stat-label">Quantitative Chemical Wins</div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text)', marginTop: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                    <span>Purity Improvement:</span> <span style={{ color: 'var(--success)', fontWeight: 600 }}>+{(Math.random() * 2 + 1).toFixed(1)}%</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                    <span>Assay Yield:</span> <span style={{ color: 'var(--success)', fontWeight: 600 }}>{(Math.random() * 5 + 90).toFixed(1)}%</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Impurity Reduction:</span> <span style={{ color: 'var(--success)', fontWeight: 600 }}>-{(Math.random() * 30 + 20).toFixed(1)}%</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="stat-card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="stat-label">Sustainability Metrics</div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text)', marginTop: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                    <span>Process Mass Intensity (PMI):</span> <span className="mono">{(Math.random() * 10 + 15).toFixed(1)} kg/kg</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                    <span>E-Factor:</span> <span className="mono">{(Math.random() * 5 + 5).toFixed(1)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Raw Material Cost:</span> <span className="mono">${(Math.random() * 50 + 100).toFixed(2)}/kg</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="stat-card" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="stat-label">Factor Insights & Edge-of-Failure</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text)', marginTop: '0.5rem' }}>
-                  <div style={{ marginBottom: '0.5rem', color: 'var(--warning)', fontWeight: 600 }}>
-                    ⚠️ Exotherm Risk at high temperatures
-                  </div>
-                  <div>
-                    The primary driver for purity variation is the reaction temperature. Exceeding the PAR upper limit significantly increases thermal degradation impurities.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Optimal factor settings with PAR/NOR */}
           <div className="card mb-2">
             <div className="card-title mb-2">Safe Operating Window (PAR/NOR)</div>
@@ -162,12 +120,12 @@ export default function InitialOptimization() {
                       <td style={{ color:'var(--text-muted)' }}>{f.unit}</td>
                       <td>
                         <span className="mono" style={{ color:'var(--success)', fontWeight:700 }}>
-                          {val?.toFixed(2)} {f.unit}
+                          {val != null ? `${val.toFixed(2)} ${f.unit}` : '—'}
                         </span>
                       </td>
                       <td>
                         <span className="mono" style={{ color:'var(--text-secondary)' }}>
-                          {(val - tolerance).toFixed(2)} – {(val + tolerance).toFixed(2)} {f.unit}
+                          {val != null ? `${(val - tolerance).toFixed(2)} – ${(val + tolerance).toFixed(2)} ${f.unit}` : '—'}
                         </span>
                       </td>
                     </tr>
@@ -183,11 +141,15 @@ export default function InitialOptimization() {
             <div className="grid-2">
               {responses.map((r: any, i: number) => (
                 <div key={i} className="stat-card">
-                  <div className="stat-label">{r.name} ({r.unit})</div>
-                  <div className="stat-value" style={{ color:'var(--accent)' }}>
-                    {opt.predicted_responses?.[i]?.toFixed(3) || '—'}
+                  <div className="stat-label">
+                    {simplifyResponseName(r.name, r.goal)} ({r.unit || '%'})
                   </div>
-                  <div style={{ fontSize:'0.72rem', color:'var(--text-muted)', textTransform:'capitalize' }}>Goal: {r.goal}</div>
+                  <div className="stat-value" style={{ color: 'var(--accent)' }}>
+                    {opt.predicted_responses?.[i] != null ? Number(opt.predicted_responses[i]).toFixed(3) : '—'}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+                    Goal: {r.goal}
+                  </div>
                 </div>
               ))}
             </div>

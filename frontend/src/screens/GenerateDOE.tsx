@@ -1,11 +1,11 @@
-// src/screens/GenerateDOE.tsx – Unified DOE Matrix & Results (Consolidating Steps 10, 11, 12)
 import React, { useState, useEffect, useMemo } from 'react'
 import { useStore, isPercentageResponse } from '../store/useStore'
 import { DOE, Projects } from '../services/api'
+import { simplifyResponseName } from '../utils/targetParser'
 import toast from 'react-hot-toast'
 
 export default function GenerateDOE() {
-  const { currentProject, setStep, experiments, setExperiments } = useStore()
+  const { currentProject, setStep, experiments, setExperiments, setOptimum, setBayes, setFinal } = useStore()
   const [design, setDesign] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -308,7 +308,7 @@ export default function GenerateDOE() {
       ? factors.flatMap((f: any) => [`${f.name} (Nominal, ${f.unit})`, `${f.name} (Actual, ${f.unit})`])
       : factors.map((f: any) => `${f.name} (${f.unit})`)
 
-    const responseHeaders = responses.map((r: any) => `${r.name} (${r.unit || ''})`)
+    const responseHeaders = responses.map((r: any) => `${simplifyResponseName(r.name, r.goal)} (${r.unit || ''})`)
     const headers = ['Run #', 'Run Type', ...factorHeaders, ...responseHeaders, 'Lab Observation Notes']
 
     const rows = displayedExperiments.map((e: any) => {
@@ -378,6 +378,9 @@ export default function GenerateDOE() {
       await Projects.uploadResults(currentProject.id, payload)
       const freshExps = await Projects.getExperiments(currentProject.id)
       setExperiments(freshExps)
+      setOptimum(null)
+      setBayes(null)
+      setFinal(null)
       toast.success(`${payload.length} experiment results saved! Transitioning to Initial Optimum...`)
       setStep('initial-optimization')
     } catch (e: any) {
@@ -607,7 +610,7 @@ export default function GenerateDOE() {
                     ))}
                     {responses.map((r: any) => (
                       <th key={r.name} rowSpan={2} style={{ color: 'var(--accent)', minWidth: '130px' }}>
-                        <div>{r.name}</div>
+                        <div>{simplifyResponseName(r.name, r.goal)}</div>
                         <div style={{ fontWeight: 400, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                           {r.unit ? `(${r.unit})` : ''} {r.goal ? `[${r.goal}]` : ''}
                         </div>
@@ -635,7 +638,7 @@ export default function GenerateDOE() {
                   ))}
                   {responses.map((r: any) => (
                     <th key={r.name} style={{ color: 'var(--accent)', minWidth: '130px' }}>
-                      <div>{r.name}</div>
+                      <div>{simplifyResponseName(r.name, r.goal)}</div>
                       <div style={{ fontWeight: 400, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                         {r.unit ? `(${r.unit})` : ''} {r.goal ? `[${r.goal}]` : ''}
                       </div>

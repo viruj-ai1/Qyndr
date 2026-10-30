@@ -38,7 +38,7 @@ export default function Report() {
               <span className="badge badge-primary">{factors.length} factors</span>
               <span className="badge badge-accent">{responses.length} responses</span>
               {currentProject?.doe_type && <span className="badge badge-warning">{currentProject.doe_type}</span>}
-              {currentProject?.bayes_iter && currentProject.bayes_iter > 0 && <span className="badge badge-success">Bayes: {currentProject.bayes_iter} iters</span>}
+              {(currentProject?.bayes_iter ?? 0) > 0 && <span className="badge badge-success">Bayes: {currentProject?.bayes_iter} iters</span>}
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 # ============================================================
 #  api/analysis.py  –  Statistical Analysis endpoints
 # ============================================================
+import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db, crud, schemas
@@ -76,26 +77,48 @@ def run_all_analyses(body: schemas.OptimizeRequest, db: Session = Depends(get_db
 def optimize_endpoint(body: schemas.OptimizeRequest, db: Session = Depends(get_db)):
     factors   = crud.get_factors(db, body.project_id)
     responses = crud.get_responses(db, body.project_id)
-    analyses  = crud.get_analyses(db, body.project_id)
-    
-    def _is_valid_reg(item):
-        reg = _get_val(item, "regression")
-        return isinstance(reg, dict) and (reg.get("converged") or reg.get("beta") or reg.get("coefficients"))
 
-    if not analyses or len(analyses) < len(responses) or any(not _is_valid_reg(a) for a in analyses):
-        run_all_analyses(body, db)
-        analyses = crud.get_analyses(db, body.project_id)
+    # ALWAYS re-run regression on the latest experimental data:
+    run_all_analyses(body, db)
+    analyses = crud.get_analyses(db, body.project_id)
 
     if not analyses:
         raise HTTPException(400, "Run analysis before optimization.")
 
+    experiments = crud.get_experiments(db, body.project_id)
     a_dicts = []
     for a in sorted(analyses, key=lambda x: x.response_idx):
+        resp_idx = a.response_idx
+        y_vals = []
+        for e in experiments:
+            if getattr(e, "run_type", "") == "Bayesian" or not e.result_values:
+                continue
+            if isinstance(e.result_values, list) and resp_idx < len(e.result_values):
+                val = e.result_values[resp_idx]
+                if val is not None:
+                    try:
+                        num = float(val)
+                        if not np.isnan(num):
+                            y_vals.append(num)
+                    except (ValueError, TypeError):
+                        pass
+
         anova_dict = a.anova if isinstance(a.anova, dict) else {}
-        y_mean = anova_dict.get("y_mean", 0)
+        reg_dict = a.regression if isinstance(a.regression, dict) else {}
+
+        if y_vals:
+            y_min = float(min(y_vals))
+            y_max = float(max(y_vals))
+            y_mean = float(sum(y_vals) / len(y_vals))
+        else:
+            y_min = reg_dict.get("y_min", anova_dict.get("y_min", 0.0))
+            y_max = reg_dict.get("y_max", anova_dict.get("y_max", 1.0))
+            y_mean = anova_dict.get("y_mean", 0.0)
+
         a_dicts.append({
             "regression": a.regression,
-            "descriptive": {"y_min": y_mean - 5, "y_max": y_mean + 5} if isinstance(a.anova, dict) else {}
+            "anova": a.anova,
+            "descriptive": {"y_min": y_min, "y_max": y_max, "y_mean": y_mean}
         })
 
     resp_dicts = [{"name": r.name, "goal": r.goal, "target": r.target,

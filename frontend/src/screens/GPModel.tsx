@@ -1,8 +1,8 @@
-// src/screens/GPModel.tsx
 import { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { useStore } from '../store/useStore'
 import { Optimization } from '../services/api'
+import { simplifyResponseName } from '../utils/targetParser'
 import toast from 'react-hot-toast'
 
 export default function GPModel() {
@@ -29,7 +29,7 @@ export default function GPModel() {
       })
       setResult(data)
       setBayes(data)
-      const respName = responses[targetIdx]?.name || `Response ${targetIdx + 1}`
+      const respName = simplifyResponseName(responses[targetIdx]?.name, responses[targetIdx]?.goal) || `Response ${targetIdx + 1}`
       toast.success(`GP model fitted for ${respName}`)
     } catch (e: any) {
       console.warn('Backend GP fitting encountered issue, generating local surrogate profiles:', e)
@@ -123,7 +123,7 @@ export default function GPModel() {
                 runGP(i)
               }}
             >
-              {r.name} {r.unit ? `(${r.unit})` : ''}
+              {simplifyResponseName(r.name, r.goal)} {r.unit ? `(${r.unit})` : ''}
             </button>
           ))}
         </div>
@@ -145,7 +145,7 @@ export default function GPModel() {
           <div className="grid-4 mb-2">
             {[
               { l: 'Training Observations', v: gp.n_obs, sub: 'completed experimental runs' },
-              { l: 'Best Observed Result', v: gp.y_best?.toFixed(3), sub: `${currentResp?.name || 'Response'} value` },
+              { l: 'Best Observed Result', v: gp.y_best?.toFixed(3), sub: `${simplifyResponseName(currentResp?.name, currentResp?.goal) || 'Response'} value` },
               { l: 'Dataset Grand Mean', v: gp.y_mean?.toFixed(3), sub: 'prior regression mean' },
               { l: 'Log Marginal Likelihood', v: gp.log_likelihood?.toFixed(2), sub: 'model goodness-of-fit' },
             ].map(s => (

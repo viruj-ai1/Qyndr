@@ -24,6 +24,8 @@ export default function FinalOptimum() {
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([])
   const [chatInput, setChatInput] = useState('')
   const [loadingChat, setLoadingChat] = useState(false)
+  // Feature flag to disable Chat with Virtual Data Scientist for now without removing code
+  const SHOW_VIRTUAL_DATA_SCIENTIST = false
 
   async function loadCombinedOptimum() {
     if (!currentProject?.id) return
@@ -494,176 +496,178 @@ export default function FinalOptimum() {
         </>
       )}
 
-      {/* Chat with Virtual Data Scientist Section */}
-      <div className="card mb-2" style={{ borderTop: '4px solid var(--primary-light)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <div className="card-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>💬</span> Chat with Virtual Data Scientist
+      {/* Chat with Virtual Data Scientist Section (Disabled for now) */}
+      {SHOW_VIRTUAL_DATA_SCIENTIST && (
+        <div className="card mb-2" style={{ borderTop: '4px solid var(--primary-light)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div className="card-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>💬</span> Chat with Virtual Data Scientist
+              </div>
+              <span className="badge badge-primary" style={{ fontSize: '0.74rem', letterSpacing: '0.04em', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary-light)', border: '1px solid rgba(99, 102, 241, 0.28)' }}>
+                Active Context: {currentProject?.compound || currentProject?.name || 'Active Project'} · {totalObs} Runs {activeTab === 'combined' ? '· Multi-Objective' : `· Response: ${simplifyResponseName(responses[activeTab]?.name, responses[activeTab]?.goal)}`}
+              </span>
             </div>
-            <span className="badge badge-primary" style={{ fontSize: '0.74rem', letterSpacing: '0.04em', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary-light)', border: '1px solid rgba(99, 102, 241, 0.28)' }}>
-              Active Context: {currentProject?.compound || currentProject?.name || 'Active Project'} · {totalObs} Runs {activeTab === 'combined' ? '· Multi-Objective' : `· Response: ${simplifyResponseName(responses[activeTab]?.name, responses[activeTab]?.goal)}`}
+            <span className="badge badge-accent" style={{ fontSize: '0.72rem', letterSpacing: '0.05em' }}>
+              GROQ LLAMA-3.3-70B + DoE RAG
             </span>
           </div>
-          <span className="badge badge-accent" style={{ fontSize: '0.72rem', letterSpacing: '0.05em' }}>
-            GROQ LLAMA-3.3-70B + DoE RAG
-          </span>
-        </div>
 
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-          Query QbD regulatory guidance (ICH Q8/Q9/Q10/Q14), inspect ANOVA and Pareto significance, request interactive 2D/3D response surface plots, or generate 4-in-1 model diagnostics.
-        </p>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            Query QbD regulatory guidance (ICH Q8/Q9/Q10/Q14), inspect ANOVA and Pareto significance, request interactive 2D/3D response surface plots, or generate 4-in-1 model diagnostics.
+          </p>
 
-        {/* Quick Action Suggestion Pills */}
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-          {[
-            `Difference between NOR & PAR (${currentProject?.compound || 'ICH Q8'})`,
-            "Generate 2D sweet spot contour map",
-            "Show Pareto chart of effects with Bonferroni line",
-            "Show 4-in-1 residual diagnostics",
-            "Identify critical interaction effects & CPPs",
-            "Recommend next validation run settings"
-          ].map((suggestion, sIdx) => (
-            <button
-              key={sIdx}
-              type="button"
-              className="btn btn-secondary"
-              style={{
-                fontSize: '0.78rem',
-                padding: '0.35rem 0.75rem',
-                borderRadius: '20px',
-                background: 'rgba(99, 102, 241, 0.08)',
-                border: '1px solid rgba(99, 102, 241, 0.25)',
-                color: 'var(--primary-light)',
-                cursor: 'pointer'
-              }}
-              disabled={loadingChat}
-              onClick={() => handleSendChat(suggestion)}
-            >
-              ⚡ {suggestion}
-            </button>
-          ))}
-        </div>
+          {/* Quick Action Suggestion Pills */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+            {[
+              `Difference between NOR & PAR (${currentProject?.compound || 'ICH Q8'})`,
+              "Generate 2D sweet spot contour map",
+              "Show Pareto chart of effects with Bonferroni line",
+              "Show 4-in-1 residual diagnostics",
+              "Identify critical interaction effects & CPPs",
+              "Recommend next validation run settings"
+            ].map((suggestion, sIdx) => (
+              <button
+                key={sIdx}
+                type="button"
+                className="btn btn-secondary"
+                style={{
+                  fontSize: '0.78rem',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '20px',
+                  background: 'rgba(99, 102, 241, 0.08)',
+                  border: '1px solid rgba(99, 102, 241, 0.25)',
+                  color: 'var(--primary-light)',
+                  cursor: 'pointer'
+                }}
+                disabled={loadingChat}
+                onClick={() => handleSendChat(suggestion)}
+              >
+                ⚡ {suggestion}
+              </button>
+            ))}
+          </div>
 
-        {/* Chat Messages Stream */}
-        <div style={{ 
-          background: 'var(--surface)', 
-          borderRadius: '8px', 
-          padding: '1.25rem', 
-          maxHeight: '560px', 
-          overflowY: 'auto', 
-          marginBottom: '1rem', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: '1.25rem',
-          border: '1px solid var(--border)'
-        }}>
-          {chatMessages.length === 0 && (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', padding: '1.5rem' }}>
-              Ask me any questions about your DoE dataset, optimal settings, ANOVA models, or QbD regulatory standards for {currentProject?.compound || 'your API'}!
-            </div>
-          )}
-          {chatMessages.map((msg, idx) => (
-            <div 
-              key={idx} 
-              style={{ 
-                alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', 
-                background: msg.role === 'user' ? 'var(--primary-dark)' : 'var(--surface-light)', 
-                color: msg.role === 'user' ? '#fff' : 'var(--text)', 
-                padding: '0.85rem 1.15rem', 
-                borderRadius: '10px', 
-                maxWidth: msg.charts && msg.charts.length > 0 ? '95%' : '85%', 
-                width: msg.charts && msg.charts.length > 0 ? '100%' : 'auto',
-                fontSize: '0.9rem', 
-                border: msg.role === 'assistant' ? '1px solid var(--border)' : 'none', 
-                boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
-              }}
-            >
-              <div style={{ 
-                fontSize: '0.72rem', 
-                fontWeight: 700, 
-                textTransform: 'uppercase', 
-                letterSpacing: '0.08em', 
-                marginBottom: '0.4rem', 
-                opacity: 0.8 
-              }}>
-                {msg.role === 'user' ? 'You' : 'Virtual Data Scientist'}
+          {/* Chat Messages Stream */}
+          <div style={{ 
+            background: 'var(--surface)', 
+            borderRadius: '8px', 
+            padding: '1.25rem', 
+            maxHeight: '560px', 
+            overflowY: 'auto', 
+            marginBottom: '1rem', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '1.25rem',
+            border: '1px solid var(--border)'
+          }}>
+            {chatMessages.length === 0 && (
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', padding: '1.5rem' }}>
+                Ask me any questions about your DoE dataset, optimal settings, ANOVA models, or QbD regulatory standards for {currentProject?.compound || 'your API'}!
               </div>
-
-              {msg.role === 'assistant' ? (
-                <MarkdownMessage content={msg.content} />
-              ) : (
-                <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{msg.content}</div>
-              )}
-
-              {/* Inline Plotly Charts */}
-              {msg.charts && msg.charts.length > 0 && (
-                <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {msg.charts.map((chart: any, cIdx: number) => (
-                    <div 
-                      key={cIdx} 
-                      style={{ 
-                        background: '#ffffff', 
-                        borderRadius: '8px', 
-                        padding: '0.5rem', 
-                        border: '1px solid #e2e8f0', 
-                        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-                        overflow: 'hidden'
-                      }}
-                    >
-                      <PlotlyChart 
-                        data={chart.data} 
-                        layout={chart.layout} 
-                        config={chart.config || { responsive: true }} 
-                        style={{ width: '100%', minHeight: '380px' }} 
-                      />
-                    </div>
-                  ))}
+            )}
+            {chatMessages.map((msg, idx) => (
+              <div 
+                key={idx} 
+                style={{ 
+                  alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', 
+                  background: msg.role === 'user' ? 'var(--primary-dark)' : 'var(--surface-light)', 
+                  color: msg.role === 'user' ? '#fff' : 'var(--text)', 
+                  padding: '0.85rem 1.15rem', 
+                  borderRadius: '10px', 
+                  maxWidth: msg.charts && msg.charts.length > 0 ? '95%' : '85%', 
+                  width: msg.charts && msg.charts.length > 0 ? '100%' : 'auto',
+                  fontSize: '0.9rem', 
+                  border: msg.role === 'assistant' ? '1px solid var(--border)' : 'none', 
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
+                }}
+              >
+                <div style={{ 
+                  fontSize: '0.72rem', 
+                  fontWeight: 700, 
+                  textTransform: 'uppercase', 
+                  letterSpacing: '0.08em', 
+                  marginBottom: '0.4rem', 
+                  opacity: 0.8 
+                }}>
+                  {msg.role === 'user' ? 'You' : 'Virtual Data Scientist'}
                 </div>
-              )}
-            </div>
-          ))}
-          {loadingChat && (
-            <div style={{ 
-              alignSelf: 'flex-start', 
-              background: 'var(--surface-light)', 
-              padding: '0.75rem 1.25rem', 
-              borderRadius: '10px', 
-              fontSize: '0.9rem', 
-              color: 'var(--text-muted)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}>
-              <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px' }} />
-              Virtual Data Scientist is calculating & evaluating...
-            </div>
-          )}
-        </div>
 
-        {/* Input Row */}
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <input 
-            type="text" 
-            className="input" 
-            style={{ flex: 1 }}
-            placeholder="Ask about ANOVA, Pareto effects, contour sweet spots, or ICH standards..." 
-            value={chatInput} 
-            onChange={e => setChatInput(e.target.value)} 
-            onKeyDown={e => e.key === 'Enter' && handleSendChat()}
-            disabled={loadingChat}
-          />
-          <button 
-            type="button"
-            className="btn btn-primary" 
-            onClick={() => handleSendChat()} 
-            disabled={loadingChat || !chatInput.trim()}
-          >
-            Send
-          </button>
+                {msg.role === 'assistant' ? (
+                  <MarkdownMessage content={msg.content} />
+                ) : (
+                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{msg.content}</div>
+                )}
+
+                {/* Inline Plotly Charts */}
+                {msg.charts && msg.charts.length > 0 && (
+                  <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {msg.charts.map((chart: any, cIdx: number) => (
+                      <div 
+                        key={cIdx} 
+                        style={{ 
+                          background: '#ffffff', 
+                          borderRadius: '8px', 
+                          padding: '0.5rem', 
+                          border: '1px solid #e2e8f0', 
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                          overflow: 'hidden'
+                        }}
+                      >
+                        <PlotlyChart 
+                          data={chart.data} 
+                          layout={chart.layout} 
+                          config={chart.config || { responsive: true }} 
+                          style={{ width: '100%', minHeight: '380px' }} 
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+            {loadingChat && (
+              <div style={{ 
+                alignSelf: 'flex-start', 
+                background: 'var(--surface-light)', 
+                padding: '0.75rem 1.25rem', 
+                borderRadius: '10px', 
+                fontSize: '0.9rem', 
+                color: 'var(--text-muted)',
+                border: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px' }} />
+                Virtual Data Scientist is calculating & evaluating...
+              </div>
+            )}
+          </div>
+
+          {/* Input Row */}
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input 
+              type="text" 
+              className="input" 
+              style={{ flex: 1 }}
+              placeholder="Ask about ANOVA, Pareto effects, contour sweet spots, or ICH standards..." 
+              value={chatInput} 
+              onChange={e => setChatInput(e.target.value)} 
+              onKeyDown={e => e.key === 'Enter' && handleSendChat()}
+              disabled={loadingChat}
+            />
+            <button 
+              type="button"
+              className="btn btn-primary" 
+              onClick={() => handleSendChat()} 
+              disabled={loadingChat || !chatInput.trim()}
+            >
+              Send
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="step-nav">
         <button className="btn btn-secondary" onClick={() => setStep('more-improvement')}>← Back</button>

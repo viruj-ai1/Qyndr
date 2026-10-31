@@ -39,13 +39,79 @@ def _decode_actual(coded_row: List[float], factors: list) -> List[float]:
     return actual
 
 
+import re
+
+PROCESS_KEYWORDS = {'temp', 'temperature', 'ph', 'time', 'pressure', 'rpm', 'stir', 'speed', 'flow', 'rate', 'vol', 'volume'}
+PROCESS_UNITS = {'°c', '°f', 'k', 'ph', 'rpm', 'bar', 'psi', 'min', 'h', 'hr', 'hours', 'sec', 'ml/min', 'l/h'}
+
+
+def _is_process_factor(f: Any) -> bool:
+    """Detect if a factor is a continuous process parameter."""
+    fname = (getattr(f, 'name', None) or (f.get('name') if isinstance(f, dict) else '') or '').lower()
+    funit = (getattr(f, 'unit', None) or (f.get('unit') if isinstance(f, dict) else '') or '').lower().strip()
+
+    clean_unit = funit.strip('()[]{} ')
+    words = set(re.findall(r'[a-zA-Z0-9°/]+', fname))
+    unit_words = set(re.findall(r'[a-zA-Z0-9°/]+', clean_unit))
+
+    # 1. Check PROCESS_UNITS
+    for pu in PROCESS_UNITS:
+        if len(pu) == 1:
+            if clean_unit == pu or pu in unit_words:
+                return True
+        else:
+            if pu in clean_unit or pu in unit_words or pu in fname:
+                return True
+
+    # 2. Check PROCESS_KEYWORDS
+    for kw in PROCESS_KEYWORDS:
+        if kw in ('ph', 'vol', 'rate', 'rpm'):
+            if kw in words or kw in unit_words or kw in clean_unit:
+                return True
+            if f"_{kw}" in fname or f"-{kw}" in fname or f" {kw}" in fname or f"{kw} " in fname:
+                return True
+        else:
+            if kw in fname or kw in clean_unit:
+                return True
+
+    return False
+
+
+def _is_formulation_component(f: Any) -> bool:
+    """Detect if a factor represents a formulation fraction or component."""
+    fname = (getattr(f, 'name', None) or (f.get('name') if isinstance(f, dict) else '') or '').lower()
+    funit = (getattr(f, 'unit', None) or (f.get('unit') if isinstance(f, dict) else '') or '').lower().strip()
+    clean_unit = funit.strip('()[]{} ')
+
+    if clean_unit in {'%', 'wt%', 'vol%', 'fraction', 'w/w', 'v/v', 'wt/wt', 'vol/vol', 'mol%', 'mole_fraction'}:
+        return True
+    if any(u in clean_unit for u in ('wt%', 'vol%', 'fraction')):
+        return True
+    if any(u in fname for u in ('wt%', 'vol%', 'fraction', 'proportion', 'component', 'ingredient')):
+        return True
+    return False
+
+
 def recommend_designs(k: int, phase: str, has_htc: bool = False, constraints: list = None, factors: list = None) -> List[Dict[str, Any]]:
     """Return a list of recommended DOE options for k factors, phase, constraints, and factor types."""
     options = []
-    
-    # Check if mixture design (e.g. factors sum to 100% or solvent formulation)
-    is_mixture = any('solvent' in getattr(f, 'name', '').lower() or 'ratio' in getattr(f, 'name', '').lower() for f in (factors or []))
+    factors_list = factors or []
 
+    # 1. Process vs Mixture Factor Detection
+    has_process_param = any(_is_process_factor(f) for f in factors_list)
+    comp_count = sum(1 for f in factors_list if _is_formulation_component(f))
+
+    # Never classify as pure mixture if any continuous process parameter is present.
+    # Only flag is_mixture if no process parameters and all (or at least 3) factors represent components/fractions.
+    if has_process_param:
+        is_mixture = False
+    else:
+        is_mixture = len(factors_list) >= 3 and (comp_count == len(factors_list) or comp_count >= 3)
+
+    has_constraints = bool(constraints and len(constraints) > 0)
+    is_standard = not has_constraints and not has_htc and not is_mixture
+
+    # Special design handling: Mixture, Split-Plot, Constrained D-Optimal
     if is_mixture:
         mix = simplex_centroid(k)
         options.append({"key": "MIXTURE", "label": "Simplex Centroid (Mixture)", "recommended": True, **mix})
@@ -54,7 +120,7 @@ def recommend_designs(k: int, phase: str, has_htc: bool = False, constraints: li
         sp = generate_split_plot(k, factors)
         options.append({"key": "SPLIT_PLOT", "label": "Split-Plot Design (HTC Factors)", "recommended": True, **sp})
 
-    if constraints and len(constraints) > 0:
+    if has_constraints:
         d_opt = generate_d_optimal(k, factors, constraints, quick_preview=True)
         options.append({"key": "D_OPTIMAL", "label": "D-Optimal / Custom (Constrained)", "recommended": True, **d_opt})
 
@@ -62,41 +128,100 @@ def recommend_designs(k: int, phase: str, has_htc: bool = False, constraints: li
         # Definitive Screening Design (DSD) - 3 level screening for k >= 3
         if k >= 3:
             dsd = generate_dsd(k)
-            options.append({"key": "DSD", "label": "Definitive Screening Design (DSD)", "recommended": (k >= 4 and not constraints and not has_htc), **dsd})
+            # Recommend DSD for k >= 4
+            options.append({
+                "key": "DSD",
+                "label": "Definitive Screening Design (DSD)",
+                "recommended": (k >= 4 and is_standard),
+                **dsd
+            })
 
+        # Factorial / Fractional Factorial
         if k <= 3:
             d = get_fractional_design(k)
-            options.append({"key": "FF", "label": "Full Factorial", "recommended": (not constraints and not has_htc), **d})
+            options.append({
+                "key": "FF",
+                "label": "Full Factorial",
+                "recommended": is_standard,
+                **d
+            })
         else:
             ff = get_fractional_design(k, prefer_small=False)
-            options.append({"key": "FF", "label": "Fractional Factorial", "recommended": (k <= 7 and not constraints and not has_htc and not is_mixture), **ff})
+            options.append({
+                "key": "FF",
+                "label": "Fractional Factorial",
+                "recommended": (4 <= k <= 7 and is_standard),
+                **ff
+            })
             if k >= 5:
                 ffs = get_fractional_design(k, prefer_small=True)
                 if ffs["n_runs"] < ff["n_runs"]:
-                    options.append({"key": "FF_S", "label": "Fract. Factorial (Smaller)", "recommended": False, **ffs})
+                    options.append({
+                        "key": "FF_S",
+                        "label": "Fract. Factorial (Smaller)",
+                        "recommended": False,
+                        **ffs
+                    })
+
+        # Plackett-Burman (PB)
         pb = plackett_burman(k)
-        options.append({"key": "PB",      "label": "Plackett-Burman", "recommended": (k >= 8 and not constraints),  **pb})
+        options.append({
+            "key": "PB",
+            "label": "Plackett-Burman",
+            "recommended": (k >= 8 and is_standard),
+            **pb
+        })
+
+        # Taguchi
         tg = taguchi(k)
         options.append({"key": "TAGUCHI", "label": "Taguchi L-Array", "recommended": False, **tg})
+
     else:
         # Optimization phase
-        ccd_fc  = central_composite(min(k, 6), face_centered=True)
-        ccd_rot = central_composite(min(k, 6), face_centered=False)
-        options.append({"key": "CCD_FC",  "label": "CCD Face-Centered", "recommended": (not constraints and not has_htc and not is_mixture), **ccd_fc})
-        options.append({"key": "CCD_ROT", "label": "CCD Rotatable",     "recommended": False, **ccd_rot})
+        # Box-Behnken (BBD) for 3 <= k <= 7 (15 runs for k=3)
         if 3 <= k <= 7:
             bb = box_behnken(k)
-            options.append({"key": "BBD", "label": "Box-Behnken",     "recommended": False, **bb})
+            options.append({
+                "key": "BBD",
+                "label": "Box-Behnken",
+                "recommended": (3 <= k <= 5 and is_standard),
+                **bb
+            })
+
+        # Face-Centered CCD
+        ccd_fc = central_composite(min(k, 6), face_centered=True)
+        options.append({
+            "key": "CCD_FC",
+            "label": "CCD Face-Centered",
+            "recommended": is_standard,
+            **ccd_fc
+        })
+
+        # Rotatable CCD
+        ccd_rot = central_composite(min(k, 6), face_centered=False)
+        options.append({
+            "key": "CCD_ROT",
+            "label": "CCD Rotatable",
+            "recommended": False,
+            **ccd_rot
+        })
 
     # D-Optimal option if not added yet
     if not any(o["key"] == "D_OPTIMAL" for o in options):
         d_opt = generate_d_optimal(k, factors, constraints, quick_preview=True)
-        options.append({"key": "D_OPTIMAL", "label": "D-Optimal / Custom Design", "recommended": False, **d_opt})
+        rec_dopt = bool(phase == "optimization" and k >= 6 and is_standard)
+        options.append({
+            "key": "D_OPTIMAL",
+            "label": "D-Optimal / Custom Design",
+            "recommended": rec_dopt,
+            **d_opt
+        })
 
     # Attach total runs
     for o in options:
         if "n_runs" not in o:
             o["n_runs"] = len(o.get("matrix", []))
+
     return options
 
 

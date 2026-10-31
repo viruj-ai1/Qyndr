@@ -134,8 +134,11 @@ def optimize_endpoint(body: schemas.OptimizeRequest, db: Session = Depends(get_d
     for a in analyses:
         crud.upsert_analysis(db, body.project_id, a.response_idx, optimum=result)
 
-    crud.update_project(db, body.project_id,
-                        schemas.ProjectUpdate(current_step="initial-optimization"))
+    proj = crud.get_project(db, body.project_id)
+    if proj and proj.current_step in (None, "", "statistical-analysis", "initial-optimization"):
+        crud.update_project(db, body.project_id,
+                            schemas.ProjectUpdate(current_step="initial-optimization"))
+    result["n_obs"] = len(experiments)
     return result
 
 

@@ -97,10 +97,10 @@ def optimize_multi_response(regression_models: List[Dict],
                 current[dim] = lv
                 grid_search(current, dim + 1)
 
-        if k <= 4:
+        if k <= 3:
             grid_search(np.zeros(k), 0)
         else:
-            X_rand = np.random.uniform(-1, 1, (10000, k))
+            X_rand = np.random.uniform(-1, 1, (5000, k))
             for x in X_rand:
                 val = -neg_desirability(x)
                 if val > best_D:

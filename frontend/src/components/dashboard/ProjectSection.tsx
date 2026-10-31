@@ -10,6 +10,7 @@ export interface ProjectSectionProps {
   subtitle: string;
   accentColor?: string;
   badgeText?: string;
+  defaultCollapsed?: boolean;
   searchActive?: boolean;
   searchQuery?: string;
   emptyStateMessage?: string;
@@ -26,13 +27,24 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
   subtitle,
   accentColor,
   badgeText,
+  defaultCollapsed = true,
   searchActive = false,
   searchQuery = '',
   emptyStateMessage,
   onClearSearch,
   children
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+
+  // When search is active with a query, auto-expand so matching results can be seen
+  React.useEffect(() => {
+    if (searchActive && searchQuery && searchQuery.trim()) {
+      setIsCollapsed(false);
+    }
+  }, [searchActive, searchQuery]);
+
+  const isSearchActive = Boolean(searchActive && searchQuery && searchQuery.trim().length > 0);
+  const effectiveCollapsed = isSearchActive ? false : isCollapsed;
 
   // Normalize status to lowercase stage key if possible
   const normStatus = status.toLowerCase().replace(/[^a-z]/g, '') as ProjectStage;
@@ -120,21 +132,21 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
           <button
             type="button"
             className="section-collapse-btn"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            aria-label={isCollapsed ? `Expand ${title}` : `Collapse ${title}`}
-            title={isCollapsed ? 'Expand section' : 'Collapse section'}
+            onClick={() => setIsCollapsed(!effectiveCollapsed)}
+            aria-label={effectiveCollapsed ? `Expand ${title}` : `Collapse ${title}`}
+            title={effectiveCollapsed ? 'Expand section' : 'Collapse section'}
             style={{ fontSize: '0.75rem' }}
           >
-            <span>{isCollapsed ? 'Expand' : 'Collapse'}</span>
-            <span style={{ fontSize: '0.72rem', display: 'inline-block', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-              ▼
+            <span>{effectiveCollapsed ? 'Expand' : 'Collapse'}</span>
+            <span style={{ fontSize: '0.72rem', display: 'inline-block' }}>
+              {effectiveCollapsed ? '▶' : '▼'}
             </span>
           </button>
         </div>
       </div>
 
       {/* ── Section Content Body ── */}
-      {!isCollapsed ? (
+      {!effectiveCollapsed ? (
         <div className="project-section-body">
           {isSectionEmpty ? (
             /* Clean, subtle empty placeholder when 0 projects are in this stage */
@@ -178,23 +190,7 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
             </div>
           )}
         </div>
-      ) : (
-        <div
-          onClick={() => setIsCollapsed(false)}
-          style={{
-            padding: '0.6rem 1rem',
-            background: '#f8fafc',
-            border: '1px dashed var(--border)',
-            borderRadius: 'var(--radius-sm)',
-            fontSize: '0.76rem',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-            textAlign: 'center'
-          }}
-        >
-          Section collapsed ({count} {count === 1 ? 'project' : 'projects'}) · Click to expand
-        </div>
-      )}
+      ) : null}
     </section>
   );
 };

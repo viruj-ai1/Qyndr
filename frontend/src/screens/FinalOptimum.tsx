@@ -185,7 +185,7 @@ export default function FinalOptimum() {
         <>
           {combinedOptimum ? (
             <>
-              {/* Multi-Objective Sweet Spot Hero Card */}
+              {/* Global Composite Desirability Index Hero Card */}
               <div className="card mb-2" style={{
                 background: 'linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(99,102,241,0.08) 100%)',
                 border: '1px solid rgba(16,185,129,0.3)',
@@ -193,7 +193,7 @@ export default function FinalOptimum() {
                 textAlign: 'center'
               }}>
                 <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '0.5rem' }}>
-                  🌟 Multi-Objective Process Sweet Spot
+                  🎯 Global Composite Desirability Index (D-Optimum)
                 </div>
                 
                 <div style={{
@@ -209,10 +209,10 @@ export default function FinalOptimum() {
 
                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.5rem', fontWeight: 500 }}>
                   {compositeScore > 0.8
-                    ? '🟢 Optimal Process Sweet Spot – Simultaneous balance across all critical quality attributes'
+                    ? '🟢 Global Pareto-Optimal Coordinate – Simultaneous convergence across all Critical Quality Attributes (CQAs)'
                     : compositeScore > 0.6
-                    ? '🟡 Acceptable Multi-Objective Trade-Off across CQAs'
-                    : '🔴 Partial desirability – Consider adjusting factor bounds or individual weights'}
+                    ? '🟡 Constrained Multi-Response Trade-off – Acceptable compromise across CQA specification boundaries'
+                    : '🔴 Sub-optimal Multi-Criteria Convergence – Consider re-evaluating factor constraints or response weighting'}
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '2.5rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
@@ -245,7 +245,7 @@ export default function FinalOptimum() {
                       <span>📈</span> Predicted CQAs at Combined Optimum
                     </div>
                     <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 0' }}>
-                      Simultaneous predicted outputs for all Critical Quality Attributes at the multi-objective sweet spot.
+                      Simultaneous predicted outputs for all Critical Quality Attributes at the global multi-response optimum.
                     </p>
                   </div>
                   
@@ -318,9 +318,9 @@ export default function FinalOptimum() {
                 </div>
               </div>
 
-              {/* Safe Operating Window (PAR/NOR) Table for Combined Sweet Spot */}
+              {/* Proven Acceptable Ranges (PAR/NOR) Table for Multi-Response Pareto Optimum */}
               <div className="card mb-2">
-                <div className="card-title mb-2">🎯 Safe Operating Window (PAR/NOR) – Combined Sweet Spot</div>
+                <div className="card-title mb-2">🎯 Proven Acceptable Range (PAR / NOR) – Multi-Response Pareto Optimum</div>
                 <table className="data-table">
                   <thead>
                     <tr><th>Factor</th><th>Unit</th><th style={{ color:'var(--success)' }}>Optimal Setting</th><th>Proven Acceptable Range (PAR)</th></tr>

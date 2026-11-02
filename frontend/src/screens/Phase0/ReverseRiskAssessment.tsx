@@ -114,16 +114,6 @@ export default function ReverseRiskAssessment() {
     })
   }
 
-  // Re-derive parameters tailored for this specific stage and API
-  const handleRederiveParams = () => {
-    if (!currentStage) return
-    const fresh = generateContextAwareRiskParameters(currentStage, safeStageIndex, currentProject, relevantCQAs)
-    setLocalRisk({
-      ...localRisk,
-      [currentStage.id]: { parameters: fresh }
-    })
-    toast.success(`Risk parameters re-derived for ${currentStage.name}`)
-  }
 
   // Handle parameter field updates
   const handleParamChange = (paramId: string, field: keyof RiskParameter, value: any) => {
@@ -335,14 +325,7 @@ export default function ReverseRiskAssessment() {
               RPN = Severity (1-5) × Occurrence (1-5) × Detectability (1-5) · Cutoff: {rpnThreshold}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={handleRederiveParams}
-              title="Re-populate parameters adapting to current unit operation and compound"
-            >
-              ⚡ Re-derive Stage Parameters
-            </button>
+          <div>
             <button className="btn btn-secondary btn-sm" onClick={handleAddParam}>
               + Add Parameter
             </button>

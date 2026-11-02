@@ -11,11 +11,35 @@ export default function InitialOptimization() {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  async function runOptimize() {
+  async function runOptimize(force: boolean = false) {
     if (!currentProject?.id) return
     setLoading(true)
     setErrorMsg(null)
     try {
+      if (!force) {
+        // 1. Check if an optimum is already cached in store or saved in analyses database:
+        try {
+          const analyses = await Analysis.get(currentProject.id)
+          let foundOpt: any = null
+          if (Array.isArray(analyses) && analyses.length > 0) {
+            analyses.forEach((a: any) => {
+              if (a.response_idx != null) setAnalysis(a.response_idx, a)
+              if (!foundOpt && a.optimum && a.optimum.composite_desirability != null) {
+                foundOpt = a.optimum
+              }
+            })
+          }
+          if (foundOpt) {
+            setOptimum(foundOpt)
+            setLoading(false)
+            return
+          }
+        } catch (fetchErr) {
+          console.warn('Checking saved optimum:', fetchErr)
+        }
+      }
+
+      // 2. If no saved optimum or forced by user, run full desirability optimization:
       const data = await Analysis.optimize(currentProject.id)
       setOptimum(data)
       try {
@@ -30,7 +54,7 @@ export default function InitialOptimization() {
       }
       toast.success('Optimum found!')
     } catch (e: any) {
-      const msg = e.response?.data?.detail || 'Optimization failed. Please complete lab runs and statistical analysis first.'
+      const msg = e.response?.data?.detail || (e.message?.includes('timeout') ? 'Optimization calculation timed out on server. Please click Retry.' : 'Optimization failed. Please complete lab runs and statistical analysis first.')
       setErrorMsg(msg)
     } finally { setLoading(false) }
   }
@@ -62,7 +86,7 @@ export default function InitialOptimization() {
 
   useEffect(() => {
     if (currentProject?.id) {
-      runOptimize()
+      runOptimize(false)
     }
   }, [currentProject?.id])
 
@@ -84,8 +108,8 @@ export default function InitialOptimization() {
         <div className="alert alert-warning mb-2" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div style={{ fontWeight: 600 }}>⚠️ {errorMsg}</div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => setStep('generate-doe')}>Go to Step 10: DOE Matrix & Results</button>
-            <button className="btn btn-secondary btn-sm" onClick={runOptimize}>↺ Retry Optimization</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setStep('generate-doe')}>Go to Step 09: DOE Matrix & Results</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => runOptimize(true)}>↺ Retry Optimization</button>
           </div>
         </div>
       )}
@@ -160,7 +184,7 @@ export default function InitialOptimization() {
       <div className="step-nav">
         <button className="btn btn-secondary" onClick={() => setStep('generate-doe')}>← Back</button>
         <div style={{ display:'flex', gap:'0.75rem' }}>
-          <button className="btn btn-secondary" onClick={runOptimize} disabled={loading}>↺ Re-optimize</button>
+          <button className="btn btn-secondary" onClick={() => runOptimize(true)} disabled={loading}>↺ Re-optimize</button>
           <button className="btn btn-primary" onClick={() => setStep('enough-data')}>
             Next: Enough Data? →
           </button>

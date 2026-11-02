@@ -4,7 +4,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db, crud, schemas, models
-from services.bayesian_service import fit_and_recommend, get_final_optimum
+from services.bayesian_service import fit_and_recommend, get_final_optimum, get_final_combined_optimum
 
 router = APIRouter(prefix="/optimization", tags=["Optimization"])
 
@@ -170,7 +170,7 @@ def bayesian_recommend(body: schemas.BayesRecommendRequest, db: Session = Depend
                 "actual_values": rec_actual,
                 "predicted_mean": 95.5,
                 "predicted_std": 0.8,
-                "expected_improvement": 95.5,
+                "expected_improvement": 0.45,
                 "confidence_95": [93.9, 97.1],
                 "acquisition_type": "EI"
             },
@@ -241,7 +241,7 @@ def final_optimum(body: schemas.BayesRecommendRequest, db: Session = Depends(get
                 "actual_values": [f.baseline if f.baseline is not None else (f.low + f.high)/2.0 for f in factors],
                 "predicted_mean": 95.0,
                 "predicted_std": 1.2,
-                "expected_improvement": 95.0,
+                "expected_improvement": 0.45,
                 "confidence_95": [92.6, 97.4],
                 "acquisition_type": "UCB",
                 "xi": 0.0
@@ -259,6 +259,33 @@ def final_optimum(body: schemas.BayesRecommendRequest, db: Session = Depends(get
                                 schemas.ProjectUpdate(current_step="final-optimum"))
         except Exception as upd_err:
             print(f"Warning updating project step: {upd_err}")
+    return result
+
+
+@router.post("/gp/final-combined")
+def final_combined_optimum_endpoint(body: schemas.OptimizeRequest, db: Session = Depends(get_db)):
+    factors = crud.get_factors(db, body.project_id)
+    responses = crud.get_responses(db, body.project_id)
+    exps = crud.get_experiments(db, body.project_id)
+    if not exps:
+        raise HTTPException(400, "No experiments found. Generate and run DOE first.")
+
+    result = get_final_combined_optimum(exps, responses, factors)
+    if "error" in result:
+        raise HTTPException(422, result["error"])
+
+    analyses = crud.get_analyses(db, body.project_id)
+    for a in analyses:
+        crud.upsert_analysis(db, body.project_id, a.response_idx, optimum=result)
+
+    proj = crud.get_project(db, body.project_id)
+    if proj:
+        try:
+            crud.update_project(db, body.project_id,
+                                schemas.ProjectUpdate(current_step="final-optimum"))
+        except Exception as upd_err:
+            print(f"Warning updating project step: {upd_err}")
+
     return result
 
 

@@ -32,11 +32,18 @@ export default function BayesianOpt() {
           <div className="card mb-2" style={{ textAlign:'center', padding:'1.5rem' }}>
             <div style={{ fontSize:'0.75rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.12em', marginBottom:'0.5rem' }}>Expected Improvement</div>
             <div style={{ fontSize:'3rem', fontWeight:900, color:'var(--accent)', lineHeight:1 }}>
-              {rec.expected_improvement?.toFixed(4)}
+              {rec.expected_improvement != null ? (
+                (() => {
+                  const rawEI = rec.expected_improvement
+                  const norm = rawEI > 1 ? rawEI / 100 : rawEI
+                  const pct = norm * 100
+                  return pct >= 1 ? `${Math.round(pct)}%` : `${pct.toFixed(1)}%`
+                })()
+              ) : '—'}
             </div>
             <div style={{ fontSize:'0.8rem', color:'var(--text-secondary)', marginTop:'0.5rem' }}>
-              {rec.expected_improvement > 0.01 ? '🚀 High improvement potential – strongly recommend this experiment' :
-               rec.expected_improvement > 0.001 ? '📈 Moderate improvement potential' :
+              {((rec.expected_improvement > 1 ? rec.expected_improvement / 100 : rec.expected_improvement) || 0) > 0.01 ? '🚀 High improvement potential – strongly recommend this experiment' :
+               ((rec.expected_improvement > 1 ? rec.expected_improvement / 100 : rec.expected_improvement) || 0) > 0.001 ? '📈 Moderate improvement potential' :
                '📉 Low improvement – consider stopping'}
             </div>
           </div>

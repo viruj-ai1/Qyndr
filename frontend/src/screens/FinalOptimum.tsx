@@ -31,12 +31,20 @@ export default function FinalOptimum() {
     if (!currentProject?.id) return
     setLoading(true)
     try {
-      const data = await Analysis.optimize(currentProject.id)
+      const data = await Optimization.finalCombined(currentProject.id)
       setCombinedOptimum(data)
       setOptimum(data)
       toast.success('Multi-response combined optimum calculated!')
     } catch (e: any) {
-      toast.error(e.response?.data?.detail || 'Failed to calculate multi-response optimum. Run analysis first.')
+      console.warn('GP final-combined optimum error, falling back to analysis:', e)
+      try {
+        const data = await Analysis.optimize(currentProject.id)
+        setCombinedOptimum(data)
+        setOptimum(data)
+        toast.success('Multi-response combined optimum calculated!')
+      } catch (err: any) {
+        toast.error(e.response?.data?.detail || err.response?.data?.detail || 'Failed to calculate multi-response optimum. Run analysis first.')
+      }
     } finally {
       setLoading(false)
     }

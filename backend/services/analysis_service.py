@@ -159,7 +159,7 @@ def run_optimization(analyses: list, factors: list,
                 is_mixture = bool(rsm.get("is_mixture", False))
                 models.append({
                     "beta": beta,
-                    "k": len(factors),
+                    "k": rsm.get("k", len(factors)),
                     "y_min": float(y_min),
                     "y_max": float(y_max),
                     "is_mixture": is_mixture

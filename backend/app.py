@@ -3,7 +3,12 @@
 # ============================================================
 # Updated with api_targets support
 import sys, pathlib
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+backend_dir = pathlib.Path(__file__).resolve().parent
+root_dir = backend_dir.parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+if str(root_dir) not in sys.path:
+    sys.path.insert(0, str(root_dir))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

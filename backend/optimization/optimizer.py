@@ -39,7 +39,8 @@ def optimize_multi_response(regression_models: List[Dict],
             if not m.get("beta"):
                 continue
             resp = responses[i] if i < len(responses) else {}
-            y_pred = predict_rsm(m["beta"], list(coded_pt), k)
+            m_k = m.get("k", k)
+            y_pred = predict_rsm(m["beta"], list(coded_pt)[:m_k], m_k)
             d = individual_desirability(
                 y=y_pred,
                 goal=resp.get("goal", "maximize"),
@@ -141,7 +142,8 @@ def optimize_multi_response(regression_models: List[Dict],
     preds = []
     for i, m in enumerate(regression_models):
         if m.get("beta"):
-            preds.append(round(predict_rsm(m["beta"], list(best_coded), k), 4))
+            m_k = m.get("k", k)
+            preds.append(round(predict_rsm(m["beta"], list(best_coded)[:m_k], m_k), 4))
         else:
             preds.append(None)
 

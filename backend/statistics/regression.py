@@ -227,6 +227,26 @@ def predict_rsm(beta: Any, x_coded: List[float], k: int = None) -> float:
     if is_mix:
         X, _ = build_rsm_matrix(x, is_mixture=True, use_quad=False)
     else:
+        if p_b != 1 + 2 * k_val + n_int and p_b != 1 + k_val + n_int and p_b != 1 + k_val:
+            import math
+            disc = 1 + 8 * p_b
+            r = int(math.isqrt(disc))
+            if r * r == disc and (r - 3) % 2 == 0 and (r - 3) // 2 > 0:
+                k_val = (r - 3) // 2
+                x = x[:, :k_val]
+                n_int = k_val * (k_val - 1) // 2
+            else:
+                disc2 = 1 + 8 * (p_b - 1)
+                r2 = int(math.isqrt(disc2))
+                if r2 * r2 == disc2 and (r2 - 1) % 2 == 0 and (r2 - 1) // 2 > 0:
+                    k_val = (r2 - 1) // 2
+                    x = x[:, :k_val]
+                    n_int = k_val * (k_val - 1) // 2
+                elif p_b > 1:
+                    k_val = p_b - 1
+                    x = x[:, :k_val]
+                    n_int = k_val * (k_val - 1) // 2
+
         if p_b == 1 + 2 * k_val + n_int:
             X, _ = build_rsm_matrix(x, is_mixture=False, use_quad=True)
         elif p_b == 1 + k_val + n_int:

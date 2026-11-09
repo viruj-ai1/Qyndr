@@ -66,60 +66,84 @@ export default function BayesianOpt() {
 
           {/* Recommended factor settings */}
           <div className="card mb-2">
-            <div className="card-title mb-2">Recommended Next Experiment</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.85rem' }}>
+              <div className="card-title" style={{ margin: 0 }}>Recommended Next Experiment</div>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                Target operating setpoints suggested by Bayesian acquisition function
+              </span>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
               {factors.map((f: any, i: number) => {
                 const val = rec.actual_values?.[i]
-                const range = (f.high - f.low) || 1
-                const rawPct = val != null ? ((val - f.low) / range) * 100 : 50
-                // Strictly clamp percentage between 0% and 100%, guarding against Infinity/NaN
+                const low = f.low ?? 0
+                const high = f.high ?? 1
+                const range = (high - low) || 1
+                const rawPct = val != null ? ((val - low) / range) * 100 : 50
+                // Strictly clamp percentage between 0% and 100%
                 const pct = Math.max(0, Math.min(100, isNaN(rawPct) || !isFinite(rawPct) ? 50 : rawPct))
 
                 return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ width: '160px', fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-secondary)', flexShrink: 0 }}>
-                      {f.name} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({f.unit || 'units'})</span>
-                    </div>
-                    
-                    {/* Track container with explicit clipping boundaries */}
-                    <div style={{ flex: 1, height: '8px', background: 'var(--border)', borderRadius: '999px', position: 'relative', minWidth: '140px' }}>
-                      {/* Active filled line strictly clamped within track */}
-                      <div 
-                        style={{ 
-                          position: 'absolute', 
-                          left: 0, 
-                          top: 0, 
-                          height: '100%', 
-                          width: `${pct}%`, 
-                          maxWidth: '100%',
-                          background: 'linear-gradient(90deg, var(--primary), var(--accent))', 
-                          borderRadius: '999px', 
-                          transition: 'width 0.4s ease' 
-                        }}
-                      />
-                      {/* Position indicator dot clamped within track limits */}
-                      <div 
-                        style={{ 
-                          position: 'absolute', 
-                          top: '-4px', 
-                          left: `calc(${pct}% - 8px)`, 
-                          width: '16px', 
-                          height: '16px', 
-                          borderRadius: '50%', 
-                          background: 'var(--accent)', 
-                          border: '2px solid var(--bg-base)', 
-                          boxShadow: '0 2px 8px rgba(6, 182, 212, 0.4)',
-                          pointerEvents: 'none'
-                        }}
-                      />
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      {/* Factor name & unit */}
+                      <div style={{ width: '180px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', flexShrink: 0 }}>
+                        {f.name} <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.78rem' }}>({f.unit || 'units'})</span>
+                      </div>
+                      
+                      {/* Visual gauge bar showing where this recommended setpoint sits within Low and High range */}
+                      <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <div style={{ width: '100%', height: '8px', background: 'var(--border)', borderRadius: '999px', position: 'relative' }}>
+                          {/* Active filled line */}
+                          <div 
+                            style={{ 
+                              position: 'absolute', 
+                              left: 0, 
+                              top: 0, 
+                              height: '100%', 
+                              width: `${pct}%`, 
+                              maxWidth: '100%',
+                              background: 'linear-gradient(90deg, var(--primary), var(--accent))', 
+                              borderRadius: '999px', 
+                              transition: 'width 0.4s ease' 
+                            }}
+                          />
+                          {/* Indicator dot */}
+                          <div 
+                            style={{ 
+                              position: 'absolute', 
+                              top: '-4px', 
+                              left: `calc(${pct}% - 8px)`, 
+                              width: '16px', 
+                              height: '16px', 
+                              borderRadius: '50%', 
+                              background: 'var(--accent)', 
+                              border: '2px solid #ffffff', 
+                              boxShadow: '0 2px 8px rgba(0, 174, 179, 0.4)',
+                              pointerEvents: 'none'
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Recommended Setpoint Value */}
+                      <div style={{ width: '120px', textAlign: 'right', display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: '0.35rem', flexShrink: 0 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--primary)' }}>
+                          {typeof val === 'number' && !isNaN(val) ? Number(val.toFixed(3)) : '—'}
+                        </span>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                          {f.unit || ''}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Formatted Value & Unit */}
-                    <div style={{ width: '85px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.88rem', fontWeight: 700, color: 'var(--success)', flexShrink: 0 }}>
-                      {typeof val === 'number' && !isNaN(val) ? val.toFixed(3) : '—'}
-                    </div>
-                    <div style={{ width: '35px', fontSize: '0.74rem', color: 'var(--text-muted)', flexShrink: 0 }}>
-                      {f.unit || ''}
+                    {/* Low and High bounds guide below the bar */}
+                    <div style={{ display: 'flex', paddingLeft: '180px', paddingRight: '120px', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      <span>Min: {low} {f.unit || ''}</span>
+                      <span style={{ color: pct >= 99 ? 'var(--warning)' : 'inherit' }}>
+                        {pct >= 99 ? 'At upper bound (100%)' : pct <= 1 ? 'At lower bound (0%)' : `${Math.round(pct)}% of range`}
+                      </span>
+                      <span>Max: {high} {f.unit || ''}</span>
                     </div>
                   </div>
                 )

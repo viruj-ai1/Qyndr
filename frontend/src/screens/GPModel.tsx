@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { useStore } from '../store/useStore'
 import { Optimization } from '../services/api'
 import { simplifyResponseName } from '../utils/targetParser'
+import { Info, X, HelpCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function GPModel() {
@@ -14,6 +15,32 @@ export default function GPModel() {
   const [loading, setLoading] = useState(false)
 
   const [isFallback, setIsFallback] = useState(false)
+  const [showChartGuide, setShowChartGuide] = useState(false)
+  const guideModalRef = useRef<HTMLDivElement | null>(null)
+  const guideBtnRef = useRef<HTMLButtonElement | null>(null)
+
+  // Close guide on outside click or Escape
+  useEffect(() => {
+    if (!showChartGuide) return
+    function handleClickOutside(e: MouseEvent) {
+      if (guideModalRef.current && !guideModalRef.current.contains(e.target as Node)) {
+        if (guideBtnRef.current && guideBtnRef.current.contains(e.target as Node)) return
+        setShowChartGuide(false)
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setShowChartGuide(false)
+        guideBtnRef.current?.focus()
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [showChartGuide])
 
   async function runGP(respIdx?: number) {
     if (!currentProject?.id) return
@@ -167,7 +194,7 @@ export default function GPModel() {
                 </div>
               </div>
 
-              {/* Legend */}
+              {/* Legend & Guide Button */}
               <div style={{ display: 'flex', gap: '0.85rem', fontSize: '0.72rem', color: 'var(--text-muted)', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <span style={{ width: 14, height: 3, background: 'var(--primary)', display: 'inline-block', borderRadius: 2 }} />
@@ -185,6 +212,32 @@ export default function GPModel() {
                   <span style={{ width: 14, height: 0, borderTop: '2px dashed #10b981', display: 'inline-block' }} />
                   <span>Optimum Coordinate</span>
                 </span>
+
+                <button
+                  ref={guideBtnRef}
+                  type="button"
+                  onClick={() => setShowChartGuide(true)}
+                  style={{
+                    background: 'rgba(0, 91, 170, 0.08)',
+                    border: '1px solid rgba(0, 91, 170, 0.25)',
+                    color: 'var(--primary)',
+                    borderRadius: '6px',
+                    padding: '3px 8px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0, 91, 170, 0.15)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(0, 91, 170, 0.08)')}
+                  title="What do these graphs and lines mean?"
+                >
+                  <HelpCircle size={13} />
+                  <span>What does this graph mean?</span>
+                </button>
               </div>
             </div>
 
@@ -220,11 +273,46 @@ export default function GPModel() {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {slice.factor_name} {slice.factor_unit ? `(${slice.factor_unit})` : ''}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {slice.factor_name} {slice.factor_unit ? `(${slice.factor_unit})` : ''}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowChartGuide(true)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                            padding: '1px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            borderRadius: '50%'
+                          }}
+                          title="Click to view explanation of this curve and lines"
+                        >
+                          <Info size={13} />
+                        </button>
+                      </div>
+
                       {slice.reference_x != null && (
-                        <span style={{ fontSize: '0.7rem', color: '#047857', background: 'rgba(16,185,129,0.1)', padding: '0.15rem 0.45rem', borderRadius: 4, fontWeight: 600 }}>
+                        <span
+                          onClick={() => setShowChartGuide(true)}
+                          style={{
+                            fontSize: '0.7rem',
+                            color: '#047857',
+                            background: 'rgba(16,185,129,0.1)',
+                            padding: '0.15rem 0.45rem',
+                            borderRadius: 4,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px'
+                          }}
+                          title="Click to view what 'Profile slice' means"
+                        >
                           Profile slice at: {Number(slice.reference_x).toFixed(2)} {slice.factor_unit || ''}
                         </span>
                       )}
@@ -324,6 +412,194 @@ export default function GPModel() {
             </div>
           )}
         </>
+      )}
+
+      {/* Pop-up Guide for 1D Factor Profiles */}
+      {showChartGuide && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="chart-guide-title"
+          onClick={() => setShowChartGuide(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(15, 23, 42, 0.45)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '1.25rem',
+            animation: 'fadeIn 0.15s ease-out'
+          }}
+        >
+          <div
+            ref={guideModalRef}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '560px',
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35), 0 10px 25px -5px rgba(0, 91, 170, 0.2)',
+              border: '1px solid var(--border)',
+              overflow: 'hidden',
+              animation: 'popoverFadeScale 150ms ease-out forwards'
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: '1.1rem 1.4rem',
+                background: 'linear-gradient(135deg, #003d73 0%, #005baa 65%, #00aeb3 100%)',
+                color: '#ffffff',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.15)'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                  <span
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      color: '#ffffff',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      padding: '2px 7px',
+                      borderRadius: '10px',
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    Gaussian Process Guide
+                  </span>
+                  <span style={{ fontSize: '0.72rem', opacity: 0.9 }}>
+                    Chemometrics & Surrogate Modeling
+                  </span>
+                </div>
+                <h3 id="chart-guide-title" style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>
+                  How to Read the 1D Factor Profile Graphs
+                </h3>
+              </div>
+
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => {
+                  setShowChartGuide(false)
+                  guideBtnRef.current?.focus()
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  border: 'none',
+                  color: '#ffffff',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)')}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', fontSize: '0.84rem', lineHeight: 1.5, maxHeight: '72vh', overflowY: 'auto' }}>
+              <div style={{ background: 'rgba(0, 91, 170, 0.04)', padding: '0.75rem 0.9rem', borderRadius: '10px', borderLeft: '4px solid var(--primary)' }}>
+                <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--primary)', marginBottom: '0.15rem' }}>
+                  📈 What is this graph showing?
+                </strong>
+                <span style={{ color: 'var(--text-primary)' }}>
+                  A <strong>1D slice</strong> shows how the predicted response (e.g. Yield % or Purity) changes when you vary <strong>one parameter</strong> across its low-to-high range while keeping all other parameters locked at their best known optimum coordinate.
+                </span>
+              </div>
+
+              {/* Elements & Lines description */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
+                  <div style={{ width: 18, height: 4, background: 'var(--primary)', borderRadius: 2, marginTop: 7, flexShrink: 0 }} />
+                  <div>
+                    <strong style={{ color: 'var(--primary)', fontSize: '0.82rem' }}>Solid Blue Curve (GP Posterior Mean):</strong>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                      The AI model's most likely prediction of the response value. If it slopes upward, higher values of this factor improve the result; if it curves, it reveals a sweet spot or non-linear plateau.
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
+                  <div style={{ width: 18, height: 0, borderTop: '2.5px dashed #818cf8', marginTop: 8, flexShrink: 0 }} />
+                  <div>
+                    <strong style={{ color: '#6366f1', fontSize: '0.82rem' }}>Dashed Lavender Band (95% Confidence Interval):</strong>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                      Quantifies <strong>statistical uncertainty</strong>. Where you have actual laboratory runs, the band is very narrow (high confidence). Where no runs were done, the band widens (high uncertainty), highlighting prime targets for Bayesian exploration.
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
+                  <div style={{ width: 18, height: 0, borderTop: '2.5px dashed #f59e0b', marginTop: 8, flexShrink: 0 }} />
+                  <div>
+                    <strong style={{ color: '#d97706', fontSize: '0.82rem' }}>Horizontal Amber Dashed Line (Best Observed Result):</strong>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                      The highest response value achieved so far in actual physical experiments. Any region where the blue curve rises above this line represents predicted process improvement.
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
+                  <div style={{ width: 18, height: 0, borderTop: '2.5px dashed #10b981', marginTop: 8, flexShrink: 0 }} />
+                  <div>
+                    <strong style={{ color: '#059669', fontSize: '0.82rem' }}>Vertical Green Dashed Line & Badge ("Profile slice at:"):</strong>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                      Marks the current <strong>optimal setpoint coordinate</strong> for this factor. The badge displays the exact value at which the slice is evaluated.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.65rem', marginTop: '0.2rem', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                💡 <strong>Next Step:</strong> Click <em>"View Bayesian Recommendation →"</em> to see the next suggested experimental run based on maximizing Expected Improvement (balancing high predicted yield with unexplored uncertainty regions).
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                padding: '0.8rem 1.4rem',
+                background: '#f8fafc',
+                borderTop: '1px solid var(--border)',
+                display: 'flex',
+                justifyContent: 'flex-end'
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => {
+                  setShowChartGuide(false)
+                  guideBtnRef.current?.focus()
+                }}
+                style={{ padding: '0.4rem 1.1rem', fontSize: '0.8rem', borderRadius: '6px' }}
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="step-nav">

@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { useStore, RiskParameter } from '../../store/useStore'
 import { Projects } from '../../services/api'
 import { generateContextAwareRiskParameters, isDummyRiskParams, generateContextAwareCQAs } from '../../utils/routeGenerator'
+import { RPN_DIMENSIONS, RPN_GUIDE_CONTENT } from '../../utils/rpnExplanationData'
+import { Info, X, SlidersHorizontal } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function ReverseRiskAssessment() {
@@ -37,6 +39,33 @@ export default function ReverseRiskAssessment() {
     return defaultDict
   })
   const isFirstMount = useRef(true)
+  const cutoffInputRef = useRef<HTMLInputElement | null>(null)
+  const [showRpnGuide, setShowRpnGuide] = useState(false)
+  const rpnGuideModalRef = useRef<HTMLDivElement | null>(null)
+  const rpnGuideBtnRef = useRef<HTMLButtonElement | null>(null)
+
+  // Close RPN guide modal on outside click or Escape
+  useEffect(() => {
+    if (!showRpnGuide) return
+    function handleClickOutside(e: MouseEvent) {
+      if (rpnGuideModalRef.current && !rpnGuideModalRef.current.contains(e.target as Node)) {
+        if (rpnGuideBtnRef.current && rpnGuideBtnRef.current.contains(e.target as Node)) return
+        setShowRpnGuide(false)
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setShowRpnGuide(false)
+        rpnGuideBtnRef.current?.focus()
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [showRpnGuide])
 
   // Synchronize when stages or project changes
   useEffect(() => {
@@ -240,6 +269,7 @@ export default function ReverseRiskAssessment() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.03)', padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)' }}>
             <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>RPN Critical Cutoff:</label>
             <input
+              ref={cutoffInputRef}
               type="number"
               className="input input-sm"
               style={{ width: '65px', textAlign: 'center' }}
@@ -321,8 +351,35 @@ export default function ReverseRiskAssessment() {
             <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>
               Process Parameter Risk Matrix (Auto-Sorted by RPN)
             </h3>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              RPN = Severity (1-5) × Occurrence (1-5) × Detectability (1-5) · Cutoff: {rpnThreshold}
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '2px' }}>
+              <span>RPN = Severity (1-5) × Occurrence (1-5) × Detectability (1-5) · Cutoff: {rpnThreshold}</span>
+              <button
+                ref={rpnGuideBtnRef}
+                type="button"
+                aria-label="About RPN and criticality"
+                aria-expanded={showRpnGuide}
+                aria-controls="rpn-criticality-dialog"
+                onClick={() => setShowRpnGuide(true)}
+                style={{
+                  background: 'rgba(0, 91, 170, 0.08)',
+                  border: '1px solid rgba(0, 91, 170, 0.25)',
+                  color: 'var(--primary)',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  padding: 0,
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0, 91, 170, 0.16)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(0, 91, 170, 0.08)')}
+                title="How RPN decides criticality"
+              >
+                <Info size={12} />
+              </button>
             </div>
           </div>
           <div>
@@ -342,7 +399,27 @@ export default function ReverseRiskAssessment() {
                 <th style={{ width: '6%', textAlign: 'center' }}>S</th>
                 <th style={{ width: '6%', textAlign: 'center' }}>O</th>
                 <th style={{ width: '6%', textAlign: 'center' }}>D</th>
-                <th style={{ width: '7%', textAlign: 'center' }}>RPN</th>
+                <th style={{ width: '8%', textAlign: 'center' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
+                    <span>RPN</span>
+                    <button
+                      type="button"
+                      aria-label="About RPN formula"
+                      onClick={() => setShowRpnGuide(true)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'inline-flex'
+                      }}
+                      title="Click for RPN breakdown"
+                    >
+                      <Info size={11} />
+                    </button>
+                  </div>
+                </th>
                 <th style={{ width: '10%', textAlign: 'center' }}>Status Badge</th>
                 <th style={{ width: '17%' }}>Rationale / Failure Mode</th>
                 <th style={{ width: '4%', textAlign: 'center' }}>Del</th>
@@ -429,6 +506,7 @@ export default function ReverseRiskAssessment() {
                     <td style={{ textAlign: 'center', fontWeight: 800, fontSize: '0.9rem', color: isOverThreshold ? 'var(--danger-light)' : 'var(--success-light)' }}>
                       {p.rpn}
                     </td>
+                    {/* Status Badge: Uses p.criticalFlag (preset in routeGenerator.ts with manual toggle override or recalculated when S/O/D is edited: nextP.criticalFlag = nextP.rpn > rpnThreshold) */}
                     <td style={{ textAlign: 'center' }}>
                       <button
                         type="button"
@@ -480,6 +558,322 @@ export default function ReverseRiskAssessment() {
             : 'Confirm & View Stage Campaign Matrix →'}
         </button>
       </div>
+
+      {/* RPN Criticality Explanation Modal Dialog */}
+      {showRpnGuide && (
+        <div
+          id="rpn-criticality-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rpn-modal-title"
+          onClick={() => setShowRpnGuide(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '1.25rem',
+            animation: 'fadeIn 0.15s ease-out'
+          }}
+        >
+          <div
+            ref={rpnGuideModalRef}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '540px',
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35), 0 10px 25px -5px rgba(0, 91, 170, 0.2)',
+              border: '1px solid var(--border)',
+              overflow: 'hidden',
+              animation: 'popoverFadeScale 150ms ease-out forwards'
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: '1.1rem 1.4rem',
+                background: 'linear-gradient(135deg, #003d73 0%, #005baa 65%, #00aeb3 100%)',
+                color: '#ffffff',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.15)'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                  <span
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      color: '#ffffff',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      padding: '2px 7px',
+                      borderRadius: '10px',
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    ICH Q9 Risk Assessment
+                  </span>
+                  <span style={{ fontSize: '0.72rem', opacity: 0.9 }}>
+                    FMEA Failure Mode Tool
+                  </span>
+                </div>
+                <h3 id="rpn-modal-title" style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>
+                  {RPN_GUIDE_CONTENT.title}
+                </h3>
+              </div>
+
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => {
+                  setShowRpnGuide(false)
+                  rpnGuideBtnRef.current?.focus()
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  border: 'none',
+                  color: '#ffffff',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)')}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', fontSize: '0.82rem', lineHeight: 1.5, maxHeight: '72vh', overflowY: 'auto' }}>
+              {/* 1. What is RPN */}
+              <div style={{ background: 'rgba(0, 91, 170, 0.04)', padding: '0.75rem 0.9rem', borderRadius: '10px', borderLeft: '4px solid var(--primary)' }}>
+                <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--primary)', marginBottom: '0.2rem' }}>
+                  1. What is RPN?
+                </strong>
+                <span style={{ color: 'var(--text-primary)' }}>
+                  {RPN_GUIDE_CONTENT.whatIsRpn}
+                </span>
+              </div>
+
+              {/* 2. Formula & Visual Scale Bar */}
+              <div>
+                <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                  2. Formula & Range
+                </strong>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.45rem' }}>
+                  {RPN_GUIDE_CONTENT.formula}
+                </div>
+
+                {/* Tiny visual bar (1 - 125) showing current live cutoff marker */}
+                <div style={{ background: '#f1f5f9', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                    <span>Min: 1</span>
+                    <span style={{ color: 'var(--primary)', fontWeight: 700 }}>Cutoff: {rpnThreshold}</span>
+                    <span>Max: 125</span>
+                  </div>
+                  <div style={{ height: '8px', background: 'var(--border)', borderRadius: '999px', position: 'relative' }}>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        top: 0,
+                        height: '100%',
+                        width: `${Math.min(100, (rpnThreshold / 125) * 100)}%`,
+                        background: '#10b981',
+                        borderRadius: '999px 0 0 999px'
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: `${Math.min(100, (rpnThreshold / 125) * 100)}%`,
+                        top: 0,
+                        height: '100%',
+                        right: 0,
+                        background: '#ef4444',
+                        borderRadius: '0 999px 999px 0'
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '-4px',
+                        left: `calc(${Math.min(100, (rpnThreshold / 125) * 100)}% - 2px)`,
+                        width: '4px',
+                        height: '16px',
+                        background: '#0f172a',
+                        borderRadius: '2px'
+                      }}
+                      title={`Cutoff marker: ${rpnThreshold}`}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', marginTop: '4px' }}>
+                    <span style={{ color: '#059669', fontWeight: 600 }}>← Low Risk (Non-Critical)</span>
+                    <span style={{ color: '#dc2626', fontWeight: 600 }}>High Risk (CRITICAL) →</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Three Scores Table */}
+              <div>
+                <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+                  3. The Three Factor Scores (1 to 5 Scale)
+                </strong>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                      <th style={{ padding: '6px 8px', width: '28%' }}>Dimension</th>
+                      <th style={{ padding: '6px 8px' }}>What it evaluates</th>
+                      <th style={{ padding: '6px 8px', width: '28%' }}>1 to 5 Scale</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {RPN_DIMENSIONS.map((dim, idx) => (
+                      <tr key={dim.code} style={{ borderBottom: idx < RPN_DIMENSIONS.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                        <td style={{ padding: '6px 8px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {dim.dimension}
+                        </td>
+                        <td style={{ padding: '6px 8px', color: 'var(--text-secondary)' }}>
+                          {dim.description}
+                        </td>
+                        <td style={{ padding: '6px 8px' }}>
+                          <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
+                            {dim.levels.map(lvl => (
+                              <span
+                                key={lvl.score}
+                                style={{
+                                  background: `${lvl.color}18`,
+                                  color: lvl.color,
+                                  border: `1px solid ${lvl.color}40`,
+                                  borderRadius: '4px',
+                                  padding: '1px 4px',
+                                  fontSize: '0.65rem',
+                                  fontWeight: 700
+                                }}
+                              >
+                                {lvl.score}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 4. Cutoff & Criticality Rule */}
+              <div>
+                <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
+                  4. Cutoff & Status Rule
+                </strong>
+                <p style={{ color: 'var(--text-secondary)', margin: '0 0 0.4rem' }}>
+                  Parameters with RPN above the cutoff (currently <strong style={{ color: 'var(--primary)' }}>{rpnThreshold}</strong>) are automatically flagged <span className="badge badge-danger" style={{ fontSize: '0.68rem', padding: '1px 5px' }}>CRITICAL</span>. Rows below the cutoff are typically <span className="badge badge-secondary" style={{ fontSize: '0.68rem', padding: '1px 5px' }}>Non-Critical</span>.
+                </p>
+                <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: '6px', padding: '0.5rem 0.75rem', fontSize: '0.74rem', color: '#92400e' }}>
+                  📌 <strong>Note on Preset Parameters:</strong> Pharmaceutical route templates pre-tag known high-severity CPPs (e.g. S=4 or 5) as <span className="badge badge-danger" style={{ fontSize: '0.65rem' }}>CRITICAL</span> even when their routine RPN is 24 or 32, ensuring safety-critical variables are never lost before DoE. You can click any badge to manually toggle its status.
+                </div>
+              </div>
+
+              {/* 5. Worked Example */}
+              <div>
+                <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
+                  5. Worked Example
+                </strong>
+                <div style={{ background: '#f8fafc', padding: '0.55rem 0.8rem', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.78rem' }}>
+                  {sortedParams.length > 0 ? (
+                    <div>
+                      <strong>{sortedParams[0].name || 'Process Parameter'}:</strong> S={sortedParams[0].severity}, O={sortedParams[0].occurrence}, D={sortedParams[0].detectability} →{' '}
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--primary)' }}>
+                        RPN = {sortedParams[0].severity} × {sortedParams[0].occurrence} × {sortedParams[0].detectability} = {sortedParams[0].rpn}
+                      </span>.
+                    </div>
+                  ) : (
+                    <div>
+                      <strong>Reaction Temperature:</strong> S=4, O=4, D=2 →{' '}
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--primary)' }}>
+                        RPN = 4 × 4 × 2 = 32
+                      </span>.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 6. Good to know */}
+              <div>
+                <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
+                  6. Good to Know (ICH Q8 / Q9)
+                </strong>
+                <ul style={{ paddingLeft: '1.1rem', margin: 0, color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.76rem' }}>
+                  {RPN_GUIDE_CONTENT.goodToKnow.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Footer with "Adjust cutoff" and "Got it" */}
+            <div
+              style={{
+                padding: '0.8rem 1.4rem',
+                background: '#f8fafc',
+                borderTop: '1px solid var(--border)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  setShowRpnGuide(false)
+                  setTimeout(() => {
+                    cutoffInputRef.current?.focus()
+                    cutoffInputRef.current?.select()
+                  }, 100)
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.78rem' }}
+              >
+                <SlidersHorizontal size={13} />
+                <span>Adjust cutoff (currently {rpnThreshold})</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => {
+                  setShowRpnGuide(false)
+                  rpnGuideBtnRef.current?.focus()
+                }}
+                style={{ padding: '0.4rem 1.1rem', fontSize: '0.8rem', borderRadius: '6px' }}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

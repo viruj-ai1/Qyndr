@@ -47,7 +47,7 @@ export const Projects = {
 /* ── DOE ──────────────────────────────────────────────────── */
 export const DOE = {
   recommend: (project_id: number, phase: string, has_htc_factors: boolean = false, constraints: any[] = []) =>
-    api.post('/doe/recommend', { project_id, phase, has_htc_factors, constraints }).then(r => r.data),
+    api.post('/doe/recommend', { project_id, phase, has_htc_factors, constraints }, { timeout: 10000 }).then(r => r.data),
   evaluate:  (project_id: number, design_key: string) =>
     api.post('/doe/evaluate',  { project_id, design_key }).then(r => r.data),
   generate:  (project_id: number, design_key: string, phase: string, constraints: any[] = []) =>

@@ -5,7 +5,8 @@ import toast from 'react-hot-toast'
 import PreRunDiagnosticsModal from './PreRunDiagnosticsModal'
 import DoEManualModal from '../components/DoEManualModal'
 import { DoECategory } from '../utils/doeManualData'
-import { BookOpen, ExternalLink, Sparkles, ArrowRight } from 'lucide-react'
+import { getLocalRecommendations } from '../utils/doeLocalRecommender'
+import { BookOpen, ExternalLink, Sparkles, ArrowRight, RefreshCw, AlertCircle } from 'lucide-react'
 
 const KEY_TO_MANUAL_ID: Record<string, string> = {
   PB: 'pb',
@@ -28,31 +29,74 @@ export default function RecommendDOE() {
   const [selected, setSelected]     = useState<string>('')
   const [loading, setLoading]       = useState(false)
   const [errorMsg, setErrorMsg]     = useState<string | null>(null)
+  const [isOfflineFallback, setIsOfflineFallback] = useState(false)
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false)
   const [showManualModal, setShowManualModal]           = useState(false)
   const [manualInitialTab, setManualInitialTab]         = useState<'wizard' | 'matrix' | 'deep-dives'>('wizard')
   const [manualInitialDesignId, setManualInitialDesignId] = useState<string | undefined>(undefined)
 
-  async function loadOptions(ph: string, preferredKey?: string) {
+  async function loadOptions(ph: 'screening' | 'optimization', preferredKey?: string) {
     if (!currentProject?.id) return
+    const projectFactors = currentProject.factors || []
+
+    // If factors are not defined, guide user to Step 07
+    if (projectFactors.length === 0) {
+      setErrorMsg('No process factors found. Process factors must be defined in Step 07 before generating DOE recommendations.')
+      setOptions([])
+      return
+    }
+
     setLoading(true)
     setErrorMsg(null)
+    setIsOfflineFallback(false)
+
     try {
       const data = await DOE.recommend(currentProject.id, ph)
       const opts = data.options || []
-      setOptions(opts)
+      if (opts.length > 0) {
+        setOptions(opts)
+        const targetKey = preferredKey || selected
+        const keyExists = opts.some((o: any) => o.key === targetKey)
+        if (keyExists && targetKey) {
+          setSelected(targetKey)
+        } else {
+          const rec = opts.find((o: any) => o.recommended)
+          setSelected(rec?.key || opts[0]?.key || '')
+        }
+        return
+      }
+      throw new Error('No design options returned from backend server')
+    } catch (e: any) {
+      console.warn('Backend recommendation error/timeout, applying offline algorithmic recommender:', e)
+      const detail = e.response?.data?.detail || e.message || 'API connection unavailable'
+
+      // Check if it's truly an issue of zero factors defined on backend
+      if (typeof detail === 'string' && detail.toLowerCase().includes('no factors')) {
+        setErrorMsg('Process factors must be defined for this project in Step 07 before generating DOE design recommendations.')
+        setOptions([])
+        return
+      }
+
+      // Automatically fallback to client-side algorithmic recommender based on active factors
+      const fallbackOpts = getLocalRecommendations(projectFactors.length, ph)
+      setOptions(fallbackOpts)
+      setIsOfflineFallback(true)
+
       const targetKey = preferredKey || selected
-      const keyExists = opts.some((o: any) => o.key === targetKey)
+      const keyExists = fallbackOpts.some(o => o.key === targetKey)
       if (keyExists && targetKey) {
         setSelected(targetKey)
       } else {
-        const rec = opts.find((o: any) => o.recommended)
-        setSelected(rec?.key || opts[0]?.key || '')
+        const rec = fallbackOpts.find(o => o.recommended)
+        setSelected(rec?.key || fallbackOpts[0]?.key || '')
       }
-    } catch (e: any) {
-      const detail = e.response?.data?.detail || e.message || 'Failed to load recommendations'
-      setErrorMsg(detail)
-    } finally { setLoading(false) }
+
+      if (e.code === 'ECONNABORTED' || (e.message && e.message.includes('timeout'))) {
+        toast('Loaded algorithmic recommendations (offline mode)', { icon: '⚡' })
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -209,18 +253,39 @@ export default function RecommendDOE() {
         </div>
       </div>
 
+      {isOfflineFallback && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 1rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.82rem', color: '#1e40af' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Sparkles size={15} color="#2563eb" />
+            <span>Showing optimal algorithmic recommendations for <strong>{currentProject?.factors?.length || 4} defined factors</strong>.</span>
+          </div>
+          <button
+            onClick={() => loadOptions(phase)}
+            style={{ background: '#dbeafe', border: '1px solid #93c5fd', borderRadius: '4px', padding: '0.2rem 0.6rem', fontSize: '0.75rem', fontWeight: 600, color: '#1d4ed8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+          >
+            <RefreshCw size={12} />
+            <span>Refresh Backend</span>
+          </button>
+        </div>
+      )}
+
       {errorMsg ? (
         <div className="card mb-2" style={{ border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.05)', padding: '1.25rem' }}>
           <div style={{ fontWeight: 700, color: 'var(--danger)', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span>⚠️</span>
+            <AlertCircle size={18} color="var(--danger)" />
             <span>{errorMsg}</span>
           </div>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-            Process factors must be defined for this project in Step 03 before generating DOE design recommendations.
+            Process factors must be defined for this project in Step 07 before generating DOE design recommendations.
           </p>
-          <button className="btn btn-secondary btn-sm" onClick={() => setStep('define-factors')}>
-            ← Go to Step 03: Define Factors
-          </button>
+          <div style={{ display: 'flex', gap: '0.6rem' }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => setStep('define-factors')}>
+              ← Go to Step 07: Define Factors & Responses
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={() => loadOptions(phase)}>
+              🔄 Retry Connection
+            </button>
+          </div>
         </div>
       ) : loading ? (
         <div className="loading-overlay"><div className="spinner" /> Calculating optimal design…</div>

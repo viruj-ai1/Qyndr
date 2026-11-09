@@ -2,8 +2,27 @@
 import { useStore } from '../store/useStore'
 
 export default function EnoughData() {
-  const { currentStep, optimumResult, setStep } = useStore()
+  const { currentStep, optimumResult, setStep, enableBayesianOpt } = useStore()
   const isMoreImprovement = currentStep === 'more-improvement'
+
+  const handleStartBayesian = () => {
+    enableBayesianOpt(true)
+    setStep('gp-model')
+  }
+
+  const handleProceedToFinal = () => {
+    if (!isMoreImprovement) {
+      enableBayesianOpt(false)
+    }
+    setStep('final-optimum')
+  }
+
+  const handleBack = () => {
+    if (!isMoreImprovement) {
+      enableBayesianOpt(false)
+    }
+    setStep(isMoreImprovement ? 'new-experiment' : 'initial-optimization')
+  }
 
   return (
     <div>
@@ -33,7 +52,7 @@ export default function EnoughData() {
 
       <div className="grid-2" style={{ gap:'1rem' }}>
         {/* YES – proceed to final */}
-        <div className="design-option" onClick={() => setStep('final-optimum')}
+        <div className="design-option" onClick={handleProceedToFinal}
           style={{ cursor:'pointer', padding:'1.5rem' }}>
           <div style={{ fontSize:'2.5rem', marginBottom:'0.75rem' }}>✅</div>
           <div className="design-option-title" style={{ fontSize:'1.1rem', marginBottom:'0.5rem' }}>
@@ -45,13 +64,13 @@ export default function EnoughData() {
               : 'The RSM model is sufficient. Proceed directly to the final optimum without Bayesian optimization.'}
           </div>
           <button className="btn btn-success" style={{ marginTop:'1rem', width:'100%' }}
-            onClick={() => setStep('final-optimum')}>
+            onClick={(e) => { e.stopPropagation(); handleProceedToFinal(); }}>
             Proceed to Final Optimum →
           </button>
         </div>
 
         {/* NO – go to Bayesian */}
-        <div className="design-option" onClick={() => setStep('gp-model')}
+        <div className="design-option" onClick={handleStartBayesian}
           style={{ cursor:'pointer', padding:'1.5rem' }}>
           <div style={{ fontSize:'2.5rem', marginBottom:'0.75rem' }}>🔬</div>
           <div className="design-option-title" style={{ fontSize:'1.1rem', marginBottom:'0.5rem' }}>
@@ -63,15 +82,14 @@ export default function EnoughData() {
               : 'Use Gaussian Process + Bayesian Optimization to intelligently explore the response surface with targeted experiments.'}
           </div>
           <button className="btn btn-primary" style={{ marginTop:'1rem', width:'100%' }}
-            onClick={() => setStep('gp-model')}>
+            onClick={(e) => { e.stopPropagation(); handleStartBayesian(); }}>
             Start Bayesian Optimization →
           </button>
         </div>
       </div>
 
       <div className="step-nav">
-        <button className="btn btn-secondary"
-          onClick={() => setStep(isMoreImprovement ? 'new-experiment' : 'initial-optimization')}>
+        <button className="btn btn-secondary" onClick={handleBack}>
           ← Back
         </button>
       </div>

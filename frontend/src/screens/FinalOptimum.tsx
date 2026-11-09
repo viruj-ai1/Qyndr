@@ -13,7 +13,7 @@ interface ChatMsg {
 }
 
 export default function FinalOptimum() {
-  const { currentProject, setStep, setFinal, finalResult, setOptimum, optimumResult, experiments } = useStore()
+  const { currentProject, setStep, setFinal, finalResult, setOptimum, optimumResult, experiments, isBayesianEnabled } = useStore()
   const factors   = currentProject?.factors   || []
   const responses = currentProject?.responses || []
 
@@ -678,7 +678,7 @@ export default function FinalOptimum() {
       )}
 
       <div className="step-nav">
-        <button className="btn btn-secondary" onClick={() => setStep('more-improvement')}>← Back</button>
+        <button className="btn btn-secondary" onClick={() => setStep(isBayesianEnabled ? 'more-improvement' : 'enough-data')}>← Back</button>
         <div style={{ display:'flex', gap:'0.75rem' }}>
           <button className="btn btn-secondary" onClick={handleRecalculate} disabled={loading}>↺ Recalculate</button>
           <button className="btn btn-primary" onClick={() => setStep('report')}>

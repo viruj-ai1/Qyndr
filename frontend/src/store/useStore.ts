@@ -143,6 +143,7 @@ interface Store {
   optimumResult:   any
   bayesResult:     any
   finalResult:     any
+  isBayesianEnabled: boolean
   loading:         boolean
 
   // Actions
@@ -161,11 +162,12 @@ interface Store {
   setOptimum:      (d: any) => void
   setBayes:        (d: any) => void
   setFinal:        (d: any) => void
+  enableBayesianOpt: (v: boolean) => void
   setLoading:      (v: boolean) => void
   reset:           () => void
 }
 
-const INITIAL: Omit<Store, keyof { setProject: any; setStep: any; setActiveStageId: any; setRpnThreshold: any; setQtpp: any; setCqas: any; setStages: any; setRiskAssessments: any; setApiTargets: any; addAuditLog: any; setExperiments: any; setAnalysis: any; setOptimum: any; setBayes: any; setFinal: any; setLoading: any; reset: any }> = {
+const INITIAL: Omit<Store, keyof { setProject: any; setStep: any; setActiveStageId: any; setRpnThreshold: any; setQtpp: any; setCqas: any; setStages: any; setRiskAssessments: any; setApiTargets: any; addAuditLog: any; setExperiments: any; setAnalysis: any; setOptimum: any; setBayes: any; setFinal: any; enableBayesianOpt: any; setLoading: any; reset: any }> = {
   currentProject:  null,
   currentStep:     'welcome',
   activeStageId:   null,
@@ -182,6 +184,7 @@ const INITIAL: Omit<Store, keyof { setProject: any; setStep: any; setActiveStage
   optimumResult:   null,
   bayesResult:     null,
   finalResult:     null,
+  isBayesianEnabled: false,
   loading:         false,
 }
 
@@ -221,6 +224,18 @@ export const useStore = create<Store>()(
           api_targets: sanitizedTargets
         } : null;
 
+        // Check if project has already entered Bayesian optimization
+        const hasBayesian = Boolean(
+          (p?.bayes_iter && p.bayes_iter > 0) ||
+          (p?.experiments && p.experiments.some((e: any) => e.run_type === 'Bayesian')) ||
+          ['gp-model', 'bayesian-opt', 'new-experiment', 'more-improvement', 'update-model', 'lab-new'].includes(p?.current_step || '')
+        );
+
+        // Keep current session's enabled state if updating the same project, or inherit hasBayesian
+        const bayesianEnabled = p?.id && state.currentProject?.id === p.id
+          ? Boolean(state.isBayesianEnabled || hasBayesian)
+          : hasBayesian;
+
         return {
           currentProject: sanitizedProject,
           currentStep: step,
@@ -238,6 +253,7 @@ export const useStore = create<Store>()(
           optimumResult: null,
           bayesResult: null,
           finalResult: null,
+          isBayesianEnabled: bayesianEnabled,
         }
       }),
       setStep:         s  => set(st => ({
@@ -280,6 +296,7 @@ export const useStore = create<Store>()(
       setOptimum:     d  => set({ optimumResult: d }),
       setBayes:        d  => set({ bayesResult: d }),
       setFinal:        d  => set({ finalResult: d }),
+      enableBayesianOpt: v => set({ isBayesianEnabled: v }),
       setLoading:      v  => set({ loading: v }),
       reset:          () => set({ ...INITIAL }),
     }),
@@ -301,7 +318,8 @@ export const useStore = create<Store>()(
         analysisResults: s.analysisResults,
         optimumResult: s.optimumResult,
         bayesResult: s.bayesResult,
-        finalResult: s.finalResult
+        finalResult: s.finalResult,
+        isBayesianEnabled: s.isBayesianEnabled
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.currentProject) {

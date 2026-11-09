@@ -1,3 +1,4 @@
+import { CHEMIST_DECISION_GUIDES, ChemistDecisionGuide } from './doeGuides'
 // ============================================================
 // frontend/src/utils/doeManualData.ts
 // Pharmaceutical DoE Selection Manual & QbD Strategy Reference Data
@@ -44,6 +45,7 @@ export interface DoEDesignManualEntry {
   cons: string[]
   ichGuidance: string
   caseStudy: CaseStudy
+  guide?: ChemistDecisionGuide
 }
 
 export const DOE_MANUAL_DESIGNS: DoEDesignManualEntry[] = [
@@ -485,6 +487,11 @@ export const DOE_MANUAL_DESIGNS: DoEDesignManualEntry[] = [
     }
   }
 ]
+// Attach Chemist Decision Guides to all designs
+DOE_MANUAL_DESIGNS.forEach(d => {
+  d.guide = CHEMIST_DECISION_GUIDES[d.id];
+});
+
 
 // ============================================================
 // Decision Wizard Engine

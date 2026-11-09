@@ -13,7 +13,10 @@ import {
   StepperAnswers,
   getStepperRecommendation
 } from '../utils/doeManualData'
+import CompareDesignsModal from './CompareDesignsModal'
+import ChemistsDecisionGuideCard from './ChemistsDecisionGuideCard'
 import {
+  Target,
   Sparkles,
   Check,
   CheckCircle2,
@@ -25,7 +28,8 @@ import {
   ShieldCheck,
   Info,
   RotateCcw,
-  Search
+  Search,
+  Table
 } from 'lucide-react'
 
 interface DoEManualModalProps {
@@ -56,6 +60,18 @@ export default function DoEManualModal({
   const [viewMode, setViewMode] = useState<'stepper' | 'case-studies'>('stepper')
   const [selectedCaseStudyId, setSelectedCaseStudyId] = useState<string>(initialDesignId || 'dsd')
   const [caseStudySearch, setCaseStudySearch] = useState('')
+  // Chemist's Decision Guide active tab: 1..7
+  const [activeGuideTab, setActiveGuideTab] = useState<number>(1)
+
+  // Compare Designs Modal state
+  const [showCompareModal, setShowCompareModal] = useState(false)
+
+  // Mini "Not sure which one?" Decision Helper state
+  const [showMiniHelper, setShowMiniHelper] = useState(false)
+  const [miniFactors, setMiniFactors] = useState<'2-3' | '4-7' | '8+'>('4-7')
+  const [miniStage, setMiniStage] = useState<'screening' | 'optimization'>('screening')
+  const [miniCurvature, setMiniCurvature] = useState<'yes' | 'no' | 'unsure'>('unsure')
+
 
   // 3-Question Stepper State
   const [answers, setAnswers] = useState<StepperAnswers>({
@@ -86,6 +102,20 @@ export default function DoEManualModal({
     return getStepperRecommendation(answers)
   }, [answers])
 
+  // Calculate 1-2 recommended designs from the Mini Decision Helper
+  const helperRecommendedIds = useMemo(() => {
+    if (miniStage === 'screening') {
+      if (miniFactors === '8+') return ['pb']
+      if (miniCurvature === 'yes') return ['dsd']
+      if (miniFactors === '4-7') return ['fractional_factorial', 'dsd']
+      return ['fractional_factorial', 'full_factorial']
+    } else {
+      if (miniFactors === '2-3') return ['full_factorial', 'ccd']
+      if (miniCurvature === 'yes' || miniCurvature === 'unsure') return ['bbd', 'ccd']
+      return ['ccd', 'bbd']
+    }
+  }, [miniFactors, miniStage, miniCurvature])
+
   const activeCaseStudy = useMemo(() => {
     return DOE_MANUAL_DESIGNS.find(d => d.id === selectedCaseStudyId) || DOE_MANUAL_DESIGNS[0]
   }, [selectedCaseStudyId])
@@ -93,14 +123,30 @@ export default function DoEManualModal({
   const filteredDesigns = useMemo(() => {
     const q = caseStudySearch.toLowerCase().trim()
     if (!q) return DOE_MANUAL_DESIGNS
-    return DOE_MANUAL_DESIGNS.filter(
-      d =>
+    return DOE_MANUAL_DESIGNS.filter(d => {
+      const g = d.guide
+      const inGuide = g && (
+        g.whyChoose.some(w => w.toLowerCase().includes(q)) ||
+        g.chooseWhen.some(c => c.condition.toLowerCase().includes(q)) ||
+        g.avoidWhen.some(a => a.condition.toLowerCase().includes(q)) ||
+        g.howItWorks.toLowerCase().includes(q) ||
+        g.strengths.some(s => s.toLowerCase().includes(q)) ||
+        g.limitations.some(l => l.toLowerCase().includes(q)) ||
+        g.chemistryExamples.some(c => c.toLowerCase().includes(q)) ||
+        g.commonMistakes.some(m => m.toLowerCase().includes(q)) ||
+        g.analysisTips.some(t => t.toLowerCase().includes(q)) ||
+        g.nextStep.toLowerCase().includes(q)
+      )
+
+      return (
         d.name.toLowerCase().includes(q) ||
         d.shortName.toLowerCase().includes(q) ||
         d.key.toLowerCase().includes(q) ||
         d.caseStudy.unitOperation.toLowerCase().includes(q) ||
-        d.caseStudy.compoundExample.toLowerCase().includes(q)
-    )
+        d.caseStudy.compoundExample.toLowerCase().includes(q) ||
+        inGuide
+      )
+    })
   }, [caseStudySearch])
 
   if (!isOpen) return null
@@ -151,8 +197,8 @@ export default function DoEManualModal({
         className="card"
         style={{
           width: '100%',
-          maxWidth: '960px',
-          maxHeight: '92vh',
+          maxWidth: '1080px',
+          maxHeight: '94vh',
           display: 'flex',
           flexDirection: 'column',
           background: '#ffffff',
@@ -655,7 +701,7 @@ export default function DoEManualModal({
           ) : (
             /* CASE STUDIES VIEW (Discrete Secondary View) */
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              {/* Back to Stepper Bar */}
+              {/* Back to Stepper & Global Toolbar Bar */}
               <div
                 style={{
                   display: 'flex',
@@ -664,26 +710,55 @@ export default function DoEManualModal({
                   background: '#ffffff',
                   padding: '0.85rem 1.25rem',
                   borderRadius: '12px',
-                  border: '1px solid var(--border)'
+                  border: '1px solid var(--border)',
+                  flexWrap: 'wrap',
+                  gap: '0.75rem'
                 }}
               >
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setViewMode('stepper')}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
-                >
-                  <ArrowLeft size={15} />
-                  <span>← Back to 3-Question Wizard</span>
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setViewMode('stepper')}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
+                  >
+                    <ArrowLeft size={15} />
+                    <span>← Back to 3-Question Wizard</span>
+                  </button>
 
-                <div style={{ position: 'relative', width: '260px' }}>
+                  {/* Compare Designs Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowCompareModal(true)}
+                    style={{
+                      background: 'rgba(0, 91, 170, 0.08)',
+                      border: '1px solid rgba(0, 91, 170, 0.25)',
+                      color: 'var(--primary)',
+                      borderRadius: '8px',
+                      padding: '0.35rem 0.75rem',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0, 91, 170, 0.15)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(0, 91, 170, 0.08)')}
+                  >
+                    <Table size={14} />
+                    <span>Compare All 10 Designs</span>
+                  </button>
+                </div>
+
+                <div style={{ position: 'relative', width: '280px' }}>
                   <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
                   <input
                     type="text"
                     value={caseStudySearch}
                     onChange={(e) => setCaseStudySearch(e.target.value)}
-                    placeholder="Search 10 pharma cases…"
+                    placeholder="Search guides, cases & keywords…"
                     style={{
                       width: '100%',
                       padding: '0.4rem 0.75rem 0.4rem 2rem',
@@ -711,6 +786,7 @@ export default function DoEManualModal({
                 >
                   {filteredDesigns.map(d => {
                     const isSelected = d.id === selectedCaseStudyId
+                    const isHelperMatch = showMiniHelper && helperRecommendedIds.includes(d.id)
                     return (
                       <div
                         key={d.id}
@@ -719,13 +795,20 @@ export default function DoEManualModal({
                           padding: '0.75rem 1rem',
                           borderBottom: '1px solid var(--border)',
                           cursor: 'pointer',
-                          background: isSelected ? 'rgba(0, 91, 170, 0.08)' : 'transparent',
-                          borderLeft: isSelected ? '4px solid var(--primary)' : '4px solid transparent',
+                          background: isSelected ? 'rgba(0, 91, 170, 0.08)' : isHelperMatch ? 'rgba(0, 174, 179, 0.08)' : 'transparent',
+                          borderLeft: isSelected ? '4px solid var(--primary)' : isHelperMatch ? '4px solid var(--accent)' : '4px solid transparent',
                           transition: 'all 0.15s'
                         }}
                       >
-                        <div style={{ fontWeight: isSelected ? 700 : 600, fontSize: '0.84rem', color: isSelected ? 'var(--primary)' : 'var(--text-primary)', marginBottom: '0.15rem' }}>
-                          {d.shortName}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.15rem' }}>
+                          <span style={{ fontWeight: isSelected ? 700 : 600, fontSize: '0.84rem', color: isSelected ? 'var(--primary)' : 'var(--text-primary)' }}>
+                            {d.shortName}
+                          </span>
+                          {isHelperMatch && (
+                            <span style={{ fontSize: '0.64rem', background: 'var(--accent)', color: '#fff', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>
+                              Match
+                            </span>
+                          )}
                         </div>
                         <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
                           <span
@@ -749,7 +832,7 @@ export default function DoEManualModal({
 
                 {/* Right: Selected Case Study Card */}
                 {activeCaseStudy && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '72vh', overflowY: 'auto', paddingRight: '0.35rem' }}>
                     <div
                       style={{
                         background: '#ffffff',
@@ -800,6 +883,22 @@ export default function DoEManualModal({
                           <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{activeCaseStudy.ichGuidance}</div>
                         </div>
                       </div>
+
+                      {/* Chemist's Decision Guide & Mini Helper */}
+                      <ChemistsDecisionGuideCard
+                        design={activeCaseStudy}
+                        onNavigateToDesign={(id) => setSelectedCaseStudyId(id)}
+                        showMiniHelper={showMiniHelper}
+                        onToggleMiniHelper={() => setShowMiniHelper(!showMiniHelper)}
+                        miniFactors={miniFactors}
+                        onChangeMiniFactors={(v) => setMiniFactors(v)}
+                        miniStage={miniStage}
+                        onChangeMiniStage={(v) => setMiniStage(v)}
+                        miniCurvature={miniCurvature}
+                        onChangeMiniCurvature={(v) => setMiniCurvature(v)}
+                        helperRecommendedIds={helperRecommendedIds}
+                        allDesigns={DOE_MANUAL_DESIGNS}
+                      />
 
                       {/* Case Study Details */}
                       <div
@@ -859,10 +958,39 @@ export default function DoEManualModal({
                           </div>
                         </div>
 
-                        <div style={{ background: 'rgba(0, 174, 179, 0.08)', border: '1px solid rgba(0, 174, 179, 0.2)', padding: '0.7rem', borderRadius: '6px', fontSize: '0.78rem', color: '#00695c', lineHeight: 1.4 }}>
+                        <div style={{ background: 'rgba(0, 174, 179, 0.08)', border: '1px solid rgba(0, 174, 179, 0.2)', padding: '0.7rem', borderRadius: '6px', fontSize: '0.78rem', color: '#00695c', lineHeight: 1.4, marginBottom: '0.75rem' }}>
                           <strong>Scientific Outcome: </strong>
                           {activeCaseStudy.caseStudy.outcome}
                         </div>
+
+                        {/* "Why this design for this case?" Callout */}
+                        {activeCaseStudy.guide && (
+                          <div
+                            style={{
+                              background: '#eff6ff',
+                              border: '1px solid #bfdbfe',
+                              borderRadius: '8px',
+                              padding: '0.85rem',
+                              fontSize: '0.78rem',
+                              color: '#1e3a8a',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '0.45rem'
+                            }}
+                          >
+                            <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <Target size={15} color="#2563eb" />
+                              <span>Why this design for this case?</span>
+                            </div>
+                            <p style={{ margin: 0, lineHeight: 1.45 }}>
+                              {activeCaseStudy.guide.caseStudyLink.whyThisDesignForThisCase}
+                            </p>
+                            <div style={{ marginTop: '0.15rem', color: '#b91c1c', fontSize: '0.76rem', background: '#fee2e2', padding: '0.45rem 0.65rem', borderRadius: '6px' }}>
+                              <strong>What would have gone wrong with a poorer choice: </strong>
+                              {activeCaseStudy.guide.caseStudyLink.whatWouldGoWrongWithPoorerChoice}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -893,6 +1021,18 @@ export default function DoEManualModal({
           </button>
         </div>
       </div>
+
+      {/* Compare All 10 Designs Modal */}
+      {showCompareModal && (
+        <CompareDesignsModal
+          isOpen={showCompareModal}
+          onClose={() => setShowCompareModal(false)}
+          onSelectDesign={(id) => {
+            setSelectedCaseStudyId(id)
+            setShowCompareModal(false)
+          }}
+        />
+      )}
     </div>
   )
 }

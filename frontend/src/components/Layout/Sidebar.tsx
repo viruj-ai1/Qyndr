@@ -1,32 +1,32 @@
 import { useStore, Step, normalizeStep } from '../../store/useStore'
 import { Projects } from '../../services/api'
 
-interface StepDef { key: Step; label: string; icon: string; category?: string }
+interface StepDef { key: Step; title: string; category?: string }
 
-const WORKFLOW_STEPS: StepDef[] = [
-  { key: 'create-project',       label: '01. Create Project',             icon: '01', category: 'Project' },
-  { key: 'qtpp',                 label: '02. QTPP Definition',            icon: '02', category: 'Phase 0' },
-  { key: 'cqa',                  label: '03. CQA Derivation',             icon: '03', category: 'Phase 0' },
-  { key: 'route-mapping',        label: '04. Route Mapping',              icon: '04', category: 'Phase 0' },
-  { key: 'risk-assessment',      label: '05. Risk Assessment',            icon: '05', category: 'Phase 0' },
-  { key: 'stage-campaign-matrix',label: '06. Stage Campaign Matrix',      icon: '06', category: 'Phase 0' },
-  { key: 'define-factors',       label: '07. Define Factors & Responses', icon: '07', category: 'DOE Campaign' },
-  { key: 'recommend-doe',        label: '08. Recommend DOE',              icon: '08', category: 'DOE Campaign' },
-  { key: 'generate-doe',         label: '09. DOE Matrix & Results',       icon: '09', category: 'DOE Campaign' },
-  { key: 'initial-optimization', label: '10. Initial Optimum',            icon: '10', category: 'DOE Campaign' },
-  { key: 'enough-data',          label: '11. Enough Data?',               icon: '11', category: 'DOE Campaign' },
-  { key: 'gp-model',             label: '12. GP Model',                   icon: '12', category: 'DOE Campaign' },
-  { key: 'bayesian-opt',         label: '13. Bayesian Optimization',      icon: '13', category: 'DOE Campaign' },
-  { key: 'new-experiment',       label: '14. New Experiment',             icon: '14', category: 'DOE Campaign' },
-  { key: 'final-optimum',        label: '15. Final Optimum',              icon: '15', category: 'DOE Campaign' },
-  { key: 'report',               label: '16. Generate Report',            icon: '16', category: 'Report' },
+const BASE_STEPS: StepDef[] = [
+  { key: 'create-project',       title: 'Create Project',             category: 'Project' },
+  { key: 'qtpp',                 title: 'QTPP Definition',            category: 'Phase 0' },
+  { key: 'cqa',                  title: 'CQA Derivation',             category: 'Phase 0' },
+  { key: 'route-mapping',        title: 'Route Mapping',              category: 'Phase 0' },
+  { key: 'risk-assessment',      title: 'Risk Assessment',            category: 'Phase 0' },
+  { key: 'stage-campaign-matrix',title: 'Stage Campaign Matrix',      category: 'Phase 0' },
+  { key: 'define-factors',       title: 'Define Factors & Responses', category: 'DOE Campaign' },
+  { key: 'recommend-doe',        title: 'Recommend DOE',              category: 'DOE Campaign' },
+  { key: 'generate-doe',         title: 'DOE Matrix & Results',       category: 'DOE Campaign' },
+  { key: 'initial-optimization', title: 'Initial Optimum',            category: 'DOE Campaign' },
+  { key: 'enough-data',          title: 'Enough Data?',               category: 'DOE Campaign' },
+  { key: 'gp-model',             title: 'GP Model',                   category: 'DOE Campaign' },
+  { key: 'bayesian-opt',         title: 'Bayesian Optimization',      category: 'DOE Campaign' },
+  { key: 'new-experiment',       title: 'New Experiment',             category: 'DOE Campaign' },
+  { key: 'final-optimum',        title: 'Final Optimum',              category: 'DOE Campaign' },
+  { key: 'report',               title: 'Generate Report',            category: 'Report' },
 ]
 
-const STEP_ORDER = WORKFLOW_STEPS.map(s => s.key)
+const ALL_STEP_KEYS = BASE_STEPS.map(s => s.key)
 
 function stepIndex(s: Step) {
-  if (s === 'lab-experiments' || s === 'upload-results') return STEP_ORDER.indexOf('generate-doe')
-  return STEP_ORDER.indexOf(s)
+  if (s === 'lab-experiments' || s === 'upload-results') return ALL_STEP_KEYS.indexOf('generate-doe')
+  return ALL_STEP_KEYS.indexOf(s)
 }
 
 function isStepDone(stepKey: Step, idx: number, currentIdx: number, store: any): boolean {
@@ -95,10 +95,10 @@ function isStepDone(stepKey: Step, idx: number, currentIdx: number, store: any):
       return Boolean(experiments && experiments.some((e: any) => e.run_type === 'Bayesian'))
 
     case 'final-optimum':
-      return Boolean(finalResult)
+      return Boolean(finalResult || optimumResult)
 
     case 'report':
-      return Boolean(finalResult && currentProject.id)
+      return Boolean((finalResult || optimumResult) && currentProject.id)
 
     default:
       return false
@@ -107,8 +107,26 @@ function isStepDone(stepKey: Step, idx: number, currentIdx: number, store: any):
 
 export default function Sidebar() {
   const store = useStore()
-  const { currentStep, setStep, currentProject } = store
+  const { currentStep, setStep, currentProject, isBayesianEnabled, bayesResult, experiments } = store
   const currentIdx = stepIndex(normalizeStep(currentStep))
+
+  // Strictly hide unless user chooses Bayesian Optimization
+  const isBayesianActive = Boolean(isBayesianEnabled)
+
+  // Filter steps conditionally
+  const visibleSteps = BASE_STEPS.filter(step => {
+    if (['gp-model', 'bayesian-opt', 'new-experiment'].includes(step.key)) {
+      return isBayesianActive
+    }
+    return true
+  }).map((step, idx) => {
+    const numStr = String(idx + 1).padStart(2, '0')
+    return {
+      ...step,
+      label: `${numStr}. ${step.title}`,
+      icon: numStr,
+    }
+  })
 
   const handleStepClick = (stepKey: Step) => {
     setStep(stepKey)
@@ -121,7 +139,7 @@ export default function Sidebar() {
     <nav className="sidebar" style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 60px)' }}>
       <div className="sidebar-label">DOE Workflow Navigation</div>
 
-      {WORKFLOW_STEPS.map((step, idx) => {
+      {visibleSteps.map((step, idx) => {
         const isActive = step.key === currentStep || (step.key === 'generate-doe' && (currentStep === 'lab-experiments' || currentStep === 'upload-results'))
         const isCompleted = isStepDone(step.key, idx, currentIdx, store)
         return (
@@ -143,14 +161,15 @@ export default function Sidebar() {
         )
       })}
 
-      {/* GP Loop indicator */}
-      <div style={{ margin: '1rem 1rem 0.5rem', padding: '0.75rem', background: 'rgba(99,102,241,0.08)', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.15)' }}>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Bayesian Loop</div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--primary-light)', lineHeight: 1.45 }}>
-          Steps 13–14 repeat per stage until optimization convergence
+      {/* GP Loop indicator - only shown when Bayesian Optimization is active */}
+      {isBayesianActive && (
+        <div style={{ margin: '1rem 1rem 0.5rem', padding: '0.75rem', background: 'rgba(99,102,241,0.08)', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.15)' }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Bayesian Loop</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--primary-light)', lineHeight: 1.45 }}>
+            Steps 13–14 repeat per stage until optimization convergence
+          </div>
         </div>
-      </div>
+      )}
     </nav>
   )
 }
-

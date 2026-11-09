@@ -235,22 +235,13 @@ export default function DefineFactors() {
             <div className="card-sub">Output variables to measure after each experiment</div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={handleSyncFromProjectDescription}
-              title="Auto-fill response variables directly from Step 01 Project Description"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-            >
-              <span>⚡</span> Sync / Auto-fill from Project Description
-            </button>
             <button className="btn btn-secondary btn-sm" onClick={addResponse}>+ Add Response</button>
           </div>
         </div>
 
         {responses.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', border: '1px dashed var(--border)', borderRadius: '8px', margin: '0.75rem 0' }}>
-            No responses defined yet. Click "+ Add Response" or use "⚡ Sync / Auto-fill from Project Description".
+            No responses defined yet. Click "+ Add Response" to define CQAs.
           </div>
         ) : (
           <>

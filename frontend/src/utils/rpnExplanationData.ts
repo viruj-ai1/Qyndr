@@ -69,3 +69,4 @@ export const RPN_GUIDE_CONTENT = {
     'CPP/CMA flags here represent candidates; definitive criticality is confirmed after experimental verification (ICH Q8(R2), Q9).'
   ]
 }
+

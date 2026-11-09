@@ -358,8 +358,13 @@ export default function RecommendDOE() {
                 <div style={{ fontSize:'0.78rem', color:'var(--text-secondary)' }}>
                   {pInfo.subtitle}
                 </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
 
-      {/* Modal Dialog for Phase Information (compact pharma card style matching the DoE Selection Wizard) */}
+      {/* Modal Dialog for Phase Information - Placed outside the cards so position: fixed covers the whole viewport */}
       {activeInfoPhase && (
         <div
           role="dialog"
@@ -372,12 +377,14 @@ export default function RecommendDOE() {
             left: 0,
             right: 0,
             bottom: 0,
+            width: '100vw',
+            height: '100vh',
             backgroundColor: 'rgba(15, 23, 42, 0.45)',
             backdropFilter: 'blur(3px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 9999,
+            zIndex: 99999,
             padding: '1.25rem',
             animation: 'fadeIn 0.15s ease-out'
           }}
@@ -387,10 +394,10 @@ export default function RecommendDOE() {
             onClick={(e) => e.stopPropagation()}
             style={{
               width: '100%',
-              maxWidth: '520px',
+              maxWidth: '500px',
               backgroundColor: '#ffffff',
               borderRadius: '16px',
-              boxShadow: '0 20px 45px -10px rgba(0, 0, 0, 0.3), 0 8px 20px -5px rgba(0, 91, 170, 0.15)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35), 0 10px 25px -5px rgba(0, 91, 170, 0.2)',
               border: '1px solid var(--border)',
               overflow: 'hidden',
               animation: 'popoverFadeScale 150ms ease-out forwards'
@@ -537,11 +544,6 @@ export default function RecommendDOE() {
           </div>
         </div>
       )}
-              </div>
-            )
-          })}
-        </div>
-      </div>
 
       {isOfflineFallback && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 1rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.82rem', color: '#1e40af' }}>

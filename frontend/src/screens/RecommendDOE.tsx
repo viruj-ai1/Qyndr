@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useStore } from '../store/useStore'
 import { DOE, Projects } from '../services/api'
 import toast from 'react-hot-toast'
@@ -6,7 +6,8 @@ import PreRunDiagnosticsModal from './PreRunDiagnosticsModal'
 import DoEManualModal from '../components/DoEManualModal'
 import { DoECategory } from '../utils/doeManualData'
 import { getLocalRecommendations } from '../utils/doeLocalRecommender'
-import { BookOpen, ExternalLink, Sparkles, ArrowRight, RefreshCw, AlertCircle } from 'lucide-react'
+import { EXPERIMENT_PHASES, PhaseInfo } from '../utils/experimentPhaseData'
+import { BookOpen, ExternalLink, Sparkles, ArrowRight, RefreshCw, AlertCircle, Info, X } from 'lucide-react'
 
 const KEY_TO_MANUAL_ID: Record<string, string> = {
   PB: 'pb',
@@ -34,6 +35,44 @@ export default function RecommendDOE() {
   const [showManualModal, setShowManualModal]           = useState(false)
   const [manualInitialTab, setManualInitialTab]         = useState<'wizard' | 'matrix' | 'deep-dives'>('wizard')
   const [manualInitialDesignId, setManualInitialDesignId] = useState<string | undefined>(undefined)
+  const [activeInfoPhase, setActiveInfoPhase]           = useState<'screening' | 'optimization' | null>(null)
+  const popoverRef = useRef<HTMLDivElement | null>(null)
+  const infoBtnScreeningRef = useRef<HTMLButtonElement | null>(null)
+  const infoBtnOptimizationRef = useRef<HTMLButtonElement | null>(null)
+
+  // Close popover when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!activeInfoPhase) return
+
+    function handleClickOutside(event: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        const btnRef = activeInfoPhase === 'screening' ? infoBtnScreeningRef.current : infoBtnOptimizationRef.current
+        if (btnRef && btnRef.contains(event.target as Node)) {
+          return
+        }
+        setActiveInfoPhase(null)
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        const currentPhase = activeInfoPhase
+        setActiveInfoPhase(null)
+        if (currentPhase === 'screening') {
+          infoBtnScreeningRef.current?.focus()
+        } else if (currentPhase === 'optimization') {
+          infoBtnOptimizationRef.current?.focus()
+        }
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [activeInfoPhase])
 
   // Helper to ensure strictly at most one design has recommended === true
   function enforceSingleRecommendation(rawOpts: any[]): any[] {
@@ -254,17 +293,171 @@ export default function RecommendDOE() {
       </div>
 
       {/* Phase toggle */}
-      <div className="card mb-2">
+      <div className="card mb-2" style={{ position: 'relative' }}>
         <div className="card-title mb-2">Experiment Phase</div>
-        <div style={{ display:'flex', gap:'0.75rem' }}>
-          {[{k:'screening',label:'Screening (Classical & DSD)',desc:'Identify key factors (Definitive Screening, Fractional, PB)'},{k:'optimization',label:'Optimization / RSM',desc:'Model response surfaces (CCD, BBD, D-Optimal)'}].map(p=>(
-            <div key={p.k}
-              onClick={()=>setPhase(p.k as any)}
-              style={{ flex:1, padding:'1rem', border:`2px solid ${phase===p.k?'var(--primary)':'var(--border)'}`, borderRadius:'var(--radius)', cursor:'pointer', background:phase===p.k?'rgba(99,102,241,0.1)':'var(--bg-card)', transition:'all 0.2s' }}>
-              <div style={{ fontWeight:700, marginBottom:'0.3rem', color:phase===p.k?'var(--primary-light)':'var(--text-primary)' }}>{p.label}</div>
-              <div style={{ fontSize:'0.78rem', color:'var(--text-secondary)' }}>{p.desc}</div>
-            </div>
-          ))}
+        <div style={{ display:'flex', gap:'0.75rem', flexWrap: 'wrap' }}>
+          {(['screening', 'optimization'] as const).map((pk) => {
+            const pInfo = EXPERIMENT_PHASES[pk]
+            const isSelected = phase === pk
+            const isInfoOpen = activeInfoPhase === pk
+            const btnRef = pk === 'screening' ? infoBtnScreeningRef : infoBtnOptimizationRef
+
+            return (
+              <div
+                key={pk}
+                onClick={() => setPhase(pk)}
+                style={{
+                  flex: 1,
+                  minWidth: '260px',
+                  position: 'relative',
+                  padding: '1rem',
+                  border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                  borderRadius: 'var(--radius)',
+                  cursor: 'pointer',
+                  background: isSelected ? 'rgba(99,102,241,0.1)' : 'var(--bg-card)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {/* Header row with Title and Info Icon */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.3rem' }}>
+                  <div style={{ fontWeight: 700, color: isSelected ? 'var(--primary-light)' : 'var(--text-primary)' }}>
+                    {pInfo.title === 'Screening' ? 'Screening (Classical & DSD)' : 'Optimization / RSM'}
+                  </div>
+
+                  <button
+                    ref={btnRef}
+                    type="button"
+                    aria-label={`About ${pInfo.title} phase`}
+                    aria-expanded={isInfoOpen}
+                    aria-controls={`phase-popover-${pk}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setActiveInfoPhase(prev => (prev === pk ? null : pk))
+                    }}
+                    style={{
+                      border: 'none',
+                      background: isInfoOpen ? 'var(--primary)' : 'rgba(0, 91, 170, 0.08)',
+                      color: isInfoOpen ? '#ffffff' : 'var(--primary)',
+                      borderRadius: '50%',
+                      width: '24px',
+                      height: '24px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      transition: 'all 0.15s ease-in-out',
+                      padding: 0
+                    }}
+                    title={`About ${pInfo.title} phase`}
+                  >
+                    <Info size={14} />
+                  </button>
+                </div>
+
+                <div style={{ fontSize:'0.78rem', color:'var(--text-secondary)' }}>
+                  {pInfo.subtitle}
+                </div>
+
+                {/* Popover anchored to the card */}
+                {isInfoOpen && (
+                  <div
+                    id={`phase-popover-${pk}`}
+                    ref={popoverRef}
+                    role="tooltip"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 10px)',
+                      right: 0,
+                      width: '320px',
+                      maxWidth: 'calc(100vw - 32px)',
+                      background: '#ffffff',
+                      border: '1.5px solid var(--primary)',
+                      borderRadius: '12px',
+                      boxShadow: '0 10px 30px rgba(0, 91, 170, 0.16), 0 4px 10px rgba(0,0,0,0.06)',
+                      padding: '1.1rem',
+                      zIndex: 100,
+                      animation: 'popoverFadeScale 120ms ease-out forwards',
+                      color: 'var(--text-primary)',
+                      cursor: 'default',
+                      textAlign: 'left'
+                    }}
+                  >
+                    {/* Popover Top Arrow */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '-8px',
+                        right: '18px',
+                        width: '14px',
+                        height: '14px',
+                        background: '#ffffff',
+                        borderLeft: '1.5px solid var(--primary)',
+                        borderTop: '1.5px solid var(--primary)',
+                        transform: 'rotate(45deg)'
+                      }}
+                    />
+
+                    {/* Popover Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+                      <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--primary)' }}>
+                        {pInfo.title}
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Close details"
+                        onClick={() => {
+                          setActiveInfoPhase(null)
+                          btnRef.current?.focus()
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          padding: '2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          borderRadius: '4px'
+                        }}
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+
+                    {/* Popover Sections */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', fontSize: '0.79rem', lineHeight: 1.45 }}>
+                      <div>
+                        <strong style={{ display: 'block', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--primary)' }}>Purpose</strong>
+                        <span style={{ color: 'var(--text-secondary)' }}>{pInfo.purpose}</span>
+                      </div>
+
+                      <div>
+                        <strong style={{ display: 'block', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#059669' }}>Use when</strong>
+                        <span style={{ color: 'var(--text-secondary)' }}>{pInfo.useWhen}</span>
+                      </div>
+
+                      <div>
+                        <strong style={{ display: 'block', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--primary)' }}>You get</strong>
+                        <span style={{ color: 'var(--text-secondary)' }}>{pInfo.youGet}</span>
+                      </div>
+
+                      <div>
+                        <strong style={{ display: 'block', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#dc2626' }}>Not for</strong>
+                        <span style={{ color: 'var(--text-secondary)' }}>{pInfo.notFor}</span>
+                      </div>
+
+                      <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.45rem', marginTop: '0.2rem' }}>
+                        <strong style={{ display: 'block', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-primary)' }}>Designs</strong>
+                        <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{pInfo.designs}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
 

@@ -312,17 +312,28 @@ export default function DoEManualModal({
                     </label>
                   </div>
                   <button
-                    onClick={resetQuestions}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      resetQuestions()
+                    }}
                     style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--text-muted)',
+                      background: 'rgba(0, 91, 170, 0.06)',
+                      border: '1px solid rgba(0, 91, 170, 0.2)',
+                      borderRadius: '6px',
+                      padding: '3px 8px',
+                      color: 'var(--primary)',
                       fontSize: '0.75rem',
+                      fontWeight: 600,
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.3rem',
-                      cursor: 'pointer'
+                      gap: '0.35rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
                     }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0, 91, 170, 0.12)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(0, 91, 170, 0.06)')}
                   >
                     <RotateCcw size={12} />
                     <span>Reset</span>

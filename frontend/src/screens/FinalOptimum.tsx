@@ -187,50 +187,153 @@ export default function FinalOptimum() {
             <>
               {/* Global Composite Desirability Index Hero Card */}
               <div className="card mb-2" style={{
-                background: 'linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(99,102,241,0.08) 100%)',
-                border: '1px solid rgba(16,185,129,0.3)',
-                padding: '2rem',
-                textAlign: 'center'
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,253,250,0.85) 100%)',
+                border: '1.5px solid rgba(0, 174, 179, 0.25)',
+                borderRadius: '16px',
+                padding: '1.6rem 2rem',
+                boxShadow: '0 10px 30px rgba(0, 91, 170, 0.06)'
               }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '0.5rem' }}>
-                  🎯 Global Composite Desirability Index (D-Optimum)
+                {/* Top Badge & Title Row */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem', paddingBottom: '0.9rem', borderBottom: '1px solid rgba(0, 91, 170, 0.08)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      background: 'rgba(0, 91, 170, 0.1)',
+                      color: 'var(--primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1rem'
+                    }}>
+                      🎯
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>
+                        Global Composite Desirability Index (D-Optimum)
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                        Multi-criteria joint objective optimization according to Derringer & Suich
+                      </div>
+                    </div>
+                  </div>
+
+                  <span style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    padding: '3px 10px',
+                    borderRadius: '20px',
+                    background: compositeScore > 0.8 ? 'rgba(5,150,105,0.1)' : compositeScore > 0.6 ? 'rgba(217,119,6,0.1)' : 'rgba(220,38,38,0.1)',
+                    color: compositeScore > 0.8 ? '#059669' : compositeScore > 0.6 ? '#d97706' : '#dc2626',
+                    border: `1px solid ${compositeScore > 0.8 ? 'rgba(5,150,105,0.25)' : compositeScore > 0.6 ? 'rgba(217,119,6,0.25)' : 'rgba(220,38,38,0.25)'}`
+                  }}>
+                    {compositeScore > 0.8 ? 'Optimal Convergence' : compositeScore > 0.6 ? 'Moderate Compromise' : 'Sub-Optimal Convergence'}
+                  </span>
                 </div>
-                
+
+                {/* Score & Gauge Meter Section */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 240px) 1fr', gap: '2rem', alignItems: 'center' }}>
+                  {/* Big Percentage Display */}
+                  <div style={{ textAlign: 'center', padding: '1rem 0', borderRight: '1px solid rgba(0,0,0,0.06)' }}>
+                    <div style={{
+                      fontSize: '3.6rem',
+                      fontWeight: 900,
+                      fontFamily: 'var(--font-sans)',
+                      background: compositeScore > 0.8
+                        ? 'linear-gradient(135deg, #059669, #00aeb3)'
+                        : compositeScore > 0.6
+                        ? 'linear-gradient(135deg, #d97706, #00aeb3)'
+                        : 'linear-gradient(135deg, #dc2626, #f97316)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      lineHeight: 1
+                    }}>
+                      {compositeDesirabilityPct != null ? `${compositeDesirabilityPct}%` : '—'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '0.4rem' }}>
+                      Overall D Score: {compositeScore.toFixed(3)}
+                    </div>
+                  </div>
+
+                  {/* Progress Gauge & Status Breakdown */}
+                  <div>
+                    {/* Visual Progress Track */}
+                    <div style={{ marginBottom: '0.85rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '5px' }}>
+                        <span>0% (Unacceptable)</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Quality Threshold: 80%</span>
+                        <span>100% (Ideal)</span>
+                      </div>
+                      <div style={{ height: '10px', background: '#e2e8f0', borderRadius: '999px', position: 'relative', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${Math.min(100, Math.max(0, compositeScore * 100))}%`,
+                            background: compositeScore > 0.8
+                              ? 'linear-gradient(90deg, #10b981, #00aeb3)'
+                              : compositeScore > 0.6
+                              ? 'linear-gradient(90deg, #f59e0b, #00aeb3)'
+                              : 'linear-gradient(90deg, #ef4444, #f97316)',
+                            borderRadius: '999px',
+                            transition: 'width 0.5s ease'
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Status Text Card */}
+                    <div style={{
+                      background: compositeScore > 0.8 ? 'rgba(5, 150, 105, 0.06)' : compositeScore > 0.6 ? 'rgba(217, 119, 6, 0.06)' : 'rgba(220, 38, 38, 0.06)',
+                      border: `1px solid ${compositeScore > 0.8 ? 'rgba(5, 150, 105, 0.2)' : compositeScore > 0.6 ? 'rgba(217, 119, 6, 0.2)' : 'rgba(220, 38, 38, 0.2)'}`,
+                      borderRadius: '8px',
+                      padding: '0.65rem 0.9rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.6rem'
+                    }}>
+                      <span style={{ fontSize: '1.1rem' }}>
+                        {compositeScore > 0.8 ? '🟢' : compositeScore > 0.6 ? '🟡' : '🔴'}
+                      </span>
+                      <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: 1.45, fontWeight: 500 }}>
+                        {compositeScore > 0.8
+                          ? 'Global Pareto-Optimal Coordinate – Simultaneous convergence across all Critical Quality Attributes (CQAs).'
+                          : compositeScore > 0.6
+                          ? 'Constrained Multi-Response Trade-off – Acceptable compromise across CQA specification boundaries.'
+                          : 'Sub-optimal Multi-Criteria Convergence – One or more responses are near specification limits. Consider re-evaluating factor constraints or response weighting.'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom 3-Card Metrics Strip */}
                 <div style={{
-                  fontSize: '3.6rem',
-                  fontWeight: 900,
-                  background: 'linear-gradient(135deg, var(--success), var(--accent))',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  lineHeight: 1.1
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '1rem',
+                  marginTop: '1.4rem',
+                  paddingTop: '1.1rem',
+                  borderTop: '1px solid rgba(0, 91, 170, 0.08)'
                 }}>
-                  {compositeDesirabilityPct != null ? `${compositeDesirabilityPct}%` : '—'}
-                </div>
-
-                <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.5rem', fontWeight: 500 }}>
-                  {compositeScore > 0.8
-                    ? '🟢 Global Pareto-Optimal Coordinate – Simultaneous convergence across all Critical Quality Attributes (CQAs)'
-                    : compositeScore > 0.6
-                    ? '🟡 Constrained Multi-Response Trade-off – Acceptable compromise across CQA specification boundaries'
-                    : '🔴 Sub-optimal Multi-Criteria Convergence – Consider re-evaluating factor constraints or response weighting'}
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '2.5rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Total Runs Evaluated</div>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--accent)' }}>
-                      {totalObs}
+                  <div style={{ background: '#ffffff', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border)', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Total Runs Evaluated</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--accent)', marginTop: '2px' }}>
+                      {totalObs} <span style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)' }}>runs</span>
                     </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Active CQAs</div>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--primary-light)' }}>
-                      {responses.length} Responses
+
+                  <div style={{ background: '#ffffff', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border)', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Active CQAs</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--primary)', marginTop: '2px' }}>
+                      {responses.length} <span style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)' }}>Responses</span>
                     </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Optimization Engine</div>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--success)' }}>
+
+                  <div style={{ background: '#ffffff', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border)', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Optimization Engine</div>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--success)', marginTop: '4px' }}>
                       Derringer-Suich (DE)
                     </div>
                   </div>

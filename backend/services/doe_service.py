@@ -128,7 +128,7 @@ def recommend_designs(k: int, phase: str, has_htc: bool = False, constraints: li
         # Definitive Screening Design (DSD) - 3 level screening for k >= 3
         if k >= 3:
             dsd = generate_dsd(k)
-            # Recommend DSD for k >= 4
+            # Recommend DSD as top recommendation for k >= 4
             options.append({
                 "key": "DSD",
                 "label": "Definitive Screening Design (DSD)",
@@ -142,7 +142,7 @@ def recommend_designs(k: int, phase: str, has_htc: bool = False, constraints: li
             options.append({
                 "key": "FF",
                 "label": "Full Factorial",
-                "recommended": is_standard,
+                "recommended": (k < 4 and is_standard),
                 **d
             })
         else:
@@ -150,7 +150,8 @@ def recommend_designs(k: int, phase: str, has_htc: bool = False, constraints: li
             options.append({
                 "key": "FF",
                 "label": "Fractional Factorial",
-                "recommended": (4 <= k <= 7 and is_standard),
+                # Only recommend if DSD was not applicable (k < 4)
+                "recommended": False,
                 **ff
             })
             if k >= 5:
@@ -168,9 +169,14 @@ def recommend_designs(k: int, phase: str, has_htc: bool = False, constraints: li
         options.append({
             "key": "PB",
             "label": "Plackett-Burman",
-            "recommended": (k >= 8 and is_standard),
+            "recommended": (k >= 9 and is_standard),
             **pb
         })
+        if k >= 9 and is_standard:
+            # If PB is top recommended for k >= 9, demote DSD to maintain strictly 1 recommendation
+            for o in options:
+                if o["key"] == "DSD":
+                    o["recommended"] = False
 
         # Taguchi
         tg = taguchi(k)
@@ -193,7 +199,8 @@ def recommend_designs(k: int, phase: str, has_htc: bool = False, constraints: li
         options.append({
             "key": "CCD_FC",
             "label": "CCD Face-Centered",
-            "recommended": is_standard,
+            # If BBD was recommended (3-5 factors), CCD_FC should not duplicate the recommendation
+            "recommended": (k < 3 and is_standard),
             **ccd_fc
         })
 

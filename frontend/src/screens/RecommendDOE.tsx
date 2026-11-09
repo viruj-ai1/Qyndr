@@ -35,6 +35,21 @@ export default function RecommendDOE() {
   const [manualInitialTab, setManualInitialTab]         = useState<'wizard' | 'matrix' | 'deep-dives'>('wizard')
   const [manualInitialDesignId, setManualInitialDesignId] = useState<string | undefined>(undefined)
 
+  // Helper to ensure strictly at most one design has recommended === true
+  function enforceSingleRecommendation(rawOpts: any[]): any[] {
+    let foundFirst = false
+    return rawOpts.map((opt) => {
+      if (opt.recommended) {
+        if (!foundFirst) {
+          foundFirst = true
+          return opt
+        }
+        return { ...opt, recommended: false }
+      }
+      return opt
+    })
+  }
+
   async function loadOptions(ph: 'screening' | 'optimization', preferredKey?: string) {
     if (!currentProject?.id) return
     const projectFactors = currentProject.factors || []
@@ -52,7 +67,7 @@ export default function RecommendDOE() {
 
     try {
       const data = await DOE.recommend(currentProject.id, ph)
-      const opts = data.options || []
+      const opts = enforceSingleRecommendation(data.options || [])
       if (opts.length > 0) {
         setOptions(opts)
         const targetKey = preferredKey || selected
@@ -78,7 +93,7 @@ export default function RecommendDOE() {
       }
 
       // Automatically fallback to client-side algorithmic recommender based on active factors
-      const fallbackOpts = getLocalRecommendations(projectFactors.length, ph)
+      const fallbackOpts = enforceSingleRecommendation(getLocalRecommendations(projectFactors.length, ph))
       setOptions(fallbackOpts)
       setIsOfflineFallback(true)
 

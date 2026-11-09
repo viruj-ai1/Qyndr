@@ -47,7 +47,7 @@ export function getLocalRecommendations(k: number, phase: 'screening' | 'optimiz
         n_runs: ffRuns,
         n_factorial: ffRuns,
         n_center: 0,
-        recommended: safeK <= 3
+        recommended: safeK < 4
       })
     } else {
       const fracRuns = safeK === 4 ? 16 : safeK <= 6 ? 16 : 32
@@ -60,7 +60,8 @@ export function getLocalRecommendations(k: number, phase: 'screening' | 'optimiz
         n_runs: fracRuns,
         n_factorial: fracRuns,
         n_center: 0,
-        recommended: safeK >= 4 && safeK <= 7
+        // DSD is preferred for k >= 4, so keep FF as an alternative option, not duplicate recommendation
+        recommended: false
       })
     }
 
@@ -139,7 +140,7 @@ export function getLocalRecommendations(k: number, phase: 'screening' | 'optimiz
       n_factorial: ccdFact,
       n_axial: ccdAxial,
       n_center: 3,
-      recommended: true
+      recommended: safeK < 3 || safeK > 5
     })
 
     // 3. CCD Rotatable
@@ -173,3 +174,4 @@ export function getLocalRecommendations(k: number, phase: 'screening' | 'optimiz
 
   return options
 }
+

@@ -34,3 +34,4 @@ export const EXPERIMENT_PHASES: Record<'screening' | 'optimization', PhaseInfo> 
     designs: 'Central Composite (CCD), Box-Behnken (BBD), D-Optimal.'
   }
 }
+

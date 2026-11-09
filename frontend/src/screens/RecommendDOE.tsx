@@ -359,102 +359,184 @@ export default function RecommendDOE() {
                   {pInfo.subtitle}
                 </div>
 
-                {/* Popover anchored to the card */}
-                {isInfoOpen && (
-                  <div
-                    id={`phase-popover-${pk}`}
-                    ref={popoverRef}
-                    role="tooltip"
-                    onClick={(e) => e.stopPropagation()}
+      {/* Modal Dialog for Phase Information (compact pharma card style matching the DoE Selection Wizard) */}
+      {activeInfoPhase && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="phase-modal-title"
+          onClick={() => setActiveInfoPhase(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.45)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1.25rem',
+            animation: 'fadeIn 0.15s ease-out'
+          }}
+        >
+          <div
+            ref={popoverRef}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '520px',
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              boxShadow: '0 20px 45px -10px rgba(0, 0, 0, 0.3), 0 8px 20px -5px rgba(0, 91, 170, 0.15)',
+              border: '1px solid var(--border)',
+              overflow: 'hidden',
+              animation: 'popoverFadeScale 150ms ease-out forwards'
+            }}
+          >
+            {/* Modal Header styled like DoE Selection Wizard header */}
+            <div
+              style={{
+                padding: '1.1rem 1.4rem',
+                background: 'linear-gradient(135deg, #003d73 0%, #005baa 65%, #00aeb3 100%)',
+                color: '#ffffff',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.15)'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                  <span
                     style={{
-                      position: 'absolute',
-                      top: 'calc(100% + 10px)',
-                      right: 0,
-                      width: '320px',
-                      maxWidth: 'calc(100vw - 32px)',
-                      background: '#ffffff',
-                      border: '1.5px solid var(--primary)',
-                      borderRadius: '12px',
-                      boxShadow: '0 10px 30px rgba(0, 91, 170, 0.16), 0 4px 10px rgba(0,0,0,0.06)',
-                      padding: '1.1rem',
-                      zIndex: 100,
-                      animation: 'popoverFadeScale 120ms ease-out forwards',
-                      color: 'var(--text-primary)',
-                      cursor: 'default',
-                      textAlign: 'left'
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      color: '#ffffff',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      padding: '2px 7px',
+                      borderRadius: '10px',
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase'
                     }}
                   >
-                    {/* Popover Top Arrow */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '-8px',
-                        right: '18px',
-                        width: '14px',
-                        height: '14px',
-                        background: '#ffffff',
-                        borderLeft: '1.5px solid var(--primary)',
-                        borderTop: '1.5px solid var(--primary)',
-                        transform: 'rotate(45deg)'
-                      }}
-                    />
+                    ICH Q8(R2) Reference
+                  </span>
+                  <span style={{ fontSize: '0.72rem', opacity: 0.9 }}>
+                    Experiment Strategy Guide
+                  </span>
+                </div>
+                <h3 id="phase-modal-title" style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>
+                  {EXPERIMENT_PHASES[activeInfoPhase].title} Phase
+                </h3>
+              </div>
 
-                    {/* Popover Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-                      <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--primary)' }}>
-                        {pInfo.title}
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="Close details"
-                        onClick={() => {
-                          setActiveInfoPhase(null)
-                          btnRef.current?.focus()
-                        }}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--text-secondary)',
-                          cursor: 'pointer',
-                          padding: '2px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          borderRadius: '4px'
-                        }}
-                      >
-                        <X size={15} />
-                      </button>
-                    </div>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => {
+                  const closedPhase = activeInfoPhase
+                  setActiveInfoPhase(null)
+                  if (closedPhase === 'screening') infoBtnScreeningRef.current?.focus()
+                  else infoBtnOptimizationRef.current?.focus()
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  border: 'none',
+                  color: '#ffffff',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)')}
+              >
+                <X size={16} />
+              </button>
+            </div>
 
-                    {/* Popover Sections */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', fontSize: '0.79rem', lineHeight: 1.45 }}>
-                      <div>
-                        <strong style={{ display: 'block', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--primary)' }}>Purpose</strong>
-                        <span style={{ color: 'var(--text-secondary)' }}>{pInfo.purpose}</span>
-                      </div>
+            {/* Modal Body */}
+            <div style={{ padding: '1.25rem 1.4rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', fontSize: '0.84rem', lineHeight: 1.5 }}>
+              <div style={{ background: 'rgba(0, 91, 170, 0.04)', padding: '0.75rem 0.9rem', borderRadius: '10px', borderLeft: '4px solid var(--primary)' }}>
+                <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--primary)', marginBottom: '0.15rem' }}>
+                  🎯 Purpose
+                </strong>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                  {EXPERIMENT_PHASES[activeInfoPhase].purpose}
+                </span>
+              </div>
 
-                      <div>
-                        <strong style={{ display: 'block', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#059669' }}>Use when</strong>
-                        <span style={{ color: 'var(--text-secondary)' }}>{pInfo.useWhen}</span>
-                      </div>
+              <div>
+                <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#059669', marginBottom: '0.15rem' }}>
+                  ✅ Use when
+                </strong>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  {EXPERIMENT_PHASES[activeInfoPhase].useWhen}
+                </span>
+              </div>
 
-                      <div>
-                        <strong style={{ display: 'block', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--primary)' }}>You get</strong>
-                        <span style={{ color: 'var(--text-secondary)' }}>{pInfo.youGet}</span>
-                      </div>
+              <div>
+                <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--primary)', marginBottom: '0.15rem' }}>
+                  📊 You get
+                </strong>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  {EXPERIMENT_PHASES[activeInfoPhase].youGet}
+                </span>
+              </div>
 
-                      <div>
-                        <strong style={{ display: 'block', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#dc2626' }}>Not for</strong>
-                        <span style={{ color: 'var(--text-secondary)' }}>{pInfo.notFor}</span>
-                      </div>
+              <div>
+                <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#dc2626', marginBottom: '0.15rem' }}>
+                  ⚠️ Not for
+                </strong>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  {EXPERIMENT_PHASES[activeInfoPhase].notFor}
+                </span>
+              </div>
 
-                      <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.45rem', marginTop: '0.2rem' }}>
-                        <strong style={{ display: 'block', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-primary)' }}>Designs</strong>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{pInfo.designs}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-primary)', marginBottom: '0.15rem' }}>
+                  📐 Typical Designs
+                </strong>
+                <span style={{ color: 'var(--primary)', fontWeight: 600 }}>
+                  {EXPERIMENT_PHASES[activeInfoPhase].designs}
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                padding: '0.8rem 1.4rem',
+                background: '#f8fafc',
+                borderTop: '1px solid var(--border)',
+                display: 'flex',
+                justifyContent: 'flex-end'
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => {
+                  const closedPhase = activeInfoPhase
+                  setActiveInfoPhase(null)
+                  if (closedPhase === 'screening') infoBtnScreeningRef.current?.focus()
+                  else infoBtnOptimizationRef.current?.focus()
+                }}
+                style={{ padding: '0.4rem 1.1rem', fontSize: '0.8rem', borderRadius: '6px' }}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
               </div>
             )
           })}

@@ -1,5 +1,8 @@
+import { useState } from 'react'
 import { useStore, Step, normalizeStep } from '../../store/useStore'
 import { Projects } from '../../services/api'
+import { StepInfoButton, StepInfoPopup } from '../StepInfoPopup'
+import { StepBriefing, STEP_BRIEFINGS } from '../../config/stepBriefings'
 
 interface StepDef { key: Step; title: string; category?: string }
 
@@ -110,6 +113,13 @@ export default function Sidebar() {
   const { currentStep, setStep, currentProject, isBayesianEnabled, bayesResult, experiments } = store
   const currentIdx = stepIndex(normalizeStep(currentStep))
 
+  // State for Step Info Popup
+  const [activeBriefing, setActiveBriefing] = useState<{
+    briefing: StepBriefing
+    anchorRect: DOMRect | null
+    returnFocusEl: HTMLElement | null
+  } | null>(null)
+
   // Strictly hide unless user chooses Bayesian Optimization
   const isBayesianActive = Boolean(isBayesianEnabled)
 
@@ -123,6 +133,7 @@ export default function Sidebar() {
     const numStr = String(idx + 1).padStart(2, '0')
     return {
       ...step,
+      stepNumber: idx + 1,
       label: `${numStr}. ${step.title}`,
       icon: numStr,
     }
@@ -135,6 +146,19 @@ export default function Sidebar() {
     }
   }
 
+  const handleToggleInfo = (btnEl: HTMLElement, briefing: StepBriefing) => {
+    if (activeBriefing && activeBriefing.briefing.id === briefing.id) {
+      setActiveBriefing(null)
+    } else {
+      const rect = btnEl.getBoundingClientRect()
+      setActiveBriefing({
+        briefing,
+        anchorRect: rect,
+        returnFocusEl: btnEl
+      })
+    }
+  }
+
   return (
     <nav className="sidebar" style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 60px)' }}>
       <div className="sidebar-label">DOE Workflow Navigation</div>
@@ -142,6 +166,8 @@ export default function Sidebar() {
       {visibleSteps.map((step, idx) => {
         const isActive = step.key === currentStep || (step.key === 'generate-doe' && (currentStep === 'lab-experiments' || currentStep === 'upload-results'))
         const isCompleted = isStepDone(step.key, idx, currentIdx, store)
+        const isPopupOpen = activeBriefing?.briefing.id === step.key
+
         return (
           <div
             key={step.key}
@@ -157,9 +183,28 @@ export default function Sidebar() {
               ) : step.icon}
             </div>
             <span className="step-label">{step.label}</span>
+
+            {/* What happens on this page? Info button */}
+            <StepInfoButton
+              stepId={step.key}
+              stepTitle={step.title}
+              stepNumber={step.stepNumber}
+              isOpen={isPopupOpen}
+              onToggle={handleToggleInfo}
+            />
           </div>
         )
       })}
+
+      {/* Active Step Info Briefing Dialog */}
+      {activeBriefing && (
+        <StepInfoPopup
+          briefing={activeBriefing.briefing}
+          anchorRect={activeBriefing.anchorRect}
+          returnFocusEl={activeBriefing.returnFocusEl}
+          onClose={() => setActiveBriefing(null)}
+        />
+      )}
 
       {/* GP Loop indicator - only shown when Bayesian Optimization is active */}
       {isBayesianActive && (

@@ -1,6 +1,7 @@
 // src/screens/Welcome.tsx  –  Project Dashboard & Main Landing
 import { useState, useEffect, useMemo } from 'react'
 import { useStore } from '../store/useStore'
+import { useAuth } from '../context/AuthContext'
 import { Projects } from '../services/api'
 import toast from 'react-hot-toast'
 import logo from '../assets/logo.png'
@@ -19,6 +20,7 @@ import {
 
 export default function Welcome() {
   const { setProject, setStep } = useStore()
+  const { user, logout } = useAuth()
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -328,9 +330,10 @@ export default function Welcome() {
                 fontWeight: 600,
                 color: 'var(--text-secondary)'
               }}
+              title={user ? `Signed in as ${user.username}` : undefined}
             >
               <span style={{ fontSize: '0.95rem' }}>👨‍🔬</span>
-              <span>R&D Scientist</span>
+              <span>{user?.username || 'R&D Scientist'}</span>
             </div>
 
             {/* Primary Action Button */}
@@ -344,6 +347,30 @@ export default function Welcome() {
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
               New Project
+            </button>
+
+            {/* Logout Button */}
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={logout}
+              title="Log out and return to login page"
+              aria-label="Log out"
+              style={{
+                padding: '0.6rem 0.95rem',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                gap: '0.4rem',
+                color: '#64748b',
+                borderColor: 'var(--border)'
+              }}
+            >
+              <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              Logout
             </button>
           </div>
         </div>

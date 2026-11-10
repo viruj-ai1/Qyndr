@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import logo from '../assets/logo.png'
+import loginBg from '../assets/login-bg.jpg'
 
 export default function Login() {
   const { login } = useAuth()
@@ -50,7 +51,11 @@ export default function Login() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '1.5rem',
-        background: 'radial-gradient(circle at top right, rgba(0, 174, 179, 0.12), transparent 45%), radial-gradient(circle at bottom left, rgba(0, 91, 170, 0.08), transparent 45%), var(--bg-base)'
+        backgroundImage: `url(${loginBg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        position: 'relative'
       }}
     >
       <div
@@ -60,9 +65,13 @@ export default function Login() {
           maxWidth: '420px',
           padding: '2.5rem 2.2rem',
           borderRadius: '18px',
-          boxShadow: '0 25px 50px -12px rgba(0, 40, 80, 0.15), 0 10px 20px -5px rgba(0, 91, 170, 0.08)',
+          boxShadow: '0 25px 50px -12px rgba(0, 40, 80, 0.18), 0 10px 25px -5px rgba(0, 91, 170, 0.12)',
           border: '1.5px solid rgba(0, 174, 179, 0.25)',
-          background: '#ffffff'
+          background: 'rgba(255, 255, 255, 0.94)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          position: 'relative',
+          zIndex: 1
         }}
       >
         {/* Brand Header */}

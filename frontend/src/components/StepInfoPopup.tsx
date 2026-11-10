@@ -1,17 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
 import { StepBriefing, STEP_BRIEFINGS } from '../config/stepBriefings'
 
 interface StepInfoPopupProps {
   briefing: StepBriefing
-  anchorRect: DOMRect | null
+  anchorRect?: DOMRect | null
   onClose: () => void
-  returnFocusEl: HTMLElement | null
+  returnFocusEl?: HTMLElement | null
 }
 
 export const StepInfoPopup: React.FC<StepInfoPopupProps> = ({
   briefing,
-  anchorRect,
   onClose,
   returnFocusEl
 }) => {
@@ -20,7 +19,6 @@ export const StepInfoPopup: React.FC<StepInfoPopupProps> = ({
 
   // Focus trap / initial focus & Esc handler
   useEffect(() => {
-    // Focus close button on mount
     closeBtnRef.current?.focus()
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -52,7 +50,6 @@ export const StepInfoPopup: React.FC<StepInfoPopupProps> = ({
     }
 
     document.addEventListener('keydown', handleKeyDown)
-    // Delay outside click listener slightly so the open click doesn't trigger close
     const timer = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside)
     }, 10)
@@ -65,155 +62,84 @@ export const StepInfoPopup: React.FC<StepInfoPopupProps> = ({
     }
   }, [onClose, returnFocusEl])
 
-  // Calculate position: anchor to the right of the button on wide screens, centered/bottom-sheet on mobile
-  const [stylePos, setStylePos] = useState<React.CSSProperties>({
-    position: 'fixed',
-    zIndex: 99999,
-    visibility: 'hidden'
-  })
-
-  useEffect(() => {
-    if (!dialogRef.current) return
-    const isMobile = window.innerWidth <= 640
-
-    if (isMobile) {
-      setStylePos({
-        position: 'fixed',
-        left: '1rem',
-        right: '1rem',
-        bottom: '1rem',
-        maxHeight: '85vh',
-        zIndex: 99999,
-        visibility: 'visible',
-        animation: 'popoverFadeScale 150ms ease-out forwards'
-      })
-      return
-    }
-
-    if (anchorRect) {
-      const popupWidth = 360
-      const popupHeight = dialogRef.current.offsetHeight || 420
-      const padding = 12
-
-      // Preferred position: directly right of the button
-      let left = anchorRect.right + 10
-      // If overflowing right of screen, place on left of sidebar button
-      if (left + popupWidth > window.innerWidth - padding) {
-        left = Math.max(padding, anchorRect.left - popupWidth - 10)
-      }
-
-      // Vertical align: vertically centered with the button, clamped to viewport
-      let top = anchorRect.top + anchorRect.height / 2 - Math.min(popupHeight / 2, 140)
-      if (top < padding) top = padding
-      if (top + popupHeight > window.innerHeight - padding) {
-        top = Math.max(padding, window.innerHeight - popupHeight - padding)
-      }
-
-      setStylePos({
-        position: 'fixed',
-        top: `${top}px`,
-        left: `${left}px`,
-        width: `${popupWidth}px`,
-        maxHeight: `calc(100vh - ${padding * 2}px)`,
-        zIndex: 99999,
-        visibility: 'visible',
-        animation: 'popoverFadeScale 150ms ease-out forwards'
-      })
-    } else {
-      // Fallback centered
-      setStylePos({
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: '360px',
-        maxHeight: '85vh',
-        zIndex: 99999,
-        visibility: 'visible',
-        animation: 'popoverFadeScale 150ms ease-out forwards'
-      })
-    }
-  }, [anchorRect])
-
   const stepNumberFormatted = String(briefing.step).padStart(2, '0')
 
   return ReactDOM.createPortal(
-    <>
-      {/* Mobile backdrop */}
-      <div
-        className="step-info-backdrop"
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(15, 23, 42, 0.4)',
-          backdropFilter: 'blur(2px)',
-          zIndex: 99998,
-          animation: 'fadeIn 0.15s ease-out'
-        }}
-        onClick={onClose}
-      />
-
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={`step-briefing-title-${briefing.id}`}
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: 'rgba(15, 23, 42, 0.45)',
+        backdropFilter: 'blur(3px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 99999,
+        padding: '1.25rem',
+        animation: 'fadeIn 0.15s ease-out'
+      }}
+    >
       <div
         ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={`step-briefing-title-${briefing.id}`}
+        onClick={(e) => e.stopPropagation()}
         style={{
-          ...stylePos,
+          width: '100%',
+          maxWidth: '480px',
           backgroundColor: '#ffffff',
           borderRadius: '16px',
-          boxShadow: '0 20px 40px -10px rgba(0, 40, 80, 0.25), 0 8px 16px -4px rgba(0, 91, 170, 0.15)',
-          border: '1.5px solid rgba(0, 174, 179, 0.35)',
-          display: 'flex',
-          flexDirection: 'column',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35), 0 10px 25px -5px rgba(0, 91, 170, 0.2)',
+          border: '1px solid var(--border)',
           overflow: 'hidden',
-          color: 'var(--text-primary)'
+          animation: 'popoverFadeScale 150ms ease-out forwards',
+          display: 'flex',
+          flexDirection: 'column'
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header with gradient palette matching DoE Wizard */}
+        {/* Modal Header styled exactly like Step 08 Guide */}
         <div
           style={{
-            padding: '1rem 1.25rem',
+            padding: '1.1rem 1.4rem',
             background: 'linear-gradient(135deg, #003d73 0%, #005baa 65%, #00aeb3 100%)',
             color: '#ffffff',
             display: 'flex',
-            alignItems: 'flex-start',
             justifyContent: 'space-between',
-            gap: '0.75rem',
+            alignItems: 'center',
             borderBottom: '1px solid rgba(255, 255, 255, 0.15)',
             flexShrink: 0
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
               <span
                 style={{
-                  background: 'rgba(255, 255, 255, 0.22)',
+                  background: 'rgba(255, 255, 255, 0.2)',
                   color: '#ffffff',
-                  fontSize: '0.66rem',
-                  fontWeight: 800,
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
                   padding: '2px 7px',
                   borderRadius: '10px',
-                  letterSpacing: '0.06em',
+                  letterSpacing: '0.04em',
                   textTransform: 'uppercase'
                 }}
               >
                 Step {stepNumberFormatted} Guide
               </span>
-              <span style={{ fontSize: '0.72rem', opacity: 0.85, fontWeight: 500 }}>
+              <span style={{ fontSize: '0.72rem', opacity: 0.9 }}>
                 QbD Workflow
               </span>
             </div>
             <h3
               id={`step-briefing-title-${briefing.id}`}
-              style={{
-                fontSize: '1.05rem',
-                fontWeight: 800,
-                margin: 0,
-                color: '#ffffff',
-                lineHeight: 1.3
-              }}
+              style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#ffffff' }}
             >
               {briefing.title}
             </h3>
@@ -222,20 +148,19 @@ export const StepInfoPopup: React.FC<StepInfoPopupProps> = ({
           <button
             ref={closeBtnRef}
             type="button"
-            aria-label="Close step briefing"
+            aria-label="Close"
             onClick={onClose}
             style={{
               background: 'rgba(255, 255, 255, 0.15)',
               border: 'none',
               color: '#ffffff',
-              width: '26px',
-              height: '26px',
+              width: '28px',
+              height: '28px',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              flexShrink: 0,
               fontSize: '1.1rem',
               lineHeight: 1,
               transition: 'background 0.15s ease'
@@ -247,66 +172,62 @@ export const StepInfoPopup: React.FC<StepInfoPopupProps> = ({
           </button>
         </div>
 
-        {/* Scrollable Content Body */}
+        {/* Modal Body with clean typography and spacing matching image 1 */}
         <div
           style={{
-            padding: '1.1rem 1.25rem',
-            overflowY: 'auto',
-            maxHeight: '65vh',
+            padding: '1.25rem 1.4rem',
             display: 'flex',
             flexDirection: 'column',
-            gap: '0.9rem',
-            fontSize: '0.84rem'
+            gap: '0.85rem',
+            fontSize: '0.84rem',
+            lineHeight: 1.5,
+            overflowY: 'auto',
+            maxHeight: 'calc(85vh - 140px)'
           }}
         >
-          {/* Purpose banner */}
+          {/* Purpose block */}
           <div
             style={{
-              padding: '0.65rem 0.8rem',
-              background: 'rgba(0, 91, 170, 0.05)',
-              borderRadius: '8px',
-              borderLeft: '3.5px solid var(--primary)',
-              lineHeight: 1.45,
-              color: '#1e293b'
+              background: 'rgba(0, 91, 170, 0.04)',
+              padding: '0.75rem 0.9rem',
+              borderRadius: '10px',
+              borderLeft: '4px solid var(--primary)'
             }}
           >
-            <div
+            <strong
               style={{
-                fontSize: '0.68rem',
-                fontWeight: 800,
+                display: 'block',
+                fontSize: '0.72rem',
                 textTransform: 'uppercase',
-                letterSpacing: '0.06em',
+                letterSpacing: '0.04em',
                 color: 'var(--primary)',
-                marginBottom: '0.2rem'
+                marginBottom: '0.15rem'
               }}
             >
               🎯 Purpose
-            </div>
-            <div style={{ fontSize: '0.82rem', fontWeight: 500 }}>
+            </strong>
+            <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
               {briefing.purpose}
-            </div>
+            </span>
           </div>
 
           {/* Section: What you do here */}
           <div>
-            <div
+            <strong
               style={{
+                display: 'block',
                 fontSize: '0.72rem',
-                fontWeight: 700,
                 textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'var(--text-muted)',
-                marginBottom: '0.4rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem'
+                letterSpacing: '0.04em',
+                color: 'var(--text-primary)',
+                marginBottom: '0.25rem'
               }}
             >
-              <span>👤</span> What you do here
-            </div>
-            <ul style={{ margin: 0, paddingLeft: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              👤 What you do here
+            </strong>
+            <ul style={{ margin: 0, paddingLeft: '1.15rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
               {briefing.youDo.map((item, i) => (
-                <li key={i} style={{ lineHeight: 1.45, color: 'var(--text-secondary)' }}>
+                <li key={i} style={{ color: 'var(--text-secondary)' }}>
                   {item}
                 </li>
               ))}
@@ -315,65 +236,58 @@ export const StepInfoPopup: React.FC<StepInfoPopupProps> = ({
 
           {/* Section: What the system does */}
           <div>
-            <div
+            <strong
               style={{
+                display: 'block',
                 fontSize: '0.72rem',
-                fontWeight: 700,
                 textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'var(--text-muted)',
-                marginBottom: '0.4rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem'
+                letterSpacing: '0.04em',
+                color: 'var(--text-primary)',
+                marginBottom: '0.25rem'
               }}
             >
-              <span>⚙️</span> What the system does
-            </div>
-            <ul style={{ margin: 0, paddingLeft: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              ⚙️ What the system does
+            </strong>
+            <ul style={{ margin: 0, paddingLeft: '1.15rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
               {briefing.systemDoes.map((item, i) => (
-                <li key={i} style={{ lineHeight: 1.45, color: 'var(--text-secondary)' }}>
+                <li key={i} style={{ color: 'var(--text-secondary)' }}>
                   {item}
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Section: Output passed to next step */}
+          {/* Section: Output passed forward */}
           <div
             style={{
-              padding: '0.65rem 0.8rem',
               background: 'rgba(5, 150, 105, 0.06)',
-              borderRadius: '8px',
-              border: '1px solid rgba(5, 150, 105, 0.2)',
-              lineHeight: 1.45
+              padding: '0.7rem 0.9rem',
+              borderRadius: '10px',
+              border: '1px solid rgba(5, 150, 105, 0.2)'
             }}
           >
-            <div
+            <strong
               style={{
-                fontSize: '0.68rem',
-                fontWeight: 800,
+                display: 'block',
+                fontSize: '0.72rem',
                 textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'var(--success)',
-                marginBottom: '0.2rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.3rem'
+                letterSpacing: '0.04em',
+                color: '#059669',
+                marginBottom: '0.15rem'
               }}
             >
-              <span>📤</span> Output passed forward
-            </div>
-            <div style={{ fontSize: '0.82rem', color: '#0f766e', fontWeight: 500 }}>
+              📤 Output passed forward
+            </strong>
+            <span style={{ color: '#0f766e', fontWeight: 500 }}>
               {briefing.output}
-            </div>
+            </span>
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Modal Footer with "Got it" button */}
         <div
           style={{
-            padding: '0.65rem 1.25rem',
+            padding: '0.8rem 1.4rem',
             background: '#f8fafc',
             borderTop: '1px solid var(--border)',
             display: 'flex',
@@ -385,13 +299,13 @@ export const StepInfoPopup: React.FC<StepInfoPopupProps> = ({
             type="button"
             className="btn btn-primary btn-sm"
             onClick={onClose}
-            style={{ padding: '0.35rem 0.9rem', fontSize: '0.78rem' }}
+            style={{ padding: '0.4rem 1.25rem', fontSize: '0.82rem', borderRadius: '6px', fontWeight: 600 }}
           >
             Got it
           </button>
         </div>
       </div>
-    </>,
+    </div>,
     document.body
   )
 }
@@ -471,4 +385,5 @@ export const StepInfoButton: React.FC<StepInfoButtonProps> = ({
     </button>
   )
 }
+
 

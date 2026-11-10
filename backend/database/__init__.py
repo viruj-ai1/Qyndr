@@ -92,24 +92,30 @@ def init_db():
         except Exception as e:
             print("Auto-migration check notice:", e)
 
-    # Optional one-time Admin Bootstrap from .env
-    admin_user = os.getenv("ADMIN_USERNAME", "").strip()
-    admin_pass = os.getenv("ADMIN_PASSWORD", "").strip()
+    # Admin Bootstrap / Sync from .env or default credentials
+    admin_user = (os.getenv("ADMIN_USERNAME", "").strip() or "R&D_Lab_Head")
+    admin_pass = (os.getenv("ADMIN_PASSWORD", "").strip() or "R&D_Lab_Head@VG.in")
     if admin_user and admin_pass:
         from .models import User
-        from security import hash_password
+        from security import hash_password, verify_password
         db = SessionLocal()
         try:
-            existing = db.query(User).filter(User.username == admin_user.lower()).first()
+            normalized_username = admin_user.lower()
+            existing = db.query(User).filter(User.username == normalized_username).first()
             if not existing:
                 u = User(
-                    username=admin_user.lower(),
+                    username=normalized_username,
                     password_hash=hash_password(admin_pass),
                     is_active=True
                 )
                 db.add(u)
                 db.commit()
-                print(f"  [BOOTSTRAP] Initial admin user '{admin_user.lower()}' created.")
+                print(f"  [BOOTSTRAP] Initial admin user '{normalized_username}' created.")
+            elif not verify_password(admin_pass, existing.password_hash):
+                existing.password_hash = hash_password(admin_pass)
+                existing.is_active = True
+                db.commit()
+                print(f"  [BOOTSTRAP] Admin user '{normalized_username}' password updated from environment/defaults.")
         except Exception as bootstrap_err:
             print("Bootstrap admin notice:", bootstrap_err)
         finally:

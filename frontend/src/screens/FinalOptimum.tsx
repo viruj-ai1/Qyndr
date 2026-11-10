@@ -264,7 +264,7 @@ export default function FinalOptimum() {
                     <div style={{ marginBottom: '0.85rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '5px' }}>
                         <span>0% (Unacceptable)</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Quality Threshold: 80%</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Quality Target: 80%</span>
                         <span>100% (Ideal)</span>
                       </div>
                       <div style={{ height: '10px', background: '#e2e8f0', borderRadius: '999px', position: 'relative', overflow: 'hidden' }}>

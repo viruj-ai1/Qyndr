@@ -81,7 +81,6 @@ export default function App() {
       <div id="root">
         <div className="bg-canvas">
           <div className="bg-orb orb-1" /><div className="bg-orb orb-2" /><div className="bg-orb orb-3" />
-          <div className="grid-overlay" />
         </div>
         <div style={{ position: 'relative', zIndex: 1 }}>
           <ErrorBoundary><Screen /></ErrorBoundary>
@@ -94,7 +93,6 @@ export default function App() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', position: 'relative', zIndex: 1 }}>
       <div className="bg-canvas">
         <div className="bg-orb orb-1" /><div className="bg-orb orb-2" /><div className="bg-orb orb-3" />
-        <div className="grid-overlay" />
       </div>
       <Header />
       <div className="app-body">

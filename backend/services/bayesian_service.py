@@ -115,7 +115,7 @@ def fit_and_recommend(experiments: list, response_idx: int,
 
 
 def get_final_optimum(experiments: list, response_idx: int,
-                       factors: list) -> Dict[str, Any]:
+                       factors: list, goal: str = "maximize") -> Dict[str, Any]:
     """Find the final global optimum from GP model."""
     exp_dicts = []
     for e in experiments:
@@ -141,9 +141,43 @@ def get_final_optimum(experiments: list, response_idx: int,
     if gp_bundle is None:
         return {"error": "Not enough data"}
 
-    # Find global max of GP posterior mean (use UCB with kappa=0 → pure exploitation)
+    is_minimize = str(goal).strip().lower() == "minimize"
+
+    # Find optimum of GP posterior mean
+    # If minimizing, we look for the minimum predicted mean; if maximizing, maximum.
+    import numpy as np
     from ml.acquisition import find_next_experiment as _find
-    opt = _find(gp_bundle, factor_dicts, acquisition="UCB", n_grid=20, xi=0.0)
+    if is_minimize:
+        # Invert GP bundle sign in a shallow copy to use standard acquisition maximizer for minimization
+        import copy
+        min_bundle = copy.copy(gp_bundle)
+        # For pure exploitation (kappa=0), negate predicted mean logic by searching on grid
+        axes = [np.linspace(f["low"], f["high"], 20) for f in factor_dicts]
+        grids = np.meshgrid(*axes, indexing='ij')
+        X_flat = np.column_stack([g.ravel() for g in grids])
+        if len(X_flat) > 50_000:
+            idx = np.random.choice(len(X_flat), 50_000, replace=False)
+            X_flat = X_flat[idx]
+        from ml.gaussian_process import predict_gp
+        mu, sigma = predict_gp(gp_bundle, X_flat)
+        best_idx = int(np.argmin(mu))
+        best_x = X_flat[best_idx]
+        best_mu = float(mu[best_idx])
+        best_sig = float(sigma[best_idx])
+        opt = {
+            "actual_values": [round(float(v), 4) for v in best_x],
+            "predicted_mean": round(best_mu, 4),
+            "predicted_std": round(best_sig, 4),
+            "expected_improvement": 0.0,
+            "confidence_95": [
+                round(best_mu - 1.96 * best_sig, 4),
+                round(best_mu + 1.96 * best_sig, 4)
+            ],
+            "acquisition_type": "MIN_EXPLOITATION",
+            "xi": 0.0
+        }
+    else:
+        opt = _find(gp_bundle, factor_dicts, acquisition="UCB", n_grid=20, xi=0.0)
 
     # Best observed
     y_vals = [
@@ -152,7 +186,12 @@ def get_final_optimum(experiments: list, response_idx: int,
         if e["result_values"] is not None
     ]
     y_vals = [y for y in y_vals if y is not None]
-    best_obs_val = max(y_vals) if y_vals else None
+    
+    if is_minimize:
+        best_obs_val = min(y_vals) if y_vals else None
+    else:
+        best_obs_val = max(y_vals) if y_vals else None
+
     best_obs_run = next(
         (i + 1 for i, e in enumerate(exp_dicts)
          if e["result_values"] is not None and (
@@ -161,10 +200,16 @@ def get_final_optimum(experiments: list, response_idx: int,
     )
 
     initial_val = y_vals[0] if y_vals else None
-    improvement = (
-        round(((best_obs_val - initial_val) / abs(initial_val)) * 100, 1)
-        if initial_val and initial_val != 0 else 0.0
-    )
+    
+    if initial_val is not None and abs(initial_val) > 1e-9 and best_obs_val is not None:
+        if is_minimize:
+            # Improvement means reduction in impurity / defect: (initial - best) / initial * 100
+            improvement = round(((initial_val - best_obs_val) / abs(initial_val)) * 100, 1)
+        else:
+            # Improvement means increase in yield / purity: (best - initial) / initial * 100
+            improvement = round(((best_obs_val - initial_val) / abs(initial_val)) * 100, 1)
+    else:
+        improvement = 0.0
 
     return {
         "final_optimum":  opt,
@@ -172,7 +217,8 @@ def get_final_optimum(experiments: list, response_idx: int,
         "initial_value":  initial_val,
         "improvement_pct": improvement,
         "n_obs":          gp_bundle["n_obs"],
-        "gp_log_likelihood": gp_bundle["log_likelihood"]
+        "gp_log_likelihood": gp_bundle["log_likelihood"],
+        "goal":           "minimize" if is_minimize else "maximize"
     }
 
 

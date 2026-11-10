@@ -230,10 +230,13 @@ def final_optimum(body: schemas.BayesRecommendRequest, db: Session = Depends(get
     exps    = crud.get_experiments(db, body.project_id)
     responses = crud.get_responses(db, body.project_id)
     resp_idx = body.response_idx
+    resp_goal = "maximize"
     if responses and (resp_idx < 0 or resp_idx >= len(responses)):
         resp_idx = 0
+    if responses and resp_idx < len(responses):
+        resp_goal = getattr(responses[resp_idx], "goal", "maximize") or "maximize"
 
-    result  = get_final_optimum(exps, resp_idx, factors)
+    result  = get_final_optimum(exps, resp_idx, factors, goal=resp_goal)
     if "error" in result:
         # Return sensible fallback optimum if GP optimization encounters singularity
         result = {
@@ -298,7 +301,10 @@ def get_llm_summary(body: schemas.BayesRecommendRequest, db: Session = Depends(g
     responses = [{"name": r.name, "goal": r.goal} for r in crud.get_responses(db, body.project_id)]
     analyses = [{"response_idx": a.response_idx, "regression": a.regression} for a in crud.get_analyses(db, body.project_id)]
     exps = crud.get_experiments(db, body.project_id)
-    gp_opt = get_final_optimum(exps, body.response_idx, factors)
+    target_goal = "maximize"
+    if responses and body.response_idx < len(responses):
+        target_goal = getattr(responses[body.response_idx], "goal", "maximize") or "maximize"
+    gp_opt = get_final_optimum(exps, body.response_idx, factors, goal=target_goal)
     n_obs = len([e for e in exps if e.result_values is not None])
     
     result = generate_llm_summary(proj.name, factors, responses, analyses, gp_opt, n_obs)

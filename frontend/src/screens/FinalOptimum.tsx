@@ -497,10 +497,14 @@ export default function FinalOptimum() {
                 const currentResp = responses[activeTab]
                 const respName = simplifyResponseName(currentResp?.name, currentResp?.goal)
                 const unitStr = currentResp?.unit ? ` ${currentResp.unit}` : ''
+                const goal = (currentResp?.goal || 'maximize').toLowerCase()
+                const isMinimize = goal === 'minimize'
+
                 const impPct = fr.improvement_pct != null && !isNaN(Number(fr.improvement_pct)) ? Number(fr.improvement_pct) : 0
                 const isPositiveImp = impPct >= 0
                 const predOptVal = fr.final_optimum?.predicted_mean != null && !isNaN(Number(fr.final_optimum.predicted_mean)) ? Number(fr.final_optimum.predicted_mean) : null
                 const bestObsVal = fr.best_observed?.value != null && !isNaN(Number(fr.best_observed.value)) ? Number(fr.best_observed.value) : null
+                const initialObsVal = fr.initial_value != null && !isNaN(Number(fr.initial_value)) ? Number(fr.initial_value) : null
                 const targetSpec = currentResp?.target != null ? `${currentResp.target}${unitStr}` : (currentResp?.lower_limit != null || currentResp?.upper_limit != null ? `${currentResp?.lower_limit ?? '-∞'} to ${currentResp?.upper_limit ?? '+∞'}${unitStr}` : 'Optimal')
 
                 return (
@@ -568,7 +572,7 @@ export default function FinalOptimum() {
                           {isPositiveImp ? `+${impPct.toFixed(1)}%` : `${impPct.toFixed(1)}%`}
                         </div>
                         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '0.4rem' }}>
-                          Improvement from first run
+                          {isMinimize ? 'Reduction from first run' : 'Improvement from first run'}
                         </div>
                       </div>
 
@@ -577,15 +581,15 @@ export default function FinalOptimum() {
                         {/* Visual Progress Track */}
                         <div style={{ marginBottom: '0.85rem' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '5px' }}>
-                            <span>Initial Baseline</span>
+                            <span>Initial Baseline ({initialObsVal != null ? `${initialObsVal.toFixed(2)}${unitStr}` : '—'})</span>
                             <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Target Spec: {targetSpec}</span>
-                            <span>Best Peak ({bestObsVal != null ? `${bestObsVal.toFixed(2)}${unitStr}` : '—'})</span>
+                            <span>Best Observed ({bestObsVal != null ? `${bestObsVal.toFixed(2)}${unitStr}` : '—'})</span>
                           </div>
                           <div style={{ height: '10px', background: '#e2e8f0', borderRadius: '999px', position: 'relative', overflow: 'hidden' }}>
                             <div
                               style={{
                                 height: '100%',
-                                width: `${Math.min(100, Math.max(15, Math.abs(impPct) * 8 + 20))}%`,
+                                width: `${Math.min(100, Math.max(15, Math.abs(impPct) * 1.5 + 20))}%`,
                                 background: 'linear-gradient(90deg, #10b981, #00aeb3)',
                                 borderRadius: '999px',
                                 transition: 'width 0.5s ease'
@@ -606,7 +610,7 @@ export default function FinalOptimum() {
                         }}>
                           <span style={{ fontSize: '1.1rem' }}>🟢</span>
                           <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: 1.45, fontWeight: 500 }}>
-                            Optimal Coordinate Identified – Best observed value of <strong>{bestObsVal != null ? `${bestObsVal.toFixed(3)}${unitStr}` : '—'}</strong> attained at Run #{fr.best_observed?.run_number ?? '—'} with predicted mean of <strong>{predOptVal != null ? `${predOptVal.toFixed(3)}${unitStr}` : '—'}</strong>.
+                            Optimal Coordinate Identified – Best observed {isMinimize ? 'minimum' : 'optimum'} of <strong>{bestObsVal != null ? `${bestObsVal.toFixed(3)}${unitStr}` : '—'}</strong> achieved at Run #{fr.best_observed?.run_number ?? '—'} with predicted mean of <strong>{predOptVal != null ? `${predOptVal.toFixed(3)}${unitStr}` : '—'}</strong>.
                           </span>
                         </div>
                       </div>

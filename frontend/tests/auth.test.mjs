@@ -12,7 +12,8 @@ describe('Frontend Authentication Integration Tests', () => {
     const loginFilePath = path.resolve(__dirname, '../src/screens/Login.tsx')
     const content = fs.readFileSync(loginFilePath, 'utf8')
 
-    assert.ok(content.includes('Sign in to Qyndr'), 'Login screen must have title')
+    assert.ok(content.includes('Sign in'), 'Login screen must have title')
+    assert.ok(content.includes('Viruj Chematrix'), 'Login screen must render brand header')
     assert.ok(content.includes('autoComplete="username"'), 'Username input must have autoComplete attribute')
     assert.ok(content.includes('autoComplete="current-password"'), 'Password input must have autoComplete attribute')
     assert.ok(content.includes('429'), 'Login must check for 429 rate-limit responses')

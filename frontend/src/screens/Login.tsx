@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import logo from '../assets/logo.png'
 
 export default function Login() {
   const { login } = useAuth()
@@ -66,37 +67,39 @@ export default function Login() {
       >
         {/* Brand Header */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '52px',
-              height: '52px',
-              borderRadius: '14px',
-              background: 'linear-gradient(135deg, #003d73 0%, #005baa 65%, #00aeb3 100%)',
-              color: '#ffffff',
-              fontSize: '1.75rem',
-              fontWeight: 900,
-              marginBottom: '0.85rem',
-              boxShadow: '0 4px 14px rgba(0, 91, 170, 0.25)'
-            }}
-          >
-            Q
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.85rem', marginBottom: '0.85rem' }}>
+            <img
+              src={logo}
+              alt="Viruj Chematrix Logo"
+              style={{ height: '46px', width: 'auto', objectFit: 'contain' }}
+            />
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', lineHeight: 1 }}>
+                <span style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em' }}>
+                  Viruj
+                </span>
+                <span style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.025em' }}>
+                  Chematrix
+                </span>
+              </div>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: '3px' }}>
+                DoE & QbD Platform
+              </div>
+            </div>
           </div>
           <h1
             style={{
-              fontSize: '1.6rem',
+              fontSize: '1.35rem',
               fontWeight: 800,
               color: '#0f172a',
-              margin: '0 0 0.35rem 0',
+              margin: '0.75rem 0 0.25rem 0',
               letterSpacing: '-0.02em'
             }}
           >
-            Sign in to Qyndr
+            Sign in
           </h1>
-          <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', margin: 0 }}>
-            ICH Q8(R2) Fast DoE & QbD Optimization Studio
+          <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', margin: 0 }}>
+            ICH Q8(R2) Formulation & Process Optimization
           </p>
         </div>
 
@@ -275,3 +278,4 @@ export default function Login() {
     </div>
   )
 }
+

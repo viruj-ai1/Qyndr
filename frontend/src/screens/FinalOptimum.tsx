@@ -492,45 +492,169 @@ export default function FinalOptimum() {
         <>
           {fr ? (
             <>
-              {/* Improvement highlight */}
-              <div className="card mb-2" style={{ background:'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(6,182,212,0.1))', border:'1px solid rgba(16,185,129,0.3)', padding:'2rem', textAlign:'center' }}>
-                <div style={{ fontSize:'0.8rem', fontWeight:700, color:'var(--success)', textTransform:'uppercase', letterSpacing:'0.12em', marginBottom:'0.75rem' }}>
-                  🏆 {simplifyResponseName(responses[activeTab]?.name, responses[activeTab]?.goal)} GP Optimum
-                </div>
-                {fr.improvement_pct != null && fr.improvement_pct !== 0 && (
-                  <>
-                    <div style={{ fontSize:'4rem', fontWeight:900, color:'var(--success)', lineHeight:1 }}>
-                      +{Number(fr.improvement_pct).toFixed(1)}%
-                    </div>
-                    <div style={{ color:'var(--text-secondary)', fontSize:'0.9rem', marginTop:'0.5rem' }}>
-                      Improvement from first run to best observed
-                    </div>
-                  </>
-                )}
-                <div style={{ display:'flex', justifyContent:'center', gap:'2rem', marginTop:'1.5rem', flexWrap:'wrap' }}>
-                  <div>
-                    <div style={{ fontSize:'0.72rem', color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Total Experiments</div>
-                    <div style={{ fontSize:'1.4rem', fontWeight:800, color:'var(--accent)' }}>{fr.n_obs ?? totalObs}</div>
-                  </div>
-                  {fr.best_observed && (
-                    <div>
-                      <div style={{ fontSize:'0.72rem', color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Best Observed Value</div>
-                      <div style={{ fontSize:'1.4rem', fontWeight:800, color:'var(--success)' }}>
-                        {fr.best_observed.value != null && !isNaN(Number(fr.best_observed.value)) ? Number(fr.best_observed.value).toFixed(3) : '—'}
+              {/* Improvement highlight Hero Card matching Multi-Objective layout */}
+              {(() => {
+                const currentResp = responses[activeTab]
+                const respName = simplifyResponseName(currentResp?.name, currentResp?.goal)
+                const unitStr = currentResp?.unit ? ` ${currentResp.unit}` : ''
+                const impPct = fr.improvement_pct != null && !isNaN(Number(fr.improvement_pct)) ? Number(fr.improvement_pct) : 0
+                const isPositiveImp = impPct >= 0
+                const predOptVal = fr.final_optimum?.predicted_mean != null && !isNaN(Number(fr.final_optimum.predicted_mean)) ? Number(fr.final_optimum.predicted_mean) : null
+                const bestObsVal = fr.best_observed?.value != null && !isNaN(Number(fr.best_observed.value)) ? Number(fr.best_observed.value) : null
+                const targetSpec = currentResp?.target != null ? `${currentResp.target}${unitStr}` : (currentResp?.lower_limit != null || currentResp?.upper_limit != null ? `${currentResp?.lower_limit ?? '-∞'} to ${currentResp?.upper_limit ?? '+∞'}${unitStr}` : 'Optimal')
+
+                return (
+                  <div className="card mb-2" style={{
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,253,250,0.85) 100%)',
+                    border: '1.5px solid rgba(0, 174, 179, 0.25)',
+                    borderRadius: '16px',
+                    padding: '1.6rem 2rem',
+                    boxShadow: '0 10px 30px rgba(0, 91, 170, 0.06)'
+                  }}>
+                    {/* Top Badge & Title Row */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem', paddingBottom: '0.9rem', borderBottom: '1px solid rgba(0, 91, 170, 0.08)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          background: 'rgba(0, 91, 170, 0.1)',
+                          color: 'var(--primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1rem'
+                        }}>
+                          🏆
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>
+                            {respName} GP Optimum Model
+                          </div>
+                          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                            Gaussian Process response surface optimization & predictive convergence
+                          </div>
+                        </div>
                       </div>
-                      <div style={{ fontSize:'0.72rem', color:'var(--text-muted)' }}>
-                        Run #{fr.best_observed.run_number} {responses[activeTab] ? `· ${simplifyResponseName(responses[activeTab].name, responses[activeTab].goal)}` : ''}
+
+                      <span style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        background: 'rgba(5,150,105,0.1)',
+                        color: '#059669',
+                        border: '1px solid rgba(5,150,105,0.25)'
+                      }}>
+                        {currentResp?.goal ? `${currentResp.goal.toUpperCase()} OPTIMUM` : 'OPTIMAL CONVERGENCE'}
+                      </span>
+                    </div>
+
+                    {/* Score & Gauge Section */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 240px) 1fr', gap: '2rem', alignItems: 'center' }}>
+                      {/* Big Value Display */}
+                      <div style={{ textAlign: 'center', padding: '1rem 0', borderRight: '1px solid rgba(0,0,0,0.06)' }}>
+                        <div style={{
+                          fontSize: '3.6rem',
+                          fontWeight: 900,
+                          fontFamily: 'var(--font-sans)',
+                          background: 'linear-gradient(135deg, #059669, #00aeb3)',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          lineHeight: 1
+                        }}>
+                          {isPositiveImp ? `+${impPct.toFixed(1)}%` : `${impPct.toFixed(1)}%`}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '0.4rem' }}>
+                          Improvement from first run
+                        </div>
+                      </div>
+
+                      {/* Progress / Gauge & Status Breakdown */}
+                      <div>
+                        {/* Visual Progress Track */}
+                        <div style={{ marginBottom: '0.85rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '5px' }}>
+                            <span>Initial Baseline</span>
+                            <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Target Spec: {targetSpec}</span>
+                            <span>Best Peak ({bestObsVal != null ? `${bestObsVal.toFixed(2)}${unitStr}` : '—'})</span>
+                          </div>
+                          <div style={{ height: '10px', background: '#e2e8f0', borderRadius: '999px', position: 'relative', overflow: 'hidden' }}>
+                            <div
+                              style={{
+                                height: '100%',
+                                width: `${Math.min(100, Math.max(15, Math.abs(impPct) * 8 + 20))}%`,
+                                background: 'linear-gradient(90deg, #10b981, #00aeb3)',
+                                borderRadius: '999px',
+                                transition: 'width 0.5s ease'
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Status Text Card */}
+                        <div style={{
+                          background: 'rgba(5, 150, 105, 0.06)',
+                          border: '1px solid rgba(5, 150, 105, 0.2)',
+                          borderRadius: '8px',
+                          padding: '0.65rem 0.9rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.6rem'
+                        }}>
+                          <span style={{ fontSize: '1.1rem' }}>🟢</span>
+                          <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: 1.45, fontWeight: 500 }}>
+                            Optimal Coordinate Identified – Best observed value of <strong>{bestObsVal != null ? `${bestObsVal.toFixed(3)}${unitStr}` : '—'}</strong> attained at Run #{fr.best_observed?.run_number ?? '—'} with predicted mean of <strong>{predOptVal != null ? `${predOptVal.toFixed(3)}${unitStr}` : '—'}</strong>.
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  )}
-                  <div>
-                    <div style={{ fontSize:'0.72rem', color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.08em' }}>GP Predicted Optimum</div>
-                    <div style={{ fontSize:'1.4rem', fontWeight:800, color:'var(--primary-light)' }}>
-                      {fr.final_optimum?.predicted_mean != null && !isNaN(Number(fr.final_optimum.predicted_mean)) ? Number(fr.final_optimum.predicted_mean).toFixed(3) : '—'}
+
+                    {/* Bottom 3-Card Metrics Strip */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: '1rem',
+                      marginTop: '1.4rem',
+                      paddingTop: '1.1rem',
+                      borderTop: '1px solid rgba(0, 91, 170, 0.08)'
+                    }}>
+                      <div style={{ background: '#ffffff', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border)', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Total Experiments</div>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--accent)', marginTop: '2px' }}>
+                          {fr.n_obs ?? totalObs} <span style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)' }}>runs</span>
+                        </div>
+                      </div>
+
+                      <div style={{ background: '#ffffff', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border)', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Best Observed Value</div>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--success)', marginTop: '2px' }}>
+                          {bestObsVal != null ? bestObsVal.toFixed(3) : '—'} {unitStr && <span style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)' }}>{unitStr}</span>}
+                        </div>
+                        {fr.best_observed?.run_number != null && (
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            Run #{fr.best_observed.run_number} · {respName}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ background: '#ffffff', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border)', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>GP Predicted Optimum</div>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--primary-light)', marginTop: '2px' }}>
+                          {predOptVal != null ? predOptVal.toFixed(3) : '—'} {unitStr && <span style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)' }}>{unitStr}</span>}
+                        </div>
+                        {fr.final_optimum?.confidence_95 && Array.isArray(fr.final_optimum.confidence_95) && (
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            95% CI: [{Number(fr.final_optimum.confidence_95[0] ?? 0).toFixed(2)}, {Number(fr.final_optimum.confidence_95[1] ?? 0).toFixed(2)}]
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                )
+              })()}
 
               {/* Optimal conditions table with PAR/NOR for Individual Response */}
               <div className="card mb-2">

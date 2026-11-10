@@ -15,8 +15,8 @@ TOKEN_EXPIRY_HOURS = int(os.getenv("TOKEN_EXPIRY_HOURS", "8"))
 # In-memory rate limiting store: key -> list of timestamp failures
 # Key format: f"{ip}:{username.lower()}"
 _FAILED_LOGIN_ATTEMPTS: Dict[str, list] = {}
-RATE_LIMIT_WINDOW_SECONDS = 15 * 60  # 15 minutes
-MAX_FAILED_ATTEMPTS = 5
+RATE_LIMIT_WINDOW_SECONDS = 5 * 60  # 5 minutes
+MAX_FAILED_ATTEMPTS = 15
 
 
 def hash_password(password: str) -> str:

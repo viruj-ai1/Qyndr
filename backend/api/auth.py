@@ -91,7 +91,15 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     """Authenticate user with rate limiting and issue signed JWT."""
-    client_ip = request.client.host if request.client else "127.0.0.1"
+    # Handle forwarded proxy IPs (Vercel / Render)
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        client_ip = forwarded_for.split(",")[0].strip()
+    elif request.client:
+        client_ip = request.client.host
+    else:
+        client_ip = "127.0.0.1"
+
     clean_username = payload.username.strip().lower()
 
     if not clean_username or not payload.password:

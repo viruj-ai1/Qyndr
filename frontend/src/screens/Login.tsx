@@ -66,41 +66,27 @@ export default function Login() {
         }}
       >
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.85rem', marginBottom: '0.85rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2.25rem' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '1.15rem' }}>
             <img
               src={logo}
               alt="Viruj Chematrix Logo"
-              style={{ height: '46px', width: 'auto', objectFit: 'contain' }}
+              style={{ height: '62px', width: 'auto', objectFit: 'contain' }}
             />
             <div style={{ textAlign: 'left' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', lineHeight: 1 }}>
-                <span style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', lineHeight: 1.05 }}>
+                <span style={{ fontSize: '1.95rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em' }}>
                   Viruj
                 </span>
-                <span style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.025em' }}>
+                <span style={{ fontSize: '1.95rem', fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.03em' }}>
                   Chematrix
                 </span>
               </div>
-              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: '3px' }}>
-                DoE & QbD Platform
+              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: '6px' }}>
+                DOE & QBD PLATFORM
               </div>
             </div>
           </div>
-          <h1
-            style={{
-              fontSize: '1.35rem',
-              fontWeight: 800,
-              color: '#0f172a',
-              margin: '0.75rem 0 0.25rem 0',
-              letterSpacing: '-0.02em'
-            }}
-          >
-            Sign in
-          </h1>
-          <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', margin: 0 }}>
-            ICH Q8(R2) Formulation & Process Optimization
-          </p>
         </div>
 
         {/* Error Alert Box */}

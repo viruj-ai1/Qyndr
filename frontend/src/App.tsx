@@ -25,10 +25,13 @@ import BayesianOpt         from './screens/BayesianOpt'
 import NewExperiment       from './screens/NewExperiment'
 import FinalOptimum        from './screens/FinalOptimum'
 import Report              from './screens/Report'
+import Login               from './screens/Login'
 import { useEffect }       from 'react'
+import { useAuth }         from './context/AuthContext'
 
 const SCREEN_MAP: Record<string, React.FC> = {
   'welcome':               Welcome,
+  'login':                 Login,
   'create-project':        CreateProject,
   'qtpp':                  QTPPDefinition,
   'cqa':                   CQADerivation,
@@ -60,6 +63,7 @@ const SCREEN_MAP: Record<string, React.FC> = {
 
 export default function App() {
   const { currentStep, setStep } = useStore()
+  const { user, loading } = useAuth()
 
   // URL route handling & redirect from /campaign-dashboard to /stage-campaign-matrix
   useEffect(() => {
@@ -70,8 +74,61 @@ export default function App() {
       setStep('stage-campaign-matrix')
     } else if (pathname === '/stage-campaign-matrix' || pathname === '/stage-overview') {
       setStep('stage-campaign-matrix')
+    } else if (pathname === '/login') {
+      // If user navigated directly to /login
+      if (user) {
+        window.history.replaceState(null, '', '/')
+        setStep('welcome')
+      }
     }
-  }, [setStep])
+  }, [setStep, user])
+
+  // 1. Loading session state check
+  if (loading) {
+    return (
+      <div
+        style={{
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--bg-base)',
+          color: 'var(--text-muted)',
+          gap: '1rem'
+        }}
+      >
+        <div
+          style={{
+            width: '32px',
+            height: '32px',
+            border: '3px solid rgba(0, 91, 170, 0.15)',
+            borderTopColor: 'var(--primary)',
+            borderRadius: '50%',
+            animation: 'spin 0.6s linear infinite'
+          }}
+        />
+        <div style={{ fontSize: '0.88rem', fontWeight: 500 }}>
+          Authenticating Qyndr session...
+        </div>
+      </div>
+    )
+  }
+
+  // 2. Unauthenticated Gate: Redirect to /login
+  const isLoginPage = typeof window !== 'undefined' && window.location.pathname.toLowerCase().startsWith('/login')
+  if (!user) {
+    if (!isLoginPage && typeof window !== 'undefined') {
+      const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
+      window.history.replaceState(null, '', `/login?returnUrl=${returnUrl}`)
+    }
+    return <Login />
+  }
+
+  // 3. Authenticated: if user is on /login URL, push back to application root
+  if (isLoginPage && typeof window !== 'undefined') {
+    window.history.replaceState(null, '', '/')
+  }
 
   const normalized = normalizeStep(currentStep)
   const Screen = SCREEN_MAP[normalized] || SCREEN_MAP[currentStep] || Welcome

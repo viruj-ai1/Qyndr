@@ -127,3 +127,15 @@ class GPIteration(Base):
     created_at    = Column(DateTime, default=datetime.utcnow)
 
     project       = relationship("Project", back_populates="gp_iters")
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    username      = Column(String(100), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    is_active     = Column(Boolean, default=True, nullable=False)
+    created_at    = Column(DateTime, default=datetime.utcnow)
+    last_login_at = Column(DateTime, nullable=True)
+

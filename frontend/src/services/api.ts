@@ -1,11 +1,30 @@
 // src/services/api.ts  –  Axios API service layer
 import axios from 'axios'
 
-const api = axios.create({ baseURL: '/api', timeout: 60000 })
+const api = axios.create({
+  baseURL: '/api',
+  timeout: 60000,
+  withCredentials: true // send & receive HttpOnly cookies
+})
+
+// Attach Bearer token fallback from storage if available
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('qyndr_auth_token')
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
 
 api.interceptors.response.use(
   r => r,
   e => {
+    // If 401 unauthorized on protected route, trigger session cleanup
+    if (e.response?.status === 401 && !e.config?.url?.includes('/auth/login')) {
+      localStorage.removeItem('qyndr_auth_token')
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'))
+    }
+
     console.error('API Error:', e.response?.data || e.message)
     if (e.response?.data && e.response.data.detail) {
       const detail = e.response.data.detail
@@ -21,6 +40,31 @@ api.interceptors.response.use(
     return Promise.reject(e)
   }
 )
+
+/* ── Authentication ────────────────────────────────────────── */
+export interface UserProfile {
+  id: number
+  username: string
+  is_active: boolean
+  created_at?: string
+  last_login_at?: string
+}
+
+export interface LoginResponse {
+  access_token: string
+  token_type: string
+  user: UserProfile
+}
+
+export const Auth = {
+  login: (username: string, password: string): Promise<LoginResponse> =>
+    api.post('/auth/login', { username, password }).then(r => r.data),
+  logout: (): Promise<{ status: string; message: string }> =>
+    api.post('/auth/logout').then(r => r.data),
+  me: (): Promise<UserProfile> =>
+    api.get('/auth/me').then(r => r.data)
+}
+
 
 /* ── Projects ─────────────────────────────────────────────── */
 export const Projects = {

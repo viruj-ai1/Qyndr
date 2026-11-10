@@ -92,4 +92,27 @@ def init_db():
         except Exception as e:
             print("Auto-migration check notice:", e)
 
+    # Optional one-time Admin Bootstrap from .env
+    admin_user = os.getenv("ADMIN_USERNAME", "").strip()
+    admin_pass = os.getenv("ADMIN_PASSWORD", "").strip()
+    if admin_user and admin_pass:
+        from .models import User
+        from security import hash_password
+        db = SessionLocal()
+        try:
+            existing = db.query(User).filter(User.username == admin_user.lower()).first()
+            if not existing:
+                u = User(
+                    username=admin_user.lower(),
+                    password_hash=hash_password(admin_pass),
+                    is_active=True
+                )
+                db.add(u)
+                db.commit()
+                print(f"  [BOOTSTRAP] Initial admin user '{admin_user.lower()}' created.")
+        except Exception as bootstrap_err:
+            print("Bootstrap admin notice:", bootstrap_err)
+        finally:
+            db.close()
+
 

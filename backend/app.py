@@ -21,6 +21,7 @@ env_path = pathlib.Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=env_path, override=True)
 
 from database import init_db
+from api.auth        import router as auth_router, get_current_user
 from api.projects    import router as projects_router
 from api.doe         import router as doe_router
 from api.analysis    import router as analysis_router
@@ -62,11 +63,22 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 # ── CORS ────────────────────────────────────────────────────
-origins = ["*"]
+env_origins = os.getenv("ALLOWED_ORIGINS", "")
+origins_list = [o.strip() for o in env_origins.split(",") if o.strip()]
+if not origins_list:
+    origins_list = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://designofexperiments.onrender.com"
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=False,
+    allow_origins=origins_list,
+    allow_origin_regex=r"^https://.*\.vercel\.app$",
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -74,13 +86,20 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 
 
 # ── Routers ─────────────────────────────────────────────────
+from fastapi import Depends
 PREFIX = "/api"
-app.include_router(projects_router,    prefix=PREFIX)
-app.include_router(doe_router,         prefix=PREFIX)
-app.include_router(analysis_router,    prefix=PREFIX)
-app.include_router(optimization_router,prefix=PREFIX)
-app.include_router(reports_router,     prefix=PREFIX)
-app.include_router(chat_router)
+
+# Public Auth Router (Login, Logout, /me)
+app.include_router(auth_router, prefix=PREFIX)
+
+# Protected Domain Routers: require valid JWT / session
+auth_dep = [Depends(get_current_user)]
+app.include_router(projects_router,     prefix=PREFIX, dependencies=auth_dep)
+app.include_router(doe_router,          prefix=PREFIX, dependencies=auth_dep)
+app.include_router(analysis_router,     prefix=PREFIX, dependencies=auth_dep)
+app.include_router(optimization_router, prefix=PREFIX, dependencies=auth_dep)
+app.include_router(reports_router,      prefix=PREFIX, dependencies=auth_dep)
+app.include_router(chat_router,         dependencies=auth_dep)
 
 
 # ── Root & Health ───────────────────────────────────────────

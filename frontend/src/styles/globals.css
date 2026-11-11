@@ -83,7 +83,6 @@ a { color: inherit; text-decoration: none; }
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  background-attachment: fixed;
 }
 .bg-canvas::before {
   content: '';
@@ -145,6 +144,7 @@ a { color: inherit; text-decoration: none; }
 
 .app-body {
   flex: 1; display: flex; overflow: hidden;
+  position: relative; z-index: 1;
 }
 
 /* ── Sidebar ─────────────────────────────────────────────────*/
@@ -157,6 +157,7 @@ a { color: inherit; text-decoration: none; }
   padding: 1.5rem 0;
   display: flex; flex-direction: column; gap: 4px;
   box-shadow: var(--shadow-sm);
+  position: relative; z-index: 2;
 }
 .sidebar-label {
   font-size: 0.65rem; font-weight: 800; letter-spacing: 0.15em;
@@ -222,6 +223,8 @@ a { color: inherit; text-decoration: none; }
 .main-content {
   flex: 1; overflow-y: auto; padding: 2.5rem 3rem;
   display: flex; flex-direction: column;
+  position: relative; z-index: 1;
+  isolation: isolate;
 }
 
 /* ── Cards ───────────────────────────────────────────────────*/
@@ -231,6 +234,7 @@ a { color: inherit; text-decoration: none; }
   border-radius: var(--radius);
   padding: 2rem;
   box-shadow: var(--shadow);
+  position: relative; z-index: 1;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }

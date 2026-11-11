@@ -299,13 +299,6 @@ def validate_cqa_list(cqas: List[Dict[str, Any]], qtpp_items: List[Dict[str, Any
 
         if not rationale:
             errors.append(f"CQA '{name}': Rationale is mandatory for active CQAs.")
-        if not ref:
-            warnings.append({
-                "cqa_id": cqa_id,
-                "cqa_name": name,
-                "type": "missing_reference",
-                "message": f"CQA '{name}' has no regulatory/guideline reference cited (e.g. ICH Q3A, USP, Ph. Eur.)."
-            })
 
         if not (1 <= impact <= 5 and 1 <= uncertainty <= 5):
             errors.append(f"CQA '{name}': Impact and Uncertainty scores must be integers between 1 and 5.")

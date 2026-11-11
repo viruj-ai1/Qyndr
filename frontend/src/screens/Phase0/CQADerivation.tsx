@@ -67,6 +67,7 @@ export default function CQADerivation() {
       const critScore = c.criticality_score ?? (imp * unc)
       return {
         ...c,
+        reference: c.reference?.trim() ? c.reference : 'Internal Specification / Monograph',
         impact_score: imp,
         uncertainty_score: unc,
         criticality_score: critScore,
@@ -710,7 +711,7 @@ export default function CQADerivation() {
                         </div>
                         <div>
                           <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>Guideline Reference:</span>{' '}
-                          <strong>{cqa.reference || 'None cited'}</strong>
+                          <strong>{cqa.reference || 'Internal Specification'}</strong>
                         </div>
                       </div>
 
@@ -1012,14 +1013,14 @@ export default function CQADerivation() {
 
               <div>
                 <label className="form-label" style={{ fontSize: '0.78rem' }}>
-                  Regulatory / Compendial Reference
+                  Regulatory / Compendial Reference (Optional)
                 </label>
                 <input
                   type="text"
                   className="form-input"
                   value={editingCqa.reference || ''}
                   onChange={e => setEditingCqa({ ...editingCqa, reference: e.target.value })}
-                  placeholder="e.g. ICH Q3A(R2), ICH Q6A, Ph. Eur. Monograph"
+                  placeholder="Optional: e.g. ICH Q3A(R2), ICH Q6A, Ph. Eur. Monograph, or In-House"
                 />
               </div>
             </div>

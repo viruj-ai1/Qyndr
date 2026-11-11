@@ -169,10 +169,23 @@ export default function CQADerivation() {
     )
 
     if (existing) {
-      // Prompt for exclusion reason before removing/toggling OFF
-      setExcludingQtpp(q)
-      setExclusionReason(existing.exclusion_reason || '')
-      setExclusionModalOpen(true)
+      // Toggle OFF: directly remove without blocking pop-up
+      if (currentProject?.id) {
+        CQAApi.recordAudit(currentProject.id, {
+          cqa_id: existing.id,
+          action: 'EXCLUDE',
+          old_value: existing,
+          new_value: { excluded: true }
+        }).catch(() => {})
+      }
+
+      setItems(prev =>
+        prev.filter(c =>
+          !(c.linkedQtppIds && c.linkedQtppIds.includes(q.id)) &&
+          c.name.toLowerCase() !== q.attribute.toLowerCase()
+        )
+      )
+      toast.success(`Removed '${q.attribute}' from CQAs.`)
     } else {
       // Toggle ON: Prepare draft CQA using knowledge base suggestions
       const sugg = suggestions[q.id]
@@ -190,7 +203,7 @@ export default function CQADerivation() {
         range: (q.operator && q.operator !== '=' ? `${q.operator} ` : '') + (q.criterion || sugg?.suggested_range || ''),
         justification: sugg?.rationale || 'Critical quality attribute essential for drug substance compliance.',
         rationale: sugg?.rationale || 'Critical quality attribute essential for drug substance compliance.',
-        reference: sugg?.reference || 'ICH Q6A / Compendial Monograph',
+        reference: sugg?.reference || 'Internal Specification / Monograph',
         impact_score: imp,
         uncertainty_score: unc,
         criticality_score: critScore,
@@ -202,45 +215,17 @@ export default function CQADerivation() {
         linkedQtppIds: [q.id]
       }
 
-      // Open side drawer for assessment verification
-      setEditingCqa(newEntry)
-      setDrawerOpen(true)
+      setItems(prev => [...prev, newEntry])
+      if (currentProject?.id) {
+        CQAApi.recordAudit(currentProject.id, {
+          cqa_id: newEntry.id,
+          action: 'CREATE',
+          old_value: null,
+          new_value: newEntry
+        }).catch(() => {})
+      }
+      toast.success(`Added '${q.attribute}' to CQAs.`)
     }
-  }
-
-  // Confirm Exclusion (toggle OFF)
-  const confirmExclusion = () => {
-    if (!exclusionReason.trim()) {
-      toast.error('Exclusion rationale is mandatory per QbD principles.')
-      return
-    }
-    if (!excludingQtpp) return
-
-    const existing = items.find(c =>
-      (c.linkedQtppIds && c.linkedQtppIds.includes(excludingQtpp.id)) ||
-      c.name.toLowerCase() === excludingQtpp.attribute.toLowerCase()
-    )
-
-    if (existing && currentProject?.id) {
-      CQAApi.recordAudit(currentProject.id, {
-        cqa_id: existing.id,
-        action: 'EXCLUDE',
-        old_value: existing,
-        new_value: { excluded: true, exclusion_reason: exclusionReason }
-      }).catch(() => {})
-    }
-
-    setItems(prev =>
-      prev.filter(c =>
-        !(c.linkedQtppIds && c.linkedQtppIds.includes(excludingQtpp.id)) &&
-        c.name.toLowerCase() !== excludingQtpp.attribute.toLowerCase()
-      )
-    )
-
-    toast.success(`Excluded '${excludingQtpp.attribute}' with documented rationale.`)
-    setExclusionModalOpen(false)
-    setExcludingQtpp(null)
-    setExclusionReason('')
   }
 
   // Save CQA from Drawer
@@ -1032,65 +1017,6 @@ export default function CQADerivation() {
               </button>
               <button type="button" className="btn btn-primary btn-sm" onClick={() => saveDrawerCqa(editingCqa)}>
                 Save Assessment
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Exclusion Reason Modal (Toggle OFF) */}
-      {exclusionModalOpen && excludingQtpp && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.5)',
-            backdropFilter: 'blur(3px)',
-            zIndex: 1000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          onClick={() => setExclusionModalOpen(false)}
-        >
-          <div
-            style={{
-              width: '460px',
-              maxWidth: '90vw',
-              background: 'white',
-              borderRadius: '12px',
-              padding: '1.5rem',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '1.2rem' }}>⚠️</span>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                Document CQA Exclusion Rationale
-              </h3>
-            </div>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: '1rem' }}>
-              Per ICH Q9 risk management principles, excluding <strong>'{excludingQtpp.attribute}'</strong> from the CQA register requires a documented scientific justification.
-            </p>
-
-            <div style={{ marginBottom: '1.25rem' }}>
-              <label className="form-label" style={{ fontSize: '0.78rem' }}>Exclusion Rationale *</label>
-              <textarea
-                className="form-input"
-                rows={3}
-                value={exclusionReason}
-                onChange={e => setExclusionReason(e.target.value)}
-                placeholder="e.g. Purged completely in Stage 2 crystallization with purging factor > 100; non-critical to patient."
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setExclusionModalOpen(false)}>
-                Cancel
-              </button>
-              <button type="button" className="btn btn-danger btn-sm" onClick={confirmExclusion}>
-                Confirm Exclusion
               </button>
             </div>
           </div>

@@ -43,6 +43,18 @@ export interface CQAMapping {
   range?: string
   justification?: string
   linkedQtppIds: string[]
+  // Structured QbD assessment fields
+  impact_score?: number
+  uncertainty_score?: number
+  criticality_score?: number
+  is_critical?: boolean
+  rationale?: string
+  reference?: string
+  exclusion_reason?: string
+  origin?: 'suggested' | 'chemist_added' | 'suggested_edited'
+  decided_by?: string
+  decided_at?: string
+  version?: number
 }
 
 export interface StageItem {

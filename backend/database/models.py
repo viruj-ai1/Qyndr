@@ -139,3 +139,17 @@ class User(Base):
     created_at    = Column(DateTime, default=datetime.utcnow)
     last_login_at = Column(DateTime, nullable=True)
 
+
+class CQAAuditLog(Base):
+    __tablename__ = "cqa_audit_log"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    project_id  = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    cqa_id      = Column(String(100), nullable=False, index=True)
+    action      = Column(String(50), nullable=False)  # CREATE, UPDATE, EXCLUDE, RESTORE
+    old_value   = Column(JSON, nullable=True)
+    new_value   = Column(JSON, nullable=True)
+    user        = Column(String(100), default="system")
+    timestamp   = Column(DateTime, default=datetime.utcnow)
+
+

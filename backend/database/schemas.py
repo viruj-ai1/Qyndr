@@ -19,12 +19,39 @@ class QTPPItem(BaseModel):
 class CQAMapping(BaseModel):
     id: str
     name: str
-    appliesTo: str      # 'Final API' | 'Intermediate'
+    appliesTo: str = "Final API"      # 'Final API' | 'Intermediate'
     stageName: str = ""
     method: str = ""
     range: str = ""
     justification: str = ""
     linkedQtppIds: List[str] = []
+    # New structured QbD assessment fields
+    impact_score: int = Field(default=3, ge=1, le=5)
+    uncertainty_score: int = Field(default=3, ge=1, le=5)
+    criticality_score: int = 9
+    is_critical: bool = False
+    rationale: str = ""
+    reference: str = ""
+    exclusion_reason: str = ""
+    origin: str = "suggested"  # "suggested" | "chemist_added" | "suggested_edited"
+    decided_by: str = ""
+    decided_at: str = ""
+    version: int = 1
+
+    model_config = ConfigDict(extra="ignore")
+
+
+class CQAAuditLogItem(BaseModel):
+    id: int
+    project_id: int
+    cqa_id: str
+    action: str
+    old_value: Optional[Dict[str, Any]] = None
+    new_value: Optional[Dict[str, Any]] = None
+    user: str
+    timestamp: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 class StageItem(BaseModel):
     id: str

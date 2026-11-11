@@ -8,7 +8,7 @@ const emptyFactor = (): Factor => ({ name: '', unit: '', low: 0, high: 1, baseli
 const emptyResponse = (): Response => ({ name: '', unit: '', goal: 'maximize' })
 
 export default function DefineFactors() {
-  const { currentProject, apiTargets, setProject, setStep } = useStore()
+  const { currentProject, apiTargets, cqas, setProject, setStep } = useStore()
 
   const [factors, setFactors] = useState<Factor[]>(() => {
     if (currentProject?.factors && currentProject.factors.length > 0) {
@@ -17,13 +17,32 @@ export default function DefineFactors() {
     return []
   })
 
-  // Pre-seed responses: Use existing project responses if present, else auto-extract from Project Description / api_targets
+  // Pre-seed responses: prioritize Step 03 Critical CQAs, then targets/description
   const getInitialResponses = (): Response[] => {
     if (currentProject?.responses && currentProject.responses.length > 0) {
       const filtered = currentProject.responses
         .filter((r: any) => !['impurity b', 'impurity c'].includes(r.name.toLowerCase().trim()))
         .map((r: any) => ({ ...r, name: simplifyResponseName(r.name, r.goal) }))
       if (filtered.length > 0) return filtered
+    }
+
+    // 0. Prioritize Critical CQAs from Step 03
+    const projectCqas = (currentProject?.cqas_data && currentProject.cqas_data.length > 0)
+      ? currentProject.cqas_data
+      : (cqas && cqas.length > 0 ? cqas : [])
+
+    const criticalCqas = projectCqas.filter(c => c.is_critical && c.name?.trim())
+    if (criticalCqas.length > 0) {
+      return criticalCqas.map(c => {
+        const nameLower = c.name.toLowerCase()
+        const isImpurity = nameLower.includes('impurity') || nameLower.includes('substance') || nameLower.includes('solvent')
+        return {
+          name: simplifyResponseName(c.name, isImpurity ? 'minimize' : 'maximize'),
+          unit: c.range?.includes('%') ? '%' : c.range?.includes('ppm') ? 'ppm' : '',
+          goal: isImpurity ? 'minimize' : 'maximize',
+          inherited_from_target: true
+        }
+      })
     }
 
     // 1. If structured api_targets exist (saved from Step 01), use them

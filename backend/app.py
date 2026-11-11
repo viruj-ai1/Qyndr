@@ -28,6 +28,7 @@ from api.analysis    import router as analysis_router
 from api.optimization import router as optimization_router
 from api.report_routes import router as reports_router
 from api.chat        import router as chat_router
+from api.cqa         import router as cqa_router
 
 
 @asynccontextmanager
@@ -100,6 +101,7 @@ app.include_router(analysis_router,     prefix=PREFIX, dependencies=auth_dep)
 app.include_router(optimization_router, prefix=PREFIX, dependencies=auth_dep)
 app.include_router(reports_router,      prefix=PREFIX, dependencies=auth_dep)
 app.include_router(chat_router,         dependencies=auth_dep)
+app.include_router(cqa_router,          dependencies=auth_dep)
 
 
 # ── Root & Health ───────────────────────────────────────────

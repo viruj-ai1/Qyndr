@@ -154,5 +154,17 @@ export const Reports = {
   },
 }
 
+/* ── CQA Assessment & Suggestions ─────────────────────────── */
+export const CQAApi = {
+  suggestions: (projectId: number) =>
+    api.get(`/projects/${projectId}/cqa/suggestions`).then(r => r.data),
+  validate: (projectId: number, cqas: any[]) =>
+    api.post(`/projects/${projectId}/cqa/validate`, cqas).then(r => r.data),
+  auditLog: (projectId: number, cqaId?: string) =>
+    api.get(`/projects/${projectId}/cqa/audit`, { params: cqaId ? { cqa_id: cqaId } : {} }).then(r => r.data),
+  recordAudit: (projectId: number, payload: { cqa_id: string; action: string; old_value?: any; new_value?: any }) =>
+    api.post(`/projects/${projectId}/cqa/audit`, payload).then(r => r.data),
+}
+
 export default api
 

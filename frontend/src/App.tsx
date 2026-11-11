@@ -109,7 +109,7 @@ export default function App() {
           }}
         />
         <div style={{ fontSize: '0.88rem', fontWeight: 500 }}>
-          Authenticating Qyndr session...
+          Authenticating DOE session...
         </div>
       </div>
     )

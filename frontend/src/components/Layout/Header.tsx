@@ -67,7 +67,7 @@ export default function Header() {
               type="button"
               className="btn btn-secondary btn-sm"
               onClick={logout}
-              title="Sign out of Qyndr"
+              title="Sign out of DOE"
               style={{ padding: '0.25rem 0.55rem', fontSize: '0.78rem' }}
             >
               Sign out

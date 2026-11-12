@@ -163,20 +163,6 @@ export default function ReverseRiskAssessment() {
     })
   }
 
-  // Toggle Critical Flag Override
-  const handleToggleOverride = (paramId: string) => {
-    const updated = currentParams.map(p => {
-      if (p.id === paramId) {
-        return { ...p, criticalFlag: !p.criticalFlag }
-      }
-      return p
-    })
-    setLocalRisk({
-      ...localRisk,
-      [currentStage.id]: { parameters: updated }
-    })
-  }
-
   // Delete parameter
   const handleRemoveParam = (paramId: string) => {
     const updated = currentParams.filter(p => p.id !== paramId)
@@ -506,17 +492,14 @@ export default function ReverseRiskAssessment() {
                     <td style={{ textAlign: 'center', fontWeight: 800, fontSize: '0.9rem', color: isOverThreshold ? 'var(--danger-light)' : 'var(--success-light)' }}>
                       {p.rpn}
                     </td>
-                    {/* Status Badge: Uses p.criticalFlag (preset in routeGenerator.ts with manual toggle override or recalculated when S/O/D is edited: nextP.criticalFlag = nextP.rpn > rpnThreshold) */}
+                    {/* Status Badge: Computed criticality indicator based on QbD risk thresholds (non-interactive) */}
                     <td style={{ textAlign: 'center' }}>
-                      <button
-                        type="button"
+                      <span
                         className={`badge ${p.criticalFlag ? 'badge-danger' : 'badge-secondary'}`}
-                        style={{ cursor: 'pointer', border: 'none' }}
-                        onClick={() => handleToggleOverride(p.id)}
-                        title="Click to toggle Critical Flag manual override"
+                        style={{ userSelect: 'none', display: 'inline-block' }}
                       >
                         {p.criticalFlag ? 'CRITICAL' : 'Non-Critical'}
-                      </button>
+                      </span>
                     </td>
                     <td>
                       <input

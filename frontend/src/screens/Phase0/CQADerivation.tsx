@@ -82,8 +82,8 @@ export default function CQADerivation() {
   const [saving, setSaving] = useState(false)
   const [suggestions, setSuggestions] = useState<Record<string, AttributeSuggestion>>({})
   const [missingCqas, setMissingCqas] = useState<MissingCQA[]>([])
-  const [validationWarnings, setValidationWarnings] = useState<ValidationWarning[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  const [guidelinesModalOpen, setGuidelinesModalOpen] = useState(false)
 
   // Drawer / Assessment Modal State
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -124,24 +124,6 @@ export default function CQADerivation() {
       })
       .finally(() => setLoadingSuggestions(false))
   }, [currentProject?.id])
-
-  // Periodic Validation of current items
-  useEffect(() => {
-    if (!currentProject?.id || items.length === 0) {
-      setValidationWarnings([])
-      return
-    }
-    const timer = setTimeout(() => {
-      CQAApi.validate(currentProject.id, items)
-        .then(res => {
-          if (res.warnings) {
-            setValidationWarnings(res.warnings)
-          }
-        })
-        .catch(() => {})
-    }, 600)
-    return () => clearTimeout(timer)
-  }, [items, currentProject?.id])
 
   // Synchronize to store and auto-save
   useEffect(() => {
@@ -421,38 +403,30 @@ export default function CQADerivation() {
               ICH Q8(R2) & Q9 compliant assessment: Evaluate severity of harm (Impact), state of knowledge (Uncertainty), and document justification references.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setGuidelinesModalOpen(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                fontSize: '0.78rem',
+                padding: '0.35rem 0.75rem',
+                background: 'rgba(0, 174, 179, 0.08)',
+                color: 'var(--primary)',
+                border: '1px solid rgba(0, 174, 179, 0.3)'
+              }}
+            >
+              <span>📖</span> Regulatory & ICH Guidelines Applied
+            </button>
             <span className="badge badge-accent" style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}>
               ICH Q8(R2) · Q9 · Q3A/B/C/D · M7
             </span>
           </div>
         </div>
       </div>
-
-      {/* Validation Warnings Banner */}
-      {validationWarnings.length > 0 && (
-        <div
-          style={{
-            marginBottom: '1.25rem',
-            padding: '0.85rem 1.1rem',
-            background: 'rgba(245, 158, 11, 0.08)',
-            border: '1px solid rgba(245, 158, 11, 0.3)',
-            borderRadius: '10px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.85rem', color: '#b45309', marginBottom: '0.4rem' }}>
-            <span>⚠️</span> QbD Consistency & Threshold Warnings ({validationWarnings.length})
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.8rem', color: '#78350f' }}>
-            {validationWarnings.map((w, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
-                <span style={{ fontWeight: 600 }}>•</span>
-                <span>{w.message}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Main 2-Column Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '1.5rem', marginBottom: '1.5rem', alignItems: 'start' }}>
@@ -1093,6 +1067,140 @@ export default function CQADerivation() {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Regulatory & ICH Guidelines Applied Modal */}
+      {guidelinesModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.5)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          onClick={() => setGuidelinesModalOpen(false)}
+        >
+          <div
+            style={{
+              width: '640px',
+              maxWidth: '92vw',
+              maxHeight: '85vh',
+              background: 'white',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              boxShadow: '0 12px 30px rgba(0,0,0,0.2)',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '0.65rem', borderBottom: '1px solid var(--border)' }}>
+              <div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'var(--primary)' }}>
+                  Regulatory & ICH Guidelines Applied
+                </h3>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Standard regulatory frameworks governing CQA derivation, criticality thresholds, and specifications
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setGuidelinesModalOpen(false)}
+                style={{ fontSize: '0.85rem', padding: '0.2rem 0.5rem' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.85rem', paddingRight: '4px' }}>
+              {/* 1. ICH Q9 Risk Evaluation Matrix */}
+              <div style={{ padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                  <span className="badge badge-primary" style={{ fontSize: '0.72rem' }}>ICH Q9</span>
+                  <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>Risk Criticality Evaluation Matrix</strong>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Evaluates two orthogonal risk axes for each drug substance attribute:
+                  <ul style={{ margin: '0.35rem 0 0.35rem 1.25rem', padding: 0 }}>
+                    <li><strong>Impact / Severity of Harm (1–5):</strong> Evaluates potential clinical harm to patient safety, therapeutic efficacy, or bio-equivalence.</li>
+                    <li><strong>Uncertainty / Knowledge Level (1–5):</strong> Evaluates the state of process and mechanistic understanding.</li>
+                    <li><strong>Computed Criticality:</strong> Score = Impact × Uncertainty. Attributes scoring ≥ 12 are designated <strong>Critical CQAs</strong> and carried forward into experimental Design of Experiments (DoE).</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* 2. ICH Q8(R2) */}
+              <div style={{ padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                  <span className="badge badge-accent" style={{ fontSize: '0.72rem' }}>ICH Q8(R2)</span>
+                  <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>Pharmaceutical Quality by Design (QbD)</strong>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Governs systematic product development linking the Quality Target Product Profile (QTPP) to Critical Quality Attributes (CQAs), ensuring quality is built into the manufacturing process rather than tested at batch completion.
+                </div>
+              </div>
+
+              {/* 3. ICH Q3A(R2) & Q3B(R2) */}
+              <div style={{ padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                  <span className="badge badge-secondary" style={{ fontSize: '0.72rem' }}>ICH Q3A(R2) / Q3B</span>
+                  <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>Impurities in New Drug Substances</strong>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Defines qualification and reporting thresholds for organic process impurities, related substances, and degradation products. Establishes the ≤ 0.10% threshold for unspecified impurities and standard identification limits.
+                </div>
+              </div>
+
+              {/* 4. ICH Q3C(R8) */}
+              <div style={{ padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                  <span className="badge badge-secondary" style={{ fontSize: '0.72rem' }}>ICH Q3C(R8)</span>
+                  <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>Impurities: Residual Solvents</strong>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Governs Permitted Daily Exposure (PDE) limits for process solvents across Class 1 (avoided / carcinogenic), Class 2 (PDE controlled, e.g. Toluene ≤ 890 ppm, DCM ≤ 600 ppm), and Class 3 (≤ 5000 ppm).
+                </div>
+              </div>
+
+              {/* 5. ICH M7(R2) */}
+              <div style={{ padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                  <span className="badge badge-danger" style={{ fontSize: '0.72rem' }}>ICH M7(R2)</span>
+                  <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>Mutagenic & DNA-Reactive Impurities</strong>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Establishes the Threshold of Toxicological Concern (TTC) of 1.5 µg/day lifetime exposure and requires sensitive hyphenated analytical techniques (LC-MS/MS or GC-MS) for trace nitrosamines and alkylating agents.
+                </div>
+              </div>
+
+              {/* 6. ICH Q6A & Compendial Monographs */}
+              <div style={{ padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                  <span className="badge badge-secondary" style={{ fontSize: '0.72rem' }}>ICH Q6A / USP / Ph. Eur.</span>
+                  <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>Specifications: Test Procedures & Acceptance Criteria</strong>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Compendial monographs governing Assay/Potency (98.0% - 102.0%), Water Content / Karl Fischer Titration, Loss on Drying, and Solid State (polymorphic purity & particle size).
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', paddingTop: '0.65rem', borderTop: '1px solid var(--border)' }}>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setGuidelinesModalOpen(false)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

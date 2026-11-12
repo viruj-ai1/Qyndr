@@ -199,3 +199,4 @@ def test_single_stage_regeneration_preserves_others():
     # Ensure stage-1 and stage-3 remain unchanged in the list
     assert stages[0]["id"] == "stage-1"
     assert stages[2]["id"] == "stage-3"
+

@@ -136,3 +136,4 @@ def validate_project_route(
     cqas = proj.cqas_data or []
     warnings = validate_route(stages, cqas)
     return warnings
+

@@ -302,9 +302,9 @@ export default function RouteMapping() {
   }
 
   const renderSourceBadge = (source?: string) => {
-    let label = 'AI Inferred'
-    let bg = 'rgba(100, 116, 139, 0.12)'
-    let color = '#475569'
+    let label = 'QbD Platform Derived'
+    let bg = 'rgba(0, 91, 170, 0.08)'
+    let color = 'var(--primary)'
 
     if (source === 'from_document') {
       label = '📄 Document Grounded'

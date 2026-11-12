@@ -57,13 +57,31 @@ export interface CQAMapping {
   version?: number
 }
 
+export interface CandidateCPP {
+  name: string
+  unit?: string
+  low?: number | null
+  high?: number | null
+  rationale?: string
+}
+
 export interface StageItem {
   id: string
   order: number
   name: string
-  unitOpType: 'Reaction' | 'Workup' | 'Crystallization' | 'Filtration' | 'Drying' | 'Purification' | 'Other'
+  unitOpType: 'Reaction' | 'Workup' | 'Crystallization' | 'Filtration' | 'Drying' | 'Distillation' | 'Purification' | 'Milling' | 'Blending' | 'Other'
+  unit_operation_type?: string
   description?: string
+  chemistry_description?: string
   intermediateProduced?: string
+  key_intermediate?: string
+  inputs?: string[]
+  outputs?: string[]
+  candidate_cpps?: CandidateCPP[]
+  linked_cqas?: string[]
+  source?: 'from_document' | 'from_description' | 'from_cqa' | 'ai_inferred' | 'user_edited'
+  source_refs?: string[]
+  confidence?: 'high' | 'medium' | 'low'
 }
 
 export interface RiskParameter {

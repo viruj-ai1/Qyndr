@@ -978,9 +978,28 @@ export function generateContextAwareRiskParameters(
   const stageDesc = (stage?.description || '').toLowerCase()
   const compound = (project?.compound || project?.name || '').trim()
   const compLower = compound.toLowerCase()
-  const linkedCqaIds = cqas.map(c => c.id)
+  const linkedCqaIds = (stage?.linked_cqas && stage.linked_cqas.length > 0)
+    ? stage.linked_cqas
+    : cqas.map(c => c.id)
 
   const pPrefix = `p-${stageId}`
+
+  // Check if stage already carries grounded candidate_cpps from route mapping service
+  if (Array.isArray(stage?.candidate_cpps) && stage.candidate_cpps.length > 0) {
+    return stage.candidate_cpps.map((cpp, cIdx) => ({
+      id: `${pPrefix}-${cIdx + 1}`,
+      name: cpp.unit ? `${cpp.name} (${cpp.unit})` : cpp.name,
+      type: 'CPP-candidate',
+      linkedCqaIds,
+      severity: cIdx === 0 ? 5 : 4,
+      occurrence: 3,
+      detectability: 2,
+      rpn: (cIdx === 0 ? 5 : 4) * 3 * 2,
+      rationale: cpp.rationale || 'Key process parameter governing stage yield, conversion, and CQA specifications.',
+      criticalFlag: true,
+      overrideReason: ''
+    }))
+  }
 
   // Rocuronium Bromide stage-specific parameters
   if (compLower.includes('rocuronium')) {

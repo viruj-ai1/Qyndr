@@ -1191,6 +1191,17 @@ export default function CQADerivation() {
                   Compendial monographs governing Assay/Potency (98.0% - 102.0%), Water Content / Karl Fischer Titration, Loss on Drying, and Solid State (polymorphic purity & particle size).
                 </div>
               </div>
+
+              {/* 7. Internal Specification / In-House Monograph */}
+              <div style={{ padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                  <span className="badge badge-secondary" style={{ fontSize: '0.72rem' }}>In-House</span>
+                  <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>Internal Specification / Monograph</strong>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Proprietary in-process or release quality standards established during developmental lab stages when an active pharmaceutical ingredient or intermediate does not have an official published compendial monograph.
+                </div>
+              </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', paddingTop: '0.65rem', borderTop: '1px solid var(--border)' }}>

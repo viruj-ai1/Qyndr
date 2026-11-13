@@ -88,12 +88,10 @@ export default function RouteMapping() {
   const [items, setItems] = useState<StageItem[]>(getInitialStages)
   const [saving, setSaving] = useState(false)
   const [generating, setGenerating] = useState(false)
-  const [regeneratingId, setRegeneratingId] = useState<string | null>(null)
   const [generationError, setGenerationError] = useState<string | null>(null)
   const [warnings, setWarnings] = useState<RouteWarning[]>([])
   const [warningsOpen, setWarningsOpen] = useState(true)
   const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({})
-  const [confirmModalOpen, setConfirmModalOpen] = useState(false)
 
   const isFirstMount = useRef(true)
 
@@ -143,7 +141,6 @@ export default function RouteMapping() {
     if (!currentProject?.id) return
     setGenerating(true)
     setGenerationError(null)
-    setConfirmModalOpen(false)
     try {
       const res = await RouteApi.generate(currentProject.id)
       if (res && res.stages && Array.isArray(res.stages)) {
@@ -167,38 +164,6 @@ export default function RouteMapping() {
       toast.error('Failed to generate route from project knowledge.')
     } finally {
       setGenerating(false)
-    }
-  }
-
-  // Single Stage In-Place Regeneration
-  const handleRegenerateSingleStage = async (stageId: string) => {
-    if (!currentProject?.id) return
-    setRegeneratingId(stageId)
-    try {
-      const updated: any = await RouteApi.regenerateStage(currentProject.id, stageId)
-      if (updated) {
-        setItems(prev => prev.map(s => {
-          if (s.id === stageId) {
-            return {
-              ...s,
-              ...updated,
-              unitOpType: updated.unit_operation_type || updated.unitOpType || s.unitOpType,
-              description: updated.chemistry_description || updated.description || s.description,
-              intermediateProduced: updated.key_intermediate || updated.intermediateProduced || s.intermediateProduced,
-              source: updated.source || 'ai_inferred',
-              confidence: updated.confidence || 'medium'
-            }
-          }
-          return s
-        }))
-        toast.success(`Regenerated Stage ${updated.order || ''}!`)
-        runValidation(items)
-      }
-    } catch (e: any) {
-      console.error('Failed to regenerate stage:', e)
-      toast.error('Failed to regenerate this stage.')
-    } finally {
-      setRegeneratingId(null)
     }
   }
 
@@ -399,21 +364,6 @@ export default function RouteMapping() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => {
-                if (items.length > 0) {
-                  setConfirmModalOpen(true)
-                } else {
-                  handleGenerateRoute()
-                }
-              }}
-              disabled={generating}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-            >
-              <span>⚡</span> {items.length > 0 ? 'Re-generate Full Route' : 'Auto-Generate Route'}
-            </button>
             <button className="btn btn-secondary btn-sm" onClick={handleAddStage} disabled={generating}>
               + Add Stage
             </button>
@@ -472,7 +422,6 @@ export default function RouteMapping() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             {items.map((stage, idx) => {
               const isLowConfidence = stage.confidence === 'low'
-              const isRegenerating = regeneratingId === stage.id
               const isExpanded = !!expandedDetails[stage.id]
 
               return (
@@ -521,16 +470,6 @@ export default function RouteMapping() {
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => handleRegenerateSingleStage(stage.id)}
-                        disabled={isRegenerating}
-                        title="Regenerate this single stage using neighbor context"
-                        style={{ fontSize: '0.74rem', padding: '0.2rem 0.55rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                      >
-                        <span>🔄</span> {isRegenerating ? 'Regenerating...' : 'Regenerate Stage'}
-                      </button>
                       <button
                         type="button"
                         className="btn btn-secondary btn-sm"
@@ -763,61 +702,6 @@ export default function RouteMapping() {
           {saving ? <><div className="spinner" /> Saving…</> : 'Confirm & Proceed to Reverse Risk Assessment →'}
         </button>
       </div>
-
-      {/* Full Route Overwrite Confirmation Modal */}
-      {confirmModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.5)',
-            backdropFilter: 'blur(3px)',
-            zIndex: 1000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          onClick={() => setConfirmModalOpen(false)}
-        >
-          <div
-            style={{
-              width: '460px',
-              maxWidth: '92vw',
-              background: 'white',
-              borderRadius: '12px',
-              padding: '1.5rem',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '1.25rem' }}>⚠️</span>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                Re-generate Full Route?
-              </h3>
-            </div>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.45, marginBottom: '1.25rem' }}>
-              Re-generating the full synthetic route will re-query the QbD RAG knowledge base and overwrite your existing {items.length} stage(s) and any custom edits.
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setConfirmModalOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={handleGenerateRoute}
-              >
-                Confirm & Re-generate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

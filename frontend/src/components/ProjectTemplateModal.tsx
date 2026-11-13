@@ -15,18 +15,16 @@ import {
 import toast from 'react-hot-toast'
 import {
   FieldKey,
-  PROJECT_TEMPLATES,
-  FULL_EXAMPLE
+  PROJECT_TEMPLATES
 } from '../data/projectTemplates'
 
-export type TabKey = FieldKey | 'fullExample'
+export type TabKey = FieldKey
 
 interface ProjectTemplateModalProps {
   isOpen: boolean
   initialTab?: TabKey
   onClose: () => void
   onInsert: (fieldKey: FieldKey, text: string, mode: 'replace' | 'append') => void
-  onFillAll: (data: typeof FULL_EXAMPLE) => void
   fieldHasContent: (fieldKey: FieldKey) => boolean
   triggerRef?: React.RefObject<HTMLElement | null>
 }
@@ -42,14 +40,12 @@ export default function ProjectTemplateModal({
   initialTab = 'description',
   onClose,
   onInsert,
-  onFillAll,
   fieldHasContent,
   triggerRef
 }: ProjectTemplateModalProps) {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [overwriteConfirm, setOverwriteConfirm] = useState<OverwriteConfirmState | null>(null)
-  const [confirmAllOverwrite, setConfirmAllOverwrite] = useState(false)
 
   const modalRef = useRef<HTMLDivElement | null>(null)
   const closeBtnRef = useRef<HTMLButtonElement | null>(null)
@@ -59,7 +55,6 @@ export default function ProjectTemplateModal({
     if (isOpen) {
       setActiveTab(initialTab)
       setOverwriteConfirm(null)
-      setConfirmAllOverwrite(false)
     }
   }, [isOpen, initialTab])
 
@@ -70,9 +65,8 @@ export default function ProjectTemplateModal({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        if (overwriteConfirm || confirmAllOverwrite) {
+        if (overwriteConfirm) {
           setOverwriteConfirm(null)
-          setConfirmAllOverwrite(false)
         } else {
           onClose()
         }
@@ -93,7 +87,7 @@ export default function ProjectTemplateModal({
         triggerRef.current.focus()
       }
     }
-  }, [isOpen, overwriteConfirm, confirmAllOverwrite, onClose, triggerRef])
+  }, [isOpen, overwriteConfirm, onClose, triggerRef])
 
   if (!isOpen) return null
 
@@ -115,22 +109,6 @@ export default function ProjectTemplateModal({
       setOverwriteConfirm({ targetKey: fieldKey, textToInsert: text, actionLabel })
     } else {
       onInsert(fieldKey, text, 'replace')
-      onClose()
-    }
-  }
-
-  // Trigger Fill All with overwrite protection
-  const triggerFillAll = () => {
-    const hasAnyContent =
-      fieldHasContent('projectName') ||
-      fieldHasContent('compound') ||
-      fieldHasContent('objective') ||
-      fieldHasContent('description')
-
-    if (hasAnyContent) {
-      setConfirmAllOverwrite(true)
-    } else {
-      onFillAll(FULL_EXAMPLE)
       onClose()
     }
   }
@@ -178,11 +156,10 @@ export default function ProjectTemplateModal({
     { key: 'projectName', label: 'Project Name' },
     { key: 'compound', label: 'Compound / API' },
     { key: 'objective', label: 'Primary Objective' },
-    { key: 'description', label: 'Project Description' },
-    { key: 'fullExample', label: 'Full Example (all fields)' }
+    { key: 'description', label: 'Project Description' }
   ]
 
-  const currentTemplate = activeTab !== 'fullExample' ? PROJECT_TEMPLATES[activeTab] : null
+  const currentTemplate = PROJECT_TEMPLATES[activeTab]
 
   return (
     <div
@@ -199,9 +176,8 @@ export default function ProjectTemplateModal({
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
-          if (overwriteConfirm || confirmAllOverwrite) {
+          if (overwriteConfirm) {
             setOverwriteConfirm(null)
-            setConfirmAllOverwrite(false)
           } else {
             onClose()
           }
@@ -338,9 +314,6 @@ export default function ProjectTemplateModal({
                   }}
                 >
                   <span>{tab.label}</span>
-                  {tab.key === 'fullExample' ? (
-                    <Sparkles size={14} style={{ color: isSelected ? 'var(--primary)' : 'var(--text-muted)' }} />
-                  ) : null}
                 </button>
               )
             })}
@@ -358,123 +331,7 @@ export default function ProjectTemplateModal({
               background: '#ffffff'
             }}
           >
-            {activeTab === 'fullExample' ? (
-              /* Full Example Tab Content */
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '0.75rem',
-                    background: 'rgba(0, 91, 170, 0.05)',
-                    padding: '1rem 1.25rem',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(0, 91, 170, 0.15)'
-                  }}
-                >
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--primary)' }}>
-                      Complete Rocuronium Bromide Project Setup
-                    </h3>
-                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      Fills all 4 fields (Name, Compound, Objective, and Full Process Description) at once for quick demo or testing.
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() =>
-                        handleCopy(
-                          `Project Name: ${FULL_EXAMPLE.name}\nCompound: ${FULL_EXAMPLE.compound}\nObjective: ${FULL_EXAMPLE.objective}\n\nDescription:\n${FULL_EXAMPLE.description}`,
-                          'full-copy'
-                        )
-                      }
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                    >
-                      {copiedKey === 'full-copy' ? <Check size={14} color="var(--success)" /> : <Copy size={14} />}
-                      <span>Copy All</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={triggerFillAll}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                    >
-                      <Sparkles size={14} />
-                      <span>Fill All Fields With Example</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Previews of each field */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.85rem 1rem' }}>
-                    <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                      1. Project Name
-                    </div>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', marginTop: '0.25rem' }}>
-                      {FULL_EXAMPLE.name}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.85rem' }}>
-                    <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.85rem 1rem' }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                        2. Compound / API
-                      </div>
-                      <div style={{ fontWeight: 600, fontSize: '0.9rem', marginTop: '0.25rem' }}>
-                        {FULL_EXAMPLE.compound}
-                      </div>
-                    </div>
-                    <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.85rem 1rem' }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                        3. Primary Objective
-                      </div>
-                      <div style={{ fontSize: '0.85rem', marginTop: '0.25rem', color: 'var(--text-secondary)' }}>
-                        {FULL_EXAMPLE.objective}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '0.85rem 1rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                        4. Project Description (Full Structured Narrative)
-                      </div>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 600 }}>
-                        ICH Q8 / Q9 / Q11 Ready
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        background: '#f8fafc',
-                        padding: '0.75rem 1rem',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border)',
-                        maxHeight: '260px',
-                        overflowY: 'auto'
-                      }}
-                    >
-                      <pre
-                        style={{
-                          margin: 0,
-                          fontSize: '0.8rem',
-                          lineHeight: 1.5,
-                          fontFamily: 'var(--font-mono, monospace)',
-                          whiteSpace: 'pre-wrap',
-                          color: 'var(--text-primary)'
-                        }}
-                      >
-                        {FULL_EXAMPLE.description}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : currentTemplate ? (
+            {currentTemplate ? (
               /* Single Field Tab Content */
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 {/* a) What to enter */}
@@ -695,75 +552,6 @@ export default function ProjectTemplateModal({
                   }}
                 >
                   Replace
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Overwrite Protection Confirm Modal for Fill All Fields */}
-        {confirmAllOverwrite && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'rgba(15, 23, 42, 0.65)',
-              backdropFilter: 'blur(3px)',
-              zIndex: 1100,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '1.5rem'
-            }}
-          >
-            <div
-              style={{
-                background: '#ffffff',
-                borderRadius: '10px',
-                padding: '1.5rem',
-                maxWidth: '460px',
-                width: '100%',
-                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1rem',
-                border: '1px solid var(--border)'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <div style={{ background: '#fef3c7', padding: '0.5rem', borderRadius: '50%', color: '#d97706' }}>
-                  <AlertTriangle size={20} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Overwrite Existing Project Content?
-                  </h3>
-                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    One or more fields already contain project information.
-                  </p>
-                </div>
-              </div>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                Filling all fields with the Rocuronium Bromide example will overwrite any current text in Project Name, Compound, Objective, and Description.
-              </p>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setConfirmAllOverwrite(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={() => {
-                    onFillAll(FULL_EXAMPLE)
-                    setConfirmAllOverwrite(false)
-                    onClose()
-                  }}
-                >
-                  Replace All Fields
                 </button>
               </div>
             </div>

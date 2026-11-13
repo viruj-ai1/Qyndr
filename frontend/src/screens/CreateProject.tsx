@@ -8,7 +8,6 @@ import toast from 'react-hot-toast'
 import ProjectTemplateModal, { TabKey } from '../components/ProjectTemplateModal'
 import {
   FieldKey,
-  FULL_EXAMPLE,
   DESCRIPTION_SECTIONS
 } from '../data/projectTemplates'
 
@@ -100,34 +99,6 @@ export default function CreateProject() {
           el.setSelectionRange(firstBracket, closingBracket + 1)
         }
       }
-    }, 100)
-  }
-
-  // Fill All Fields With Example
-  const handleFillAll = (data: typeof FULL_EXAMPLE) => {
-    setForm({
-      name: data.name,
-      compound: data.compound,
-      objective: data.objective,
-      description: data.description
-    })
-
-    if (currentProject) {
-      const parsedTargets = extractTargetsFromDescription(data.description, data.objective, data.compound)
-      setProject({
-        ...currentProject,
-        name: data.name,
-        compound: data.compound,
-        objective: data.objective,
-        description: data.description,
-        api_targets: parsedTargets
-      })
-      setApiTargets(parsedTargets)
-    }
-
-    toast.success('All fields populated with Rocuronium Bromide example!')
-    setTimeout(() => {
-      nameInputRef.current?.focus()
     }, 100)
   }
 
@@ -500,7 +471,6 @@ export default function CreateProject() {
         initialTab={templateModalTab}
         onClose={() => setIsTemplateModalOpen(false)}
         onInsert={handleInsert}
-        onFillAll={handleFillAll}
         fieldHasContent={fieldHasContent}
         triggerRef={templateTriggerRef}
       />

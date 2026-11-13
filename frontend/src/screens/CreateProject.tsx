@@ -127,21 +127,27 @@ export default function CreateProject() {
     const text = form.description || ''
     const textLower = text.toLowerCase()
 
-    const detected = DESCRIPTION_SECTIONS.filter(header => {
+    // A section is considered present if its header appears anywhere in the description text
+    const present = DESCRIPTION_SECTIONS.filter(header => {
+      return textLower.includes(header.toLowerCase())
+    })
+
+    // To measure completeness percentage: check if there is non-bracket content after the header
+    const filled = present.filter(header => {
       const headerLower = header.toLowerCase()
       const idx = textLower.indexOf(headerLower)
       if (idx === -1) return false
-      // Check if there is some non-empty text after the header before the next header or end
       const after = text.slice(idx + header.length).trim()
       return after.length > 0 && !after.startsWith('[')
     })
 
-    const missing = DESCRIPTION_SECTIONS.filter(h => !detected.includes(h))
+    const missing = DESCRIPTION_SECTIONS.filter(h => !present.includes(h))
 
     return {
-      filledCount: detected.length,
+      filledCount: filled.length,
+      presentCount: present.length,
       totalCount: DESCRIPTION_SECTIONS.length,
-      percentage: Math.round((detected.length / DESCRIPTION_SECTIONS.length) * 100),
+      percentage: Math.round((filled.length / DESCRIPTION_SECTIONS.length) * 100),
       missing
     }
   }, [form.description])

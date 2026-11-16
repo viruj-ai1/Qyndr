@@ -72,13 +72,20 @@ export default function QTPPDefinition() {
   }
 
   const [items, setItems] = useState<QTPPItem[]>(getInitialItems)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const isFirstMount = useRef(true)
 
   // Synchronize items whenever the active project changes
   useEffect(() => {
     setItems(getInitialItems())
+    setSelectedIds([])
   }, [currentProject?.id])
+
+  // Prune any selectedIds that no longer exist in items
+  useEffect(() => {
+    setSelectedIds(prev => prev.filter(id => items.some(i => i.id === id)))
+  }, [items])
 
   // Synchronize to store and auto-save so going front and back NEVER loses data
   useEffect(() => {
@@ -130,8 +137,27 @@ export default function QTPPDefinition() {
     setItems(prev => [...prev, newItem])
   }
 
-  const handleRemoveRow = (id: string) => {
-    setItems(items.filter(i => i.id !== id))
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    )
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(items.map(i => i.id))
+    } else {
+      setSelectedIds([])
+    }
+  }
+
+  const handleDeleteSelected = () => {
+    if (selectedIds.length === 0) return
+    const count = selectedIds.length
+    const remaining = items.filter(i => !selectedIds.includes(i.id))
+    setItems(remaining)
+    setSelectedIds([])
+    toast.success(`Deleted ${count} ${count === 1 ? 'attribute' : 'attributes'}`)
   }
 
   const handleCriterionChange = (id: string, newCriterion: AcceptanceCriterion) => {
@@ -248,7 +274,17 @@ export default function QTPPDefinition() {
               Define attributes and criteria specific to {currentProject?.compound || 'this API'}.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            {selectedIds.length > 0 && (
+              <button
+                className="btn btn-danger btn-sm"
+                onClick={handleDeleteSelected}
+                title="Delete selected QTPP attributes"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}
+              >
+                <span>Delete QTPP ({selectedIds.length})</span>
+              </button>
+            )}
             {items.length > 0 && (
               <button
                 className="btn btn-secondary btn-sm"
@@ -269,18 +305,27 @@ export default function QTPPDefinition() {
           <table className="data-table" style={{ width: '100%', fontSize: '0.85rem' }}>
             <thead>
               <tr>
+                <th style={{ width: '3%', textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={items.length > 0 && selectedIds.length === items.length}
+                    onChange={e => handleSelectAll(e.target.checked)}
+                    title="Select all attributes"
+                    style={{ cursor: 'pointer' }}
+                  />
+                </th>
                 <th style={{ width: '4%' }}>#</th>
                 <th style={{ width: '22%' }}>Attribute Name</th>
-                <th style={{ width: '36%' }}>Target / Acceptance Criterion</th>
+                <th style={{ width: '35%' }}>Target / Acceptance Criterion</th>
                 <th style={{ width: '18%' }}>Justification / Source</th>
-                <th style={{ width: '14%' }}>Attribute Type</th>
-                <th style={{ width: '6%', textAlign: 'center' }}>Actions</th>
+                <th style={{ width: '13%' }}>Attribute Type</th>
+                <th style={{ width: '5%', textAlign: 'center' }}>Order</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-muted)' }}>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-muted)' }}>
                     <div style={{ fontSize: '2.2rem', marginBottom: '0.6rem' }}>📋</div>
                     <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem', marginBottom: '0.35rem' }}>
                       No QTPP Attributes Defined Yet
@@ -296,85 +341,90 @@ export default function QTPPDefinition() {
                   </td>
                 </tr>
               ) : (
-                items.map((row, idx) => (
-                <tr key={row.id}>
-                  <td style={{ color: 'var(--text-muted)', fontWeight: 600, verticalAlign: 'top', paddingTop: '1rem' }}>
-                    {idx + 1}
-                  </td>
-                  <td style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
-                    <input
-                      type="text"
-                      className="form-input"
-                      style={{ padding: '0.45rem 0.65rem', fontSize: '0.85rem' }}
-                      placeholder="e.g. Assay (Purity)"
-                      value={row.attribute}
-                      onChange={e => handleChange(row.id, 'attribute', e.target.value)}
-                    />
-                  </td>
-                  <td style={{ verticalAlign: 'top', padding: '0.75rem 0.5rem' }}>
-                    <CriterionInput
-                      value={row.acceptanceCriterion}
-                      onChange={newCrit => handleCriterionChange(row.id, newCrit)}
-                      attributeType={row.type}
-                      attributeName={row.attribute}
-                    />
-                  </td>
-                  <td style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
-                    <select
-                      className="form-select"
-                      style={{ padding: '0.45rem 0.65rem', fontSize: '0.82rem' }}
-                      value={row.justification}
-                      onChange={e => handleChange(row.id, 'justification', e.target.value)}
-                    >
-                      {JUSTIFICATION_OPTIONS.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
-                    <select
-                      className="form-select"
-                      style={{ padding: '0.45rem 0.65rem', fontSize: '0.82rem' }}
-                      value={row.type}
-                      onChange={e => handleChange(row.id, 'type', e.target.value)}
-                    >
-                      {TYPE_OPTIONS.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td style={{ textAlign: 'center', verticalAlign: 'top', paddingTop: '0.9rem' }}>
-                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem', lineHeight: 1 }}
-                        disabled={idx === 0}
-                        onClick={() => handleMove(idx, 'up')}
-                        title="Move Up"
-                      >
-                        ▲
-                      </button>
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem', lineHeight: 1 }}
-                        disabled={idx === items.length - 1}
-                        onClick={() => handleMove(idx, 'down')}
-                        title="Move Down"
-                      >
-                        ▼
-                      </button>
-                      <button
-                        className="btn btn-danger btn-sm"
-                        style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem', lineHeight: 1 }}
-                        onClick={() => handleRemoveRow(row.id)}
-                        title="Delete"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )))}
+                items.map((row, idx) => {
+                  const isChecked = selectedIds.includes(row.id)
+                  return (
+                    <tr key={row.id} style={{ background: isChecked ? 'rgba(239, 68, 68, 0.04)' : undefined }}>
+                      <td style={{ textAlign: 'center', verticalAlign: 'top', paddingTop: '1.05rem' }}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleSelect(row.id)}
+                          title={`Select ${row.attribute || 'attribute'}`}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </td>
+                      <td style={{ color: 'var(--text-muted)', fontWeight: 600, verticalAlign: 'top', paddingTop: '1rem' }}>
+                        {idx + 1}
+                      </td>
+                      <td style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
+                        <input
+                          type="text"
+                          className="form-input"
+                          style={{ padding: '0.45rem 0.65rem', fontSize: '0.85rem' }}
+                          placeholder="e.g. Assay (Purity)"
+                          value={row.attribute}
+                          onChange={e => handleChange(row.id, 'attribute', e.target.value)}
+                        />
+                      </td>
+                      <td style={{ verticalAlign: 'top', padding: '0.75rem 0.5rem' }}>
+                        <CriterionInput
+                          value={row.acceptanceCriterion}
+                          onChange={newCrit => handleCriterionChange(row.id, newCrit)}
+                          attributeType={row.type}
+                          attributeName={row.attribute}
+                        />
+                      </td>
+                      <td style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
+                        <select
+                          className="form-select"
+                          style={{ padding: '0.45rem 0.65rem', fontSize: '0.82rem' }}
+                          value={row.justification}
+                          onChange={e => handleChange(row.id, 'justification', e.target.value)}
+                        >
+                          {JUSTIFICATION_OPTIONS.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
+                        <select
+                          className="form-select"
+                          style={{ padding: '0.45rem 0.65rem', fontSize: '0.82rem' }}
+                          value={row.type}
+                          onChange={e => handleChange(row.id, 'type', e.target.value)}
+                        >
+                          {TYPE_OPTIONS.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td style={{ textAlign: 'center', verticalAlign: 'top', paddingTop: '0.9rem' }}>
+                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem', lineHeight: 1 }}
+                            disabled={idx === 0}
+                            onClick={() => handleMove(idx, 'up')}
+                            title="Move Up"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem', lineHeight: 1 }}
+                            disabled={idx === items.length - 1}
+                            onClick={() => handleMove(idx, 'down')}
+                            title="Move Down"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
           </table>
         </div>

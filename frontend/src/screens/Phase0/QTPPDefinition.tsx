@@ -349,27 +349,29 @@ export default function QTPPDefinition() {
           <table className="data-table" style={{ width: '100%', fontSize: '0.85rem' }}>
             <thead>
               <tr>
-                <th style={{ width: '3%', textAlign: 'center' }}>
-                  <input
-                    type="checkbox"
-                    checked={items.length > 0 && selectedIds.length === items.length}
-                    onChange={e => handleSelectAll(e.target.checked)}
-                    title="Select all attributes"
-                    style={{ cursor: 'pointer' }}
-                  />
-                </th>
+                {isSelectMode && (
+                  <th style={{ width: '3%', textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={items.length > 0 && selectedIds.length === items.length}
+                      onChange={e => handleSelectAll(e.target.checked)}
+                      title="Select all attributes"
+                      style={{ cursor: 'pointer' }}
+                    />
+                  </th>
+                )}
                 <th style={{ width: '4%' }}>#</th>
-                <th style={{ width: '22%' }}>Attribute Name</th>
-                <th style={{ width: '35%' }}>Target / Acceptance Criterion</th>
-                <th style={{ width: '18%' }}>Justification / Source</th>
-                <th style={{ width: '13%' }}>Attribute Type</th>
+                <th style={{ width: isSelectMode ? '22%' : '23%' }}>Attribute Name</th>
+                <th style={{ width: isSelectMode ? '35%' : '37%' }}>Target / Acceptance Criterion</th>
+                <th style={{ width: isSelectMode ? '18%' : '19%' }}>Justification / Source</th>
+                <th style={{ width: isSelectMode ? '13%' : '14%' }}>Attribute Type</th>
                 <th style={{ width: '5%', textAlign: 'center' }}>Order</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-muted)' }}>
+                  <td colSpan={isSelectMode ? 7 : 6} style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-muted)' }}>
                     <div style={{ fontSize: '2.2rem', marginBottom: '0.6rem' }}>📋</div>
                     <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem', marginBottom: '0.35rem' }}>
                       No QTPP Attributes Defined Yet
@@ -389,15 +391,17 @@ export default function QTPPDefinition() {
                   const isChecked = selectedIds.includes(row.id)
                   return (
                     <tr key={row.id} style={{ background: isChecked ? 'rgba(239, 68, 68, 0.04)' : undefined }}>
-                      <td style={{ textAlign: 'center', verticalAlign: 'top', paddingTop: '1.05rem' }}>
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleToggleSelect(row.id)}
-                          title={`Select ${row.attribute || 'attribute'}`}
-                          style={{ cursor: 'pointer' }}
-                        />
-                      </td>
+                      {isSelectMode && (
+                        <td style={{ textAlign: 'center', verticalAlign: 'top', paddingTop: '1.05rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleToggleSelect(row.id)}
+                            title={`Select ${row.attribute || 'attribute'}`}
+                            style={{ cursor: 'pointer' }}
+                          />
+                        </td>
+                      )}
                       <td style={{ color: 'var(--text-muted)', fontWeight: 600, verticalAlign: 'top', paddingTop: '1rem' }}>
                         {idx + 1}
                       </td>

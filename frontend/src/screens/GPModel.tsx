@@ -595,7 +595,7 @@ export default function GPModel() {
                 }}
                 style={{ padding: '0.4rem 1.1rem', fontSize: '0.8rem', borderRadius: '6px' }}
               >
-                Understood
+                OK
               </button>
             </div>
           </div>

@@ -131,3 +131,95 @@ export const FULL_EXAMPLE = {
   description: PROJECT_TEMPLATES.description.example
 }
 
+/**
+ * Ensures that no section header (standard or legacy) is duplicated in the description text.
+ * Merges contents cleanly if a header appears multiple times and eliminates redundant empty headers.
+ */
+export function deduplicateDescriptionSections(text: string): string {
+  if (!text) return text
+
+  const knownHeaders = [
+    ...DESCRIPTION_SECTIONS,
+    '--- Process Understanding ---',
+    'What is the product / API?:',
+    'Describe the process step:',
+    'Current performance / baseline:',
+    'Target performance:'
+  ]
+
+  let result = text
+
+  // 1. First, catch direct consecutive repeated headers (e.g. "Header:\n\nHeader:")
+  for (const header of knownHeaders) {
+    const escaped = header.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const consecutiveRegex = new RegExp(`(${escaped})\\s*\\n+\\s*${escaped}`, 'gi')
+    while (consecutiveRegex.test(result)) {
+      result = result.replace(consecutiveRegex, '$1')
+    }
+  }
+
+  // 2. Identify all header positions in text
+  const headerPositions: { header: string; index: number; length: number }[] = []
+  const textLower = result.toLowerCase()
+
+  for (const header of knownHeaders) {
+    const headerLower = header.toLowerCase()
+    let pos = 0
+    while ((pos = textLower.indexOf(headerLower, pos)) !== -1) {
+      headerPositions.push({ header, index: pos, length: header.length })
+      pos += headerLower.length
+    }
+  }
+
+  headerPositions.sort((a, b) => a.index - b.index)
+  const headerCount: Record<string, number> = {}
+  headerPositions.forEach(p => {
+    const key = p.header.toLowerCase()
+    headerCount[key] = (headerCount[key] || 0) + 1
+  })
+
+  const hasDuplicates = Object.values(headerCount).some(c => c > 1)
+  if (!hasDuplicates) {
+    return result
+  }
+
+  // 3. Slice into sections by header
+  const sections: { header: string; content: string }[] = []
+  for (let i = 0; i < headerPositions.length; i++) {
+    const curr = headerPositions[i]
+    const nextIndex = i + 1 < headerPositions.length ? headerPositions[i + 1].index : result.length
+    const content = result.slice(curr.index + curr.length, nextIndex).trim()
+    sections.push({ header: curr.header, content })
+  }
+
+  const preamble = headerPositions.length > 0 ? result.slice(0, headerPositions[0].index).trim() : ''
+
+  // 4. Merge duplicate sections under the first occurrence of each header
+  const mergedSections = new Map<string, { displayHeader: string; contents: string[] }>()
+  for (const sec of sections) {
+    const key = sec.header.toLowerCase()
+    if (!mergedSections.has(key)) {
+      mergedSections.set(key, { displayHeader: sec.header, contents: [] })
+    }
+    if (sec.content) {
+      mergedSections.get(key)!.contents.push(sec.content)
+    }
+  }
+
+  // 5. Recombine cleanly
+  const parts: string[] = []
+  if (preamble) parts.push(preamble)
+
+  for (const [, val] of mergedSections.entries()) {
+    const joinedContent = val.contents.join('\n\n')
+    if (joinedContent) {
+      parts.push(`${val.displayHeader}\n${joinedContent}`)
+    } else {
+      parts.push(`${val.displayHeader}`)
+    }
+  }
+
+  return parts.join('\n\n')
+}
+
+

@@ -8,7 +8,8 @@ import toast from 'react-hot-toast'
 import ProjectTemplateModal, { TabKey } from '../components/ProjectTemplateModal'
 import {
   FieldKey,
-  DESCRIPTION_SECTIONS
+  DESCRIPTION_SECTIONS,
+  deduplicateDescriptionSections
 } from '../data/projectTemplates'
 
 export default function CreateProject() {
@@ -34,13 +35,28 @@ export default function CreateProject() {
   const descriptionInputRef = useRef<HTMLTextAreaElement | null>(null)
 
   useEffect(() => {
+    const rawDesc = currentProject?.description || ''
+    const cleanDesc = deduplicateDescriptionSections(rawDesc)
+    if (cleanDesc !== rawDesc && currentProject) {
+      setProject({ ...currentProject, description: cleanDesc })
+    }
     setForm({
       name:        currentProject?.name        || '',
       compound:    currentProject?.compound    || '',
       objective:   currentProject?.objective   || '',
-      description: currentProject?.description || '',
+      description: cleanDesc,
     })
   }, [currentProject?.id])
+
+  // Clean up any duplicate section headers on initial load
+  useEffect(() => {
+    if (form.description) {
+      const clean = deduplicateDescriptionSections(form.description)
+      if (clean !== form.description) {
+        set('description', clean)
+      }
+    }
+  }, [])
 
   function set(key: string, val: string) {
     setForm(f => {
@@ -84,6 +100,9 @@ export default function CreateProject() {
     let nextVal = text
     if (mode === 'append' && currentVal.trim()) {
       nextVal = `${currentVal.trim()}\n\n${text}`
+    }
+    if (fieldKey === 'description') {
+      nextVal = deduplicateDescriptionSections(nextVal)
     }
 
     set(stateKey, nextVal)
@@ -155,8 +174,14 @@ export default function CreateProject() {
   // Append a missing section header to the description
   const handleAppendMissingSection = (header: string) => {
     const cur = form.description.trim()
+    const headerLower = header.toLowerCase().replace(/[:\s]/g, '')
+    const curLower = cur.toLowerCase().replace(/[:\s]/g, '')
+    if (curLower.includes(headerLower)) {
+      toast('Section is already present in description')
+      return
+    }
     const addition = `${header}\n`
-    const nextDesc = cur ? `${cur}\n\n${addition}` : addition
+    const nextDesc = deduplicateDescriptionSections(cur ? `${cur}\n\n${addition}` : addition)
     set('description', nextDesc)
     setTimeout(() => {
       if (descriptionInputRef.current) {
@@ -171,10 +196,12 @@ export default function CreateProject() {
     setSaving(true)
     try {
       // Automatically extract structured process targets directly from Project Description
-      const extractedTargets = extractTargetsFromDescription(form.description, form.objective, form.compound)
+      const cleanDesc = deduplicateDescriptionSections(form.description)
+      const extractedTargets = extractTargetsFromDescription(cleanDesc, form.objective, form.compound)
 
       const payload = {
         ...form,
+        description: cleanDesc,
         api_targets: extractedTargets,
         current_step: 'qtpp'
       }
@@ -363,6 +390,12 @@ export default function CreateProject() {
               placeholder="Describe the process, background, target quality criteria (e.g. assay/purity specifications, impurity limits, reaction yield), and known constraints…"
               value={form.description}
               onChange={e => set('description', e.target.value)}
+              onBlur={() => {
+                const clean = deduplicateDescriptionSections(form.description)
+                if (clean !== form.description) {
+                  set('description', clean)
+                }
+              }}
             />
 
             {/* Description Completeness Indicator */}

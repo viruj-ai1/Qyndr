@@ -248,16 +248,6 @@ export default function RouteMapping() {
     setExpandedDetails(prev => ({ ...prev, [stageId]: !prev[stageId] }))
   }
 
-  const handleMove = (index: number, direction: 'up' | 'down') => {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1
-    if (targetIndex < 0 || targetIndex >= items.length) return
-    const updated = [...items]
-    const temp = updated[index]
-    updated[index] = updated[targetIndex]
-    updated[targetIndex] = temp
-    setItems(updated.map((s, idx) => ({ ...s, order: idx + 1, source: 'user_edited' })))
-  }
-
   const handleBack = () => {
     setStages(items)
     const valid = items.filter(s => s.name.trim() !== '')
@@ -600,26 +590,6 @@ export default function RouteMapping() {
                         style={{ fontSize: '0.74rem', padding: '0.2rem 0.55rem' }}
                       >
                         {isExpanded ? 'Hide Details ▲' : 'Details ▼'}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-icon btn-sm btn-secondary"
-                        disabled={idx === 0}
-                        onClick={() => handleMove(idx, 'up')}
-                        title="Move Up"
-                        style={{ padding: '0.2rem 0.45rem', fontSize: '0.72rem' }}
-                      >
-                        ▲
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-icon btn-sm btn-secondary"
-                        disabled={idx === items.length - 1}
-                        onClick={() => handleMove(idx, 'down')}
-                        title="Move Down"
-                        style={{ padding: '0.2rem 0.45rem', fontSize: '0.72rem' }}
-                      >
-                        ▼
                       </button>
                     </div>
                   </div>

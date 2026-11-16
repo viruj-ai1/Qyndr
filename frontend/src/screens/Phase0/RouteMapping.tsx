@@ -86,6 +86,8 @@ export default function RouteMapping() {
   }
 
   const [items, setItems] = useState<StageItem[]>(getInitialStages)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [isEditMode, setIsEditMode] = useState(false)
   const [saving, setSaving] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [generationError, setGenerationError] = useState<string | null>(null)
@@ -94,6 +96,11 @@ export default function RouteMapping() {
   const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({})
 
   const isFirstMount = useRef(true)
+
+  // Prune any selectedIds that no longer exist in items
+  useEffect(() => {
+    setSelectedIds(prev => prev.filter(id => items.some(i => i.id === id)))
+  }, [items])
 
   // Synchronize when project or description changes
   useEffect(() => {
@@ -188,6 +195,40 @@ export default function RouteMapping() {
   const handleRemoveStage = (id: string) => {
     const filtered = items.filter(s => s.id !== id)
     setItems(filtered.map((s, idx) => ({ ...s, order: idx + 1 })))
+  }
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    )
+  }
+
+  const handleDeleteSelected = () => {
+    if (selectedIds.length === 0) {
+      toast('Select the checkbox next to each stage you want to delete.')
+      return
+    }
+    const count = selectedIds.length
+    const remaining = items.filter(s => !selectedIds.includes(s.id))
+    const reordered = remaining.map((s, idx) => ({ ...s, order: idx + 1 }))
+    setItems(reordered)
+    setSelectedIds([])
+    if (reordered.length === 0) {
+      setIsEditMode(false)
+    }
+    toast.success(`Deleted ${count} ${count === 1 ? 'stage' : 'stages'}`)
+  }
+
+  const handleClearAll = () => {
+    if (items.length === 0) return
+    setItems([])
+    setSelectedIds([])
+    setIsEditMode(false)
+    setStages([])
+    if (currentProject?.id) {
+      RouteApi.save(currentProject.id, []).catch(() => {})
+    }
+    toast.success('Cleared all synthesis stages')
   }
 
   const handleChange = (id: string, field: keyof StageItem, value: any) => {
@@ -363,10 +404,78 @@ export default function RouteMapping() {
               {items.length} {items.length === 1 ? 'stage' : 'stages'} defined · Grounded in QbD RAG & Process Context
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <button className="btn btn-secondary btn-sm" onClick={handleAddStage} disabled={generating}>
-              + Add Stage
-            </button>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {!isEditMode ? (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setIsEditMode(true)}
+                disabled={generating}
+                title="Edit synthesis route stages"
+                style={{
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                Edit
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleDeleteSelected}
+                  style={{
+                    color: selectedIds.length > 0 ? '#ef4444' : 'var(--danger)',
+                    borderColor: 'rgba(239, 68, 68, 0.35)',
+                    fontWeight: 600
+                  }}
+                  title={selectedIds.length === 0 ? "Select stages using checkboxes to delete" : `Delete ${selectedIds.length} selected stages`}
+                >
+                  Delete Stage {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+                </button>
+
+                {items.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleClearAll}
+                    title="Clear all stages"
+                  >
+                    Clear All
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleAddStage}
+                  disabled={generating}
+                  title="Add a new stage"
+                >
+                  + Add Stage
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    setIsEditMode(false)
+                    setSelectedIds([])
+                  }}
+                  style={{ fontWeight: 600 }}
+                  title="Done editing"
+                >
+                  Done
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -423,6 +532,7 @@ export default function RouteMapping() {
             {items.map((stage, idx) => {
               const isLowConfidence = stage.confidence === 'low'
               const isExpanded = !!expandedDetails[stage.id]
+              const isChecked = selectedIds.includes(stage.id)
 
               return (
                 <div
@@ -431,9 +541,13 @@ export default function RouteMapping() {
                     display: 'flex',
                     flexDirection: 'column',
                     padding: '1.25rem',
-                    background: 'var(--bg-surface)',
+                    background: isChecked ? 'rgba(239, 68, 68, 0.04)' : 'var(--bg-surface)',
                     borderRadius: '10px',
-                    border: isLowConfidence ? '1.5px solid #f59e0b' : '1px solid var(--border)',
+                    border: isChecked
+                      ? '1.5px solid rgba(239, 68, 68, 0.4)'
+                      : isLowConfidence
+                      ? '1.5px solid #f59e0b'
+                      : '1px solid var(--border)',
                     boxShadow: 'var(--shadow-sm)',
                     transition: 'all 0.2s ease'
                   }}
@@ -441,6 +555,15 @@ export default function RouteMapping() {
                   {/* Top Header Row */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                      {isEditMode && (
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleSelect(stage.id)}
+                          title={`Select Stage ${stage.order} to delete`}
+                          style={{ cursor: 'pointer', marginRight: '0.2rem', width: '15px', height: '15px' }}
+                        />
+                      )}
                       <div
                         style={{
                           width: '32px',
@@ -497,15 +620,6 @@ export default function RouteMapping() {
                         style={{ padding: '0.2rem 0.45rem', fontSize: '0.72rem' }}
                       >
                         ▼
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-icon btn-sm btn-danger"
-                        onClick={() => handleRemoveStage(stage.id)}
-                        title="Delete Stage"
-                        style={{ padding: '0.2rem 0.45rem', fontSize: '0.72rem' }}
-                      >
-                        ✕
                       </button>
                     </div>
                   </div>

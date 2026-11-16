@@ -249,7 +249,7 @@ export default function CreateProject() {
                 title="View Project Name template and example"
               >
                 <Info size={13} />
-                <span>ⓘ Template</span>
+                <span>Template</span>
               </button>
             </div>
             <input
@@ -284,7 +284,7 @@ export default function CreateProject() {
                   title="View Compound / API template and example"
                 >
                   <Info size={13} />
-                  <span>ⓘ Template</span>
+                  <span>Template</span>
                 </button>
               </div>
               <input
@@ -317,7 +317,7 @@ export default function CreateProject() {
                   title="View Primary Objective template and example"
                 >
                   <Info size={13} />
-                  <span>ⓘ Template</span>
+                  <span>Template</span>
                 </button>
               </div>
               <input
@@ -352,7 +352,7 @@ export default function CreateProject() {
                 title="View full structured Project Description template"
               >
                 <Info size={13} />
-                <span>ⓘ Template</span>
+                <span>Template</span>
               </button>
             </div>
             <textarea

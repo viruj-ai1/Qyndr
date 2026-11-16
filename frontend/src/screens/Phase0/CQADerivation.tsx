@@ -79,7 +79,6 @@ export default function CQADerivation() {
   }
 
   const [items, setItems] = useState<CQAMapping[]>(getInitialCQAs)
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isEditMode, setIsEditMode] = useState(false)
   const [saving, setSaving] = useState(false)
   const [suggestions, setSuggestions] = useState<Record<string, AttributeSuggestion>>({})
@@ -103,11 +102,6 @@ export default function CQADerivation() {
   const [loadingAudit, setLoadingAudit] = useState(false)
 
   const isFirstMount = useRef(true)
-
-  // Prune any selectedIds that no longer exist in items
-  useEffect(() => {
-    setSelectedIds(prev => prev.filter(id => items.some(i => i.id === id)))
-  }, [items])
 
   // Fetch suggestions and missing CQAs from backend service
   useEffect(() => {
@@ -377,38 +371,6 @@ export default function CQADerivation() {
     setItems(prev => prev.filter(c => c.id !== id))
   }
 
-  const handleToggleSelect = (id: string) => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    )
-  }
-
-  const handleDeleteSelected = () => {
-    if (selectedIds.length === 0) {
-      toast('Select the checkbox next to each CQA you want to delete.')
-      return
-    }
-    const count = selectedIds.length
-    const toDelete = items.filter(c => selectedIds.includes(c.id))
-    if (currentProject?.id) {
-      toDelete.forEach(cqa => {
-        CQAApi.recordAudit(currentProject.id, {
-          cqa_id: cqa.id,
-          action: 'DELETE',
-          old_value: cqa,
-          new_value: null
-        }).catch(() => {})
-      })
-    }
-    const remaining = items.filter(c => !selectedIds.includes(c.id))
-    setItems(remaining)
-    setSelectedIds([])
-    if (remaining.length === 0) {
-      setIsEditMode(false)
-    }
-    toast.success(`Deleted ${count} ${count === 1 ? 'CQA' : 'CQAs'}`)
-  }
-
   const handleClearAll = () => {
     if (items.length === 0) return
     if (currentProject?.id) {
@@ -424,7 +386,6 @@ export default function CQADerivation() {
     }
     setItems([])
     setCqas([])
-    setSelectedIds([])
     setIsEditMode(false)
     toast.success('Cleared all assessed CQAs')
   }
@@ -623,20 +584,6 @@ export default function CQADerivation() {
                   </button>
                 ) : (
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={handleDeleteSelected}
-                      style={{
-                        color: selectedIds.length > 0 ? '#ef4444' : 'var(--danger)',
-                        borderColor: 'rgba(239, 68, 68, 0.35)',
-                        fontWeight: 600
-                      }}
-                      title={selectedIds.length === 0 ? "Select CQAs using checkboxes to delete" : `Delete ${selectedIds.length} selected CQAs`}
-                    >
-                      Delete CQA {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
-                    </button>
-
                     {items.length > 0 && (
                       <button
                         type="button"
@@ -660,10 +607,7 @@ export default function CQADerivation() {
                     <button
                       type="button"
                       className="btn btn-primary btn-sm"
-                      onClick={() => {
-                        setIsEditMode(false)
-                        setSelectedIds([])
-                      }}
+                      onClick={() => setIsEditMode(false)}
                       style={{ fontWeight: 600 }}
                       title="Done editing"
                     >
@@ -701,36 +645,21 @@ export default function CQADerivation() {
                 {items.map((cqa, idx) => {
                   const crit = cqa.criticality_score ?? ((cqa.impact_score ?? 3) * (cqa.uncertainty_score ?? 3))
                   const isCrit = cqa.is_critical ?? (crit >= 12)
-                  const isChecked = selectedIds.includes(cqa.id)
 
                   return (
                     <div
                       key={cqa.id}
                       style={{
                         padding: '1.15rem',
-                        background: isChecked ? 'rgba(239, 68, 68, 0.04)' : 'var(--bg-surface)',
+                        background: 'var(--bg-surface)',
                         borderRadius: '10px',
-                        border: isChecked
-                          ? '1.5px solid rgba(239, 68, 68, 0.4)'
-                          : isCrit
-                          ? '1.5px solid rgba(220, 38, 38, 0.3)'
-                          : '1px solid var(--border)',
-                        boxShadow: 'var(--shadow-sm)',
-                        transition: 'all 0.15s ease'
+                        border: isCrit ? '1.5px solid rgba(220, 38, 38, 0.3)' : '1px solid var(--border)',
+                        boxShadow: 'var(--shadow-sm)'
                       }}
                     >
                       {/* Header Row */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', paddingBottom: '0.65rem', borderBottom: '1px solid var(--border)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-                          {isEditMode && (
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => handleToggleSelect(cqa.id)}
-                              title={`Select ${cqa.name || 'CQA'} to delete`}
-                              style={{ cursor: 'pointer', marginRight: '0.2rem', width: '15px', height: '15px' }}
-                            />
-                          )}
                           <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--primary)' }}>
                             {cqa.name || `CQA #${idx + 1}`}
                           </span>

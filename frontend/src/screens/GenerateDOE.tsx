@@ -311,15 +311,25 @@ export default function GenerateDOE() {
     const responseHeaders = responses.map((r: any) => `${simplifyResponseName(r.name, r.goal)} (${r.unit || ''})`)
     const headers = ['Run #', 'Run Type', ...factorHeaders, ...responseHeaders, 'Lab Observation Notes']
 
-    const rows = displayedExperiments.map((e: any) => {
+    // Escape cell values for CSV: wrap in quotes and escape internal quotes
+    const escapeCsv = (val: any) => {
+      if (val == null) return '""'
+      const str = String(val)
+      return `"${str.replace(/"/g, '""')}"`
+    }
+
+    const csvRows: string[] = []
+    csvRows.push(headers.map(escapeCsv).join(','))
+
+    displayedExperiments.forEach((e: any) => {
       const factorCols = showActuals
         ? factors.flatMap((_: any, fi: number) => {
-            const nom = e.actual_values?.[fi] != null ? e.actual_values[fi].toFixed(3) : ''
-            const act = actualValues[e.id]?.[fi] != null ? actualValues[e.id][fi].toFixed(3) : nom
+            const nom = e.actual_values?.[fi] != null ? Number(e.actual_values[fi]).toFixed(3) : ''
+            const act = actualValues[e.id]?.[fi] != null ? Number(actualValues[e.id][fi]).toFixed(3) : nom
             return [nom, act]
           })
         : factors.map((_: any, fi: number) => {
-            return e.actual_values?.[fi] != null ? e.actual_values[fi].toFixed(3) : ''
+            return e.actual_values?.[fi] != null ? Number(e.actual_values[fi]).toFixed(3) : ''
           })
 
       const responseCols = responses.map((_: any, ri: number) => {
@@ -327,20 +337,25 @@ export default function GenerateDOE() {
         return val != null ? val : ''
       })
 
-      const note = (notes[e.id] || '').replace(/"/g, '""')
-
-      return [e.run_number, e.run_type, ...factorCols, ...responseCols, `"${note}"`].join(',')
+      const note = notes[e.id] || ''
+      const rowValues = [e.run_number ?? '', e.run_type ?? 'Factorial', ...factorCols, ...responseCols, note]
+      csvRows.push(rowValues.map(escapeCsv).join(','))
     })
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n')
-    const encodedUri = encodeURI(csvContent)
+    const csvString = csvRows.join('\r\n')
+    // Prepend UTF-8 BOM (\uFEFF) so Excel reliably detects UTF-8 characters and delimiters
+    const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+
     const link = document.createElement('a')
-    link.setAttribute('href', encodedUri)
+    link.href = url
     const projName = (currentProject?.name || 'DOE').replace(/[^a-zA-Z0-9_-]/g, '_')
-    link.setAttribute('download', `${projName}_DOE_Batch_Sheet.csv`)
+    link.download = `${projName}_DOE_Batch_Sheet.csv`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
     toast.success('Exported batch execution sheet as CSV!')
   }
 

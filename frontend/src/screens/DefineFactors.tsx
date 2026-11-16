@@ -70,6 +70,8 @@ export default function DefineFactors() {
   const [responses, setResponses] = useState<Response[]>(getInitialResponses)
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
   const [isEditMode, setIsEditMode] = useState(false)
+  const [selectedResponseIndices, setSelectedResponseIndices] = useState<number[]>([])
+  const [isResponseEditMode, setIsResponseEditMode] = useState(false)
   const [saving, setSaving] = useState(false)
   const isFirstMount = useRef(true)
 
@@ -77,6 +79,11 @@ export default function DefineFactors() {
   useEffect(() => {
     setSelectedIndices(prev => prev.filter(idx => idx < factors.length))
   }, [factors.length])
+
+  // Prune selectedResponseIndices when responses length changes
+  useEffect(() => {
+    setSelectedResponseIndices(prev => prev.filter(idx => idx < responses.length))
+  }, [responses.length])
 
   // Keep store in sync so switching steps never wipes factors or responses
   useEffect(() => {
@@ -176,10 +183,42 @@ export default function DefineFactors() {
   }
 
   /* ── Responses helpers ─── */
-  const addResponse = () => setResponses(r => [...r, emptyResponse()])
+  const addResponse = () => {
+    setResponses(r => [...r, emptyResponse()])
+    setIsResponseEditMode(true)
+  }
   const removeResponse = (i: number) => setResponses(r => r.filter((_, idx) => idx !== i))
   const setR = (i: number, key: keyof Response, val: any) =>
     setResponses(r => r.map((row, idx) => idx === i ? { ...row, [key]: val, inherited_from_target: false } : row))
+
+  const handleToggleSelectResponse = (index: number) => {
+    setSelectedResponseIndices(prev =>
+      prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
+    )
+  }
+
+  const handleDeleteSelectedResponses = () => {
+    if (selectedResponseIndices.length === 0) {
+      toast('Select the checkbox next to each response you want to delete.')
+      return
+    }
+    const count = selectedResponseIndices.length
+    const remaining = responses.filter((_, idx) => !selectedResponseIndices.includes(idx))
+    setResponses(remaining)
+    setSelectedResponseIndices([])
+    if (remaining.length === 0) {
+      setIsResponseEditMode(false)
+    }
+    toast.success(`Deleted ${count} ${count === 1 ? 'response' : 'responses'}`)
+  }
+
+  const handleClearAllResponses = () => {
+    if (responses.length === 0) return
+    setResponses([])
+    setSelectedResponseIndices([])
+    setIsResponseEditMode(false)
+    toast.success('Cleared all response variables')
+  }
 
   async function handleSave() {
     if (factors.length === 0) { toast.error('Please define at least one factor'); return }
@@ -232,6 +271,14 @@ export default function DefineFactors() {
   const inputCls = 'form-input'
   const factorGridCols = isEditMode ? '32px 2fr 1fr 1fr 1fr 1fr' : '2fr 1fr 1fr 1fr 1fr'
   const factorInputStyle = !isEditMode ? {
+    cursor: 'default',
+    backgroundColor: 'rgba(241, 245, 249, 0.7)',
+    color: 'var(--text-main)',
+    borderColor: 'rgba(203, 213, 225, 0.6)'
+  } : undefined
+
+  const responseGridCols = isResponseEditMode ? '32px 2fr 1fr 1.5fr 1fr' : '2fr 1fr 1.5fr 1fr'
+  const responseInputStyle = !isResponseEditMode ? {
     cursor: 'default',
     backgroundColor: 'rgba(241, 245, 249, 0.7)',
     color: 'var(--text-main)',
@@ -422,51 +469,164 @@ export default function DefineFactors() {
             <div className="card-sub">Output variables to measure after each experiment</div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-secondary btn-sm" onClick={addResponse}>+ Add Response</button>
+            {!isResponseEditMode ? (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setIsResponseEditMode(true)}
+                title="Edit response variables (modify values, add, delete, or clear)"
+                style={{
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                Edit
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleDeleteSelectedResponses}
+                  style={{
+                    color: selectedResponseIndices.length > 0 ? '#ef4444' : 'var(--danger)',
+                    borderColor: 'rgba(239, 68, 68, 0.35)',
+                    fontWeight: 600
+                  }}
+                  title={selectedResponseIndices.length === 0 ? "Select responses using checkboxes to delete" : `Delete ${selectedResponseIndices.length} selected responses`}
+                >
+                  Delete Response {selectedResponseIndices.length > 0 ? `(${selectedResponseIndices.length})` : ''}
+                </button>
+
+                {responses.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleClearAllResponses}
+                    title="Clear all responses"
+                  >
+                    Clear All
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={addResponse}
+                  title="Add a new response variable"
+                >
+                  + Add Response
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    setIsResponseEditMode(false)
+                    setSelectedResponseIndices([])
+                  }}
+                  style={{ fontWeight: 600 }}
+                  title="Done editing"
+                >
+                  Done
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {responses.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', border: '1px dashed var(--border)', borderRadius: '8px', margin: '0.75rem 0' }}>
-            No responses defined yet. Click "+ Add Response" to define CQAs.
+            <p style={{ margin: '0 0 0.75rem' }}>No responses defined yet.</p>
+            <button className="btn btn-primary btn-sm" onClick={addResponse}>
+              + Add First Response
+            </button>
           </div>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr 1fr 36px', gap: '0.5rem', marginBottom: '0.4rem', padding: '0 0.75rem' }}>
-              {['Response Name', 'Unit', 'Goal', 'Target Value', ''].map(h => (
+            <div style={{ display: 'grid', gridTemplateColumns: responseGridCols, gap: '0.75rem', marginBottom: '0.4rem', padding: '0 1rem', alignItems: 'center' }}>
+              {isResponseEditMode && <div style={{ width: '32px' }} />}
+              {['Response Name', 'Unit', 'Goal', 'Target Value'].map(h => (
                 <div key={h} style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</div>
               ))}
             </div>
 
-            {responses.map((r, i) => (
-              <div key={i} style={{ marginBottom: '0.5rem' }}>
-                <div className="response-row">
-                  <div>
-                    <input className={inputCls} placeholder="e.g. Yield %" value={r.name}
-                      onChange={e => setR(i, 'name', e.target.value)} />
-                    {r.inherited_from_target && (
-                      <div style={{ marginTop: '0.2rem' }}>
-                        <span className="badge badge-accent" style={{ fontSize: '0.68rem', padding: '0.1rem 0.45rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <span>🎯</span> Inherited from Project Description
-                        </span>
-                      </div>
+            {responses.map((r, i) => {
+              const isChecked = selectedResponseIndices.includes(i)
+              return (
+                <div key={i} style={{ marginBottom: '0.5rem' }}>
+                  <div
+                    className="response-row"
+                    style={{
+                      gridTemplateColumns: responseGridCols,
+                      background: isChecked ? 'rgba(239, 68, 68, 0.04)' : undefined,
+                      border: isChecked ? '1px solid rgba(239, 68, 68, 0.4)' : undefined
+                    }}
+                  >
+                    {isResponseEditMode && (
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleToggleSelectResponse(i)}
+                        title={`Select ${r.name || `Response ${i + 1}`} to delete`}
+                        style={{ cursor: 'pointer', justifySelf: 'center', width: '15px', height: '15px' }}
+                      />
                     )}
+                    <div>
+                      <input
+                        className={inputCls}
+                        placeholder="e.g. Yield %"
+                        value={r.name}
+                        readOnly={!isResponseEditMode}
+                        style={responseInputStyle}
+                        onChange={e => setR(i, 'name', e.target.value)}
+                      />
+                      {r.inherited_from_target && (
+                        <div style={{ marginTop: '0.2rem' }}>
+                          <span className="badge badge-accent" style={{ fontSize: '0.68rem', padding: '0.1rem 0.45rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <span>🎯</span> Inherited from Project Description
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      className={inputCls}
+                      placeholder="%"
+                      value={r.unit}
+                      readOnly={!isResponseEditMode}
+                      style={responseInputStyle}
+                      onChange={e => setR(i, 'unit', e.target.value)}
+                    />
+                    <select
+                      className="form-select"
+                      value={r.goal}
+                      disabled={!isResponseEditMode}
+                      style={responseInputStyle}
+                      onChange={e => setR(i, 'goal', e.target.value)}
+                    >
+                      <option value="maximize">Maximize</option>
+                      <option value="minimize">Minimize</option>
+                      <option value="target">Hit Target</option>
+                    </select>
+                    <input
+                      className={inputCls}
+                      type="number"
+                      placeholder="Optional"
+                      value={r.target ?? ''}
+                      readOnly={!isResponseEditMode}
+                      style={responseInputStyle}
+                      onChange={e => setR(i, 'target', e.target.value ? +e.target.value : undefined)}
+                    />
                   </div>
-                  <input className={inputCls} placeholder="%" value={r.unit}
-                    onChange={e => setR(i, 'unit', e.target.value)} />
-                  <select className="form-select" value={r.goal}
-                    onChange={e => setR(i, 'goal', e.target.value)}>
-                    <option value="maximize">Maximize</option>
-                    <option value="minimize">Minimize</option>
-                    <option value="target">Hit Target</option>
-                  </select>
-                  <input className={inputCls} type="number" placeholder="Optional"
-                    value={r.target ?? ''} onChange={e => setR(i, 'target', e.target.value ? +e.target.value : undefined)} />
-                  <button style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--danger)', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    onClick={() => removeResponse(i)}>✕</button>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </>
         )}
       </div>

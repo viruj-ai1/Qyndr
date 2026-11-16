@@ -359,11 +359,6 @@ export default function GenerateDOE() {
     toast.success('Exported batch execution sheet as CSV!')
   }
 
-  // Barcode printing simulation
-  function handlePrintBarcodeTags() {
-    toast.success(`🏷️ Generated barcode vial tags for ${displayedExperiments.length} runs! Sent to lab printer.`)
-  }
-
   // Save results & transition to initial optimization
   async function handleSaveAndAnalyze() {
     if (!currentProject) return
@@ -533,14 +528,6 @@ export default function GenerateDOE() {
             title="Download CSV table for lab bench execution"
           >
             📥 Export Batch Sheet (CSV)
-          </button>
-
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={handlePrintBarcodeTags}
-            title="Generate & print sample barcode labels"
-          >
-            🏷️ Print Barcode Tags
           </button>
 
           <button

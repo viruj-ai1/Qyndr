@@ -73,6 +73,7 @@ export default function QTPPDefinition() {
 
   const [items, setItems] = useState<QTPPItem[]>(getInitialItems)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [isSelectMode, setIsSelectMode] = useState(false)
   const [saving, setSaving] = useState(false)
   const isFirstMount = useRef(true)
 
@@ -80,6 +81,7 @@ export default function QTPPDefinition() {
   useEffect(() => {
     setItems(getInitialItems())
     setSelectedIds([])
+    setIsSelectMode(false)
   }, [currentProject?.id])
 
   // Prune any selectedIds that no longer exist in items
@@ -152,11 +154,15 @@ export default function QTPPDefinition() {
   }
 
   const handleDeleteSelected = () => {
-    if (selectedIds.length === 0) return
+    if (selectedIds.length === 0) {
+      toast('No attributes selected to delete.')
+      return
+    }
     const count = selectedIds.length
     const remaining = items.filter(i => !selectedIds.includes(i.id))
     setItems(remaining)
     setSelectedIds([])
+    setIsSelectMode(false)
     toast.success(`Deleted ${count} ${count === 1 ? 'attribute' : 'attributes'}`)
   }
 
@@ -275,16 +281,54 @@ export default function QTPPDefinition() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            {selectedIds.length > 0 && (
+            {/* Delete QTPP Button - Always visible as requested */}
+            {!isSelectMode ? (
               <button
-                className="btn btn-danger btn-sm"
-                onClick={handleDeleteSelected}
-                title="Delete selected QTPP attributes"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  if (items.length === 0) {
+                    toast('No attributes available to delete.')
+                    return
+                  }
+                  setIsSelectMode(true)
+                }}
+                disabled={items.length === 0}
+                title="Click to select and delete QTPP attributes"
+                style={{
+                  color: 'var(--danger)',
+                  borderColor: 'rgba(239, 68, 68, 0.35)',
+                  fontWeight: 600
+                }}
               >
-                <span>Delete QTPP ({selectedIds.length})</span>
+                Delete QTPP
               </button>
+            ) : (
+              <div style={{ display: 'inline-flex', gap: '0.35rem', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  onClick={handleDeleteSelected}
+                  disabled={selectedIds.length === 0}
+                  title="Delete selected attributes"
+                  style={{ fontWeight: 600 }}
+                >
+                  Confirm Delete {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setIsSelectMode(false)
+                    setSelectedIds([])
+                  }}
+                  title="Cancel deletion"
+                >
+                  Cancel
+                </button>
+              </div>
             )}
+
             {items.length > 0 && (
               <button
                 className="btn btn-secondary btn-sm"

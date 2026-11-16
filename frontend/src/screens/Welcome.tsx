@@ -153,25 +153,48 @@ export default function Welcome() {
       {/* ── 1. Top-Bar Navigation ── */}
       <header className="landing-top-bar">
         <div className="landing-nav-container">
-          {/* Top-Left: Inline Brand Logo & Typography */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
-            <img
-              src={logo}
-              alt="Viruj Chematrix Logo"
-              style={{ height: '48px', width: 'auto', objectFit: 'contain' }}
-            />
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', lineHeight: 1 }}>
-                <span style={{ fontSize: '1.55rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em' }}>
-                  Viruj
-                </span>
-                <span style={{ fontSize: '1.55rem', fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.025em' }}>
-                  Chematrix
-                </span>
+          {/* Top-Left: Inline Brand Logo & Typography and R&D Head User Badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
+              <img
+                src={logo}
+                alt="Viruj Chematrix Logo"
+                style={{ height: '48px', width: 'auto', objectFit: 'contain' }}
+              />
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', lineHeight: 1 }}>
+                  <span style={{ fontSize: '1.55rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em' }}>
+                    Viruj
+                  </span>
+                  <span style={{ fontSize: '1.55rem', fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.025em' }}>
+                    Chematrix
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: '3px' }}>
+                  DoE & QbD Platform
+                </div>
               </div>
-              <div style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: '3px' }}>
-                DoE & QbD Platform
-              </div>
+            </div>
+
+            {/* User Profile Pill moved to top-left */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.35rem 0.85rem',
+                background: 'rgba(0, 91, 170, 0.08)',
+                borderRadius: '999px',
+                border: '1px solid var(--border)',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                whiteSpace: 'nowrap'
+              }}
+              title={user ? `Signed in as ${user.username}` : undefined}
+            >
+              <span style={{ fontSize: '0.95rem' }}>👤</span>
+              <span>R&D Head</span>
             </div>
           </div>
 
@@ -315,26 +338,6 @@ export default function Welcome() {
                 </>
               )}
             </button>
-
-            {/* User Profile Pill */}
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                padding: '0.5rem 0.95rem',
-                background: '#f8fafc',
-                borderRadius: '999px',
-                border: '1px solid var(--border)',
-                fontSize: '0.84rem',
-                fontWeight: 600,
-                color: 'var(--text-secondary)'
-              }}
-              title={user ? `Signed in as ${user.username}` : undefined}
-            >
-              <span style={{ fontSize: '0.95rem' }}>👨‍🔬</span>
-              <span>{user?.username || 'R&D Scientist'}</span>
-            </div>
 
             {/* Primary Action Button */}
             <button

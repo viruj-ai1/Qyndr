@@ -68,8 +68,15 @@ export default function DefineFactors() {
   }
 
   const [responses, setResponses] = useState<Response[]>(getInitialResponses)
+  const [selectedIndices, setSelectedIndices] = useState<number[]>([])
+  const [isEditMode, setIsEditMode] = useState(false)
   const [saving, setSaving] = useState(false)
   const isFirstMount = useRef(true)
+
+  // Prune selectedIndices when factors length changes
+  useEffect(() => {
+    setSelectedIndices(prev => prev.filter(idx => idx < factors.length))
+  }, [factors.length])
 
   // Keep store in sync so switching steps never wipes factors or responses
   useEffect(() => {
@@ -131,10 +138,42 @@ export default function DefineFactors() {
   }
 
   /* ── Factors helpers ─── */
-  const addFactor = () => setFactors(f => [...f, emptyFactor()])
+  const addFactor = () => {
+    setFactors(f => [...f, emptyFactor()])
+    setIsEditMode(true)
+  }
   const removeFactor = (i: number) => setFactors(f => f.filter((_, idx) => idx !== i))
   const setF = (i: number, key: keyof Factor, val: any) =>
     setFactors(f => f.map((row, idx) => idx === i ? { ...row, [key]: val } : row))
+
+  const handleToggleSelect = (index: number) => {
+    setSelectedIndices(prev =>
+      prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
+    )
+  }
+
+  const handleDeleteSelected = () => {
+    if (selectedIndices.length === 0) {
+      toast('Select the checkbox next to each factor you want to delete.')
+      return
+    }
+    const count = selectedIndices.length
+    const remaining = factors.filter((_, idx) => !selectedIndices.includes(idx))
+    setFactors(remaining)
+    setSelectedIndices([])
+    if (remaining.length === 0) {
+      setIsEditMode(false)
+    }
+    toast.success(`Deleted ${count} ${count === 1 ? 'factor' : 'factors'}`)
+  }
+
+  const handleClearAll = () => {
+    if (factors.length === 0) return
+    setFactors([])
+    setSelectedIndices([])
+    setIsEditMode(false)
+    toast.success('Cleared all process factors')
+  }
 
   /* ── Responses helpers ─── */
   const addResponse = () => setResponses(r => [...r, emptyResponse()])
@@ -191,6 +230,13 @@ export default function DefineFactors() {
   }
 
   const inputCls = 'form-input'
+  const factorGridCols = isEditMode ? '32px 2fr 1fr 1fr 1fr 1fr' : '2fr 1fr 1fr 1fr 1fr'
+  const factorInputStyle = !isEditMode ? {
+    cursor: 'default',
+    backgroundColor: 'rgba(241, 245, 249, 0.7)',
+    color: 'var(--text-main)',
+    borderColor: 'rgba(203, 213, 225, 0.6)'
+  } : undefined
 
   return (
     <div>
@@ -201,43 +247,165 @@ export default function DefineFactors() {
 
       {/* ── Factors ── */}
       <div className="card mb-2">
-        <div className="flex-between mb-2">
+        <div className="flex-between mb-2" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
           <div>
             <div className="card-title">Process Factors</div>
             <div className="card-sub">Input variables to be varied in the experiment</div>
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={addFactor}>+ Add Factor</button>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {!isEditMode ? (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setIsEditMode(true)}
+                title="Edit factors (modify numbers, add, delete, or clear)"
+                style={{
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                Edit
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleDeleteSelected}
+                  style={{
+                    color: selectedIndices.length > 0 ? '#ef4444' : 'var(--danger)',
+                    borderColor: 'rgba(239, 68, 68, 0.35)',
+                    fontWeight: 600
+                  }}
+                  title={selectedIndices.length === 0 ? "Select factors using checkboxes to delete" : `Delete ${selectedIndices.length} selected factors`}
+                >
+                  Delete Factor {selectedIndices.length > 0 ? `(${selectedIndices.length})` : ''}
+                </button>
+
+                {factors.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleClearAll}
+                    title="Clear all factors"
+                  >
+                    Clear All
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={addFactor}
+                  title="Add a new factor"
+                >
+                  + Add Factor
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    setIsEditMode(false)
+                    setSelectedIndices([])
+                  }}
+                  style={{ fontWeight: 600 }}
+                  title="Done editing"
+                >
+                  Done
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {factors.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', border: '1px dashed var(--border)', borderRadius: '8px', margin: '0.75rem 0' }}>
-            No factors defined yet. Click "+ Add Factor" or carry over Critical Process Parameters from Step 06.
+            <p style={{ margin: '0 0 0.75rem' }}>No factors defined yet. Click "+ Add Factor" or carry over Critical Process Parameters from Step 06.</p>
+            <button className="btn btn-primary btn-sm" onClick={addFactor}>
+              + Add First Factor
+            </button>
           </div>
         ) : (
           <>
             {/* Header row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 36px', gap: '0.5rem', marginBottom: '0.4rem', padding: '0 0.75rem' }}>
-              {['Factor Name', 'Unit', 'Low', 'High', 'Baseline', ''].map(h => (
+            <div style={{ display: 'grid', gridTemplateColumns: factorGridCols, gap: '0.75rem', marginBottom: '0.4rem', padding: '0 1rem', alignItems: 'center' }}>
+              {isEditMode && <div style={{ width: '32px' }} />}
+              {['Factor Name', 'Unit', 'Low', 'High', 'Baseline'].map(h => (
                 <div key={h} style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</div>
               ))}
             </div>
 
-            {factors.map((f, i) => (
-              <div key={i} className="factor-row">
-                <input className={inputCls} placeholder="e.g. Temperature" value={f.name}
-                  onChange={e => setF(i, 'name', e.target.value)} />
-                <input className={inputCls} placeholder="°C" value={f.unit}
-                  onChange={e => setF(i, 'unit', e.target.value)} />
-                <input className={inputCls} type="number" value={f.low}
-                  onChange={e => setF(i, 'low', +e.target.value)} />
-                <input className={inputCls} type="number" value={f.high}
-                  onChange={e => setF(i, 'high', +e.target.value)} />
-                <input className={inputCls} type="number" value={f.baseline ?? (f.low + f.high) / 2}
-                  onChange={e => setF(i, 'baseline', +e.target.value)} />
-                <button style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--danger)', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  onClick={() => removeFactor(i)}>✕</button>
-              </div>
-            ))}
+            {factors.map((f, i) => {
+              const isChecked = selectedIndices.includes(i)
+              return (
+                <div
+                  key={i}
+                  className="factor-row"
+                  style={{
+                    gridTemplateColumns: factorGridCols,
+                    background: isChecked ? 'rgba(239, 68, 68, 0.04)' : undefined,
+                    border: isChecked ? '1px solid rgba(239, 68, 68, 0.4)' : undefined
+                  }}
+                >
+                  {isEditMode && (
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => handleToggleSelect(i)}
+                      title={`Select ${f.name || `Factor ${i + 1}`} to delete`}
+                      style={{ cursor: 'pointer', justifySelf: 'center', width: '15px', height: '15px' }}
+                    />
+                  )}
+                  <input
+                    className={inputCls}
+                    placeholder="e.g. Temperature"
+                    value={f.name}
+                    readOnly={!isEditMode}
+                    style={factorInputStyle}
+                    onChange={e => setF(i, 'name', e.target.value)}
+                  />
+                  <input
+                    className={inputCls}
+                    placeholder="°C"
+                    value={f.unit}
+                    readOnly={!isEditMode}
+                    style={factorInputStyle}
+                    onChange={e => setF(i, 'unit', e.target.value)}
+                  />
+                  <input
+                    className={inputCls}
+                    type="number"
+                    value={f.low}
+                    readOnly={!isEditMode}
+                    style={factorInputStyle}
+                    onChange={e => setF(i, 'low', +e.target.value)}
+                  />
+                  <input
+                    className={inputCls}
+                    type="number"
+                    value={f.high}
+                    readOnly={!isEditMode}
+                    style={factorInputStyle}
+                    onChange={e => setF(i, 'high', +e.target.value)}
+                  />
+                  <input
+                    className={inputCls}
+                    type="number"
+                    value={f.baseline ?? (f.low + f.high) / 2}
+                    readOnly={!isEditMode}
+                    style={factorInputStyle}
+                    onChange={e => setF(i, 'baseline', +e.target.value)}
+                  />
+                </div>
+              )
+            })}
           </>
         )}
 

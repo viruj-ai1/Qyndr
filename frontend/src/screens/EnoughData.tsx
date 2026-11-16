@@ -32,59 +32,228 @@ export default function EnoughData() {
       </div>
 
       {optimumResult && (
-        <div className="card mb-2">
-          <div className="card-title mb-1">Current Best Result</div>
-          <div style={{ display:'flex', gap:'1rem', alignItems:'center' }}>
-            <div style={{ fontSize:'2.5rem', fontWeight:900, background:'linear-gradient(135deg, var(--success), var(--accent))', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
-              {(optimumResult.composite_desirability * 100).toFixed(1)}%
+        <div className="card mb-2" style={{ padding: '1.25rem 1.75rem', background: '#ffffff', borderRadius: '12px', border: '1px solid var(--border)' }}>
+          <div className="flex-between" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
+              <div
+                style={{
+                  fontSize: '3rem',
+                  fontWeight: 900,
+                  background: 'linear-gradient(135deg, var(--success), var(--accent))',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  lineHeight: 1
+                }}
+              >
+                {(optimumResult.composite_desirability * 100).toFixed(1)}%
+              </div>
+              <div>
+                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, color: 'var(--text-muted)' }}>
+                  Composite Desirability Score (D)
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+                  {optimumResult.composite_desirability > 0.85
+                    ? '🟢 High Desirability — Criteria Met'
+                    : optimumResult.composite_desirability > 0.65
+                    ? '🟡 Moderate Desirability — Trade-offs Present'
+                    : '🔴 Low Desirability (Critical CQAs Off-Target)'}
+                </div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '3px' }}>
+                  {optimumResult.composite_desirability > 0.85
+                    ? 'All Critical Quality Attributes (CQAs) meet acceptance specifications within the modeled space.'
+                    : optimumResult.composite_desirability > 0.65
+                    ? 'The process reaches acceptable bounds, but higher purity, yield, or narrower impurity levels can likely be achieved.'
+                    : 'One or more CQAs (e.g. impurities or yield) fail acceptance limits at the current polynomial RSM optimum.'}
+                </div>
+              </div>
             </div>
-            <div style={{ color:'var(--text-secondary)', fontSize:'0.85rem', lineHeight:1.6 }}>
-              Composite Desirability Score<br/>
-              {optimumResult.composite_desirability > 0.85
-                ? '🟢 Model is well optimized'
-                : optimumResult.composite_desirability > 0.65
-                ? '🟡 Moderate — Bayesian refinement may help'
-                : '🔴 Low — strongly recommend Bayesian iterations'}
+
+            {/* Quick recommendation pill */}
+            <div
+              style={{
+                padding: '0.5rem 1rem',
+                borderRadius: '8px',
+                background: optimumResult.composite_desirability > 0.8 ? 'rgba(5, 150, 105, 0.08)' : 'rgba(0, 91, 170, 0.08)',
+                border: `1px solid ${optimumResult.composite_desirability > 0.8 ? 'rgba(5, 150, 105, 0.25)' : 'rgba(0, 91, 170, 0.25)'}`,
+                fontSize: '0.8rem'
+              }}
+            >
+              <div style={{ fontWeight: 700, color: optimumResult.composite_desirability > 0.8 ? '#059669' : '#005baa' }}>
+                💡 Recommendation:
+              </div>
+              <div style={{ color: '#475569', marginTop: '2px' }}>
+                {optimumResult.composite_desirability > 0.8
+                  ? 'RSM surface is solid. Proceed to Final Optimum to freeze PAR/NOR.'
+                  : 'Low/Moderate score. Trigger Gaussian Process + Bayesian Optimization to sample unmodeled regions.'}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      <div className="grid-2" style={{ gap:'1rem' }}>
-        {/* YES – proceed to final */}
-        <div className="design-option" onClick={handleProceedToFinal}
-          style={{ cursor:'pointer', padding:'1.5rem' }}>
-          <div style={{ fontSize:'2.5rem', marginBottom:'0.75rem' }}>✅</div>
-          <div className="design-option-title" style={{ fontSize:'1.1rem', marginBottom:'0.5rem' }}>
-            {isMoreImprovement ? 'No – Converged' : 'Yes – Good Enough'}
+      {/* Decision Cards with Explicit Scientific Criteria */}
+      <div className="grid-2 mb-2" style={{ gap: '1.25rem' }}>
+        {/* OPTION 1: Proceed to Final Optimum */}
+        <div
+          className="card"
+          style={{
+            cursor: 'pointer',
+            padding: '1.5rem',
+            border: '2px solid rgba(5, 150, 105, 0.3)',
+            background: 'linear-gradient(180deg, #ffffff 0%, rgba(240, 253, 244, 0.35) 100%)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            transition: 'all 0.2s ease'
+          }}
+          onClick={handleProceedToFinal}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <span style={{ fontSize: '1.75rem' }}>✅</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#0f172a', fontWeight: 700 }}>
+                    {isMoreImprovement ? 'Stop & Finalize Process' : 'Proceed Directly to Final Optimum'}
+                  </h3>
+                  <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Option A: Sufficient Data & High Certainty
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.84rem', color: '#475569', lineHeight: 1.5, marginBottom: '1rem' }}>
+              {isMoreImprovement
+                ? 'Sequential iterations have converged, uncertainty is minimal, and no further gain is expected.'
+                : 'Your classical Response Surface Model (RSM) has adequately captured the process curvature and all CQAs meet specifications.'}
+            </p>
+
+            {/* Scenario Checklist */}
+            <div style={{ background: '#ffffff', borderRadius: '8px', padding: '0.85rem 1rem', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                🎯 When should you choose this?
+              </div>
+              <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.8rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '0.4rem', lineHeight: 1.45 }}>
+                <li><strong>Desirability is High (&gt; 80–85%):</strong> All targets (Yield, Purity, Impurity thresholds) are comfortably satisfied simultaneously.</li>
+                <li><strong>Model Quality is Strong:</strong> High ANOVA $R^2$ &amp; $Q^2$ values (&gt; 0.75) with no significant Lack-of-Fit ($p &gt; 0.05$).</li>
+                <li><strong>Optimum is Within the Interior:</strong> The calculated sweet spot lies inside the factor bounds, not stuck at an extreme boundary.</li>
+                <li><strong>Strict Time/Resource Limits:</strong> No additional raw materials or instrument time are available for iterative runs.</li>
+              </ul>
+            </div>
           </div>
-          <div style={{ fontSize:'0.82rem', color:'var(--text-secondary)', lineHeight:1.6 }}>
-            {isMoreImprovement
-              ? 'The Bayesian optimization has converged. Proceed to the final optimum.'
-              : 'The RSM model is sufficient. Proceed directly to the final optimum without Bayesian optimization.'}
-          </div>
-          <button className="btn btn-success" style={{ marginTop:'1rem', width:'100%' }}
-            onClick={(e) => { e.stopPropagation(); handleProceedToFinal(); }}>
-            Proceed to Final Optimum →
+
+          <button
+            className="btn btn-success"
+            style={{ marginTop: '1.25rem', width: '100%', padding: '0.7rem', fontSize: '0.9rem', fontWeight: 700 }}
+            onClick={(e) => { e.stopPropagation(); handleProceedToFinal(); }}
+          >
+            {isMoreImprovement ? 'Finalize Optimum & Generate Report →' : 'Lock Design & Proceed to Final Optimum →'}
           </button>
         </div>
 
-        {/* NO – go to Bayesian */}
-        <div className="design-option" onClick={handleStartBayesian}
-          style={{ cursor:'pointer', padding:'1.5rem' }}>
-          <div style={{ fontSize:'2.5rem', marginBottom:'0.75rem' }}>🔬</div>
-          <div className="design-option-title" style={{ fontSize:'1.1rem', marginBottom:'0.5rem' }}>
-            {isMoreImprovement ? 'Yes – Run Another Iter.' : 'No – Refine Further'}
+        {/* OPTION 2: Bayesian Optimization */}
+        <div
+          className="card"
+          style={{
+            cursor: 'pointer',
+            padding: '1.5rem',
+            border: '2px solid rgba(0, 91, 170, 0.3)',
+            background: 'linear-gradient(180deg, #ffffff 0%, rgba(240, 247, 255, 0.45) 100%)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            transition: 'all 0.2s ease'
+          }}
+          onClick={handleStartBayesian}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <span style={{ fontSize: '1.75rem' }}>🔬</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#0f172a', fontWeight: 700 }}>
+                    {isMoreImprovement ? 'Run Another Bayesian Iteration' : 'Refine via Bayesian Optimization (GP)'}
+                  </h3>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Option B: Active Learning & Targeted Experiments
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.84rem', color: '#475569', lineHeight: 1.5, marginBottom: '1rem' }}>
+              {isMoreImprovement
+                ? 'Expected Improvement (EI) is still elevated. Execute targeted sequential runs to pinpoint the true global optimum.'
+                : 'Train non-parametric Gaussian Process (GP) surrogates to model complex non-linearities and acquire the next best experiment point.'}
+            </p>
+
+            {/* Scenario Checklist */}
+            <div style={{ background: '#ffffff', borderRadius: '8px', padding: '0.85rem 1rem', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                🎯 When should you choose this?
+              </div>
+              <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.8rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '0.4rem', lineHeight: 1.45 }}>
+                <li><strong>Desirability is Low/Moderate (&lt; 75–80%):</strong> Crucial CQAs (like an unacceptably high impurity) still fail specifications.</li>
+                <li><strong>Complex Non-Linear or Multi-Peak Kinetics:</strong> Standard quadratic polynomials cannot fit sharp steep cliffs or enzyme degradation peaks.</li>
+                <li><strong>High Model Uncertainty:</strong> Wide confidence intervals or unexplored sub-regions where great outcomes may exist.</li>
+                <li><strong>Sequential Run Capacity Available:</strong> You can execute 1–3 smart confirmatory experiments to reach peak purity and yield.</li>
+              </ul>
+            </div>
           </div>
-          <div style={{ fontSize:'0.82rem', color:'var(--text-secondary)', lineHeight:1.6 }}>
-            {isMoreImprovement
-              ? 'Expected improvement is still high. Run another Bayesian experiment to refine the optimum.'
-              : 'Use Gaussian Process + Bayesian Optimization to intelligently explore the response surface with targeted experiments.'}
-          </div>
-          <button className="btn btn-primary" style={{ marginTop:'1rem', width:'100%' }}
-            onClick={(e) => { e.stopPropagation(); handleStartBayesian(); }}>
-            Start Bayesian Optimization →
+
+          <button
+            className="btn btn-primary"
+            style={{ marginTop: '1.25rem', width: '100%', padding: '0.7rem', fontSize: '0.9rem', fontWeight: 700 }}
+            onClick={(e) => { e.stopPropagation(); handleStartBayesian(); }}
+          >
+            {isMoreImprovement ? 'Continue Bayesian Loop →' : 'Start Gaussian Process & Bayesian Refinement →'}
           </button>
+        </div>
+      </div>
+
+      {/* Decision Guide Comparison Table */}
+      <div className="card mb-2" style={{ padding: '1.25rem 1.5rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0f172a', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span>📋</span> Chemist's Decision Matrix: Final Optimum vs. Bayesian Optimization
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="data-table" style={{ background: '#ffffff', fontSize: '0.8rem' }}>
+            <thead>
+              <tr style={{ background: '#f1f5f9' }}>
+                <th style={{ width: '22%' }}>Decision Metric</th>
+                <th style={{ width: '39%', color: '#059669' }}>Proceed Directly to Final Optimum</th>
+                <th style={{ width: '39%', color: 'var(--primary)' }}>Refine with Bayesian Optimization</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Desirability ($D$)</strong></td>
+                <td><span style={{ color: '#059669', fontWeight: 600 }}>&ge; 0.80 (80%+)</span> — All CQAs met</td>
+                <td><span style={{ color: '#dc2626', fontWeight: 600 }}>&lt; 0.75 (&lt; 75%)</span> — CQAs need improvement</td>
+              </tr>
+              <tr>
+                <td><strong>Model Fit ($R^2$ / $Q^2$)</strong></td>
+                <td>High ($R^2 &gt; 0.80$), minimal Lack-of-Fit</td>
+                <td>RSM polynomial struggles with non-linear surfaces</td>
+              </tr>
+              <tr>
+                <td><strong>Optimum Location</strong></td>
+                <td>Centered safely inside Factor Ranges</td>
+                <td>Stuck on boundary or in high-uncertainty zone</td>
+              </tr>
+              <tr>
+                <td><strong>Laboratory Capacity</strong></td>
+                <td>Experimental budget exhausted; ready to validate</td>
+                <td>Resources available for 1 to 4 sequential runs</td>
+              </tr>
+              <tr>
+                <td><strong>Next Workflow Step</strong></td>
+                <td>Freeze Normal &amp; Proven Acceptable Ranges (NOR/PAR)</td>
+                <td>Step 12: Gaussian Process Slice Curves &amp; Acquisition</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 

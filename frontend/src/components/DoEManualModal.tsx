@@ -5,6 +5,7 @@
 // ============================================================
 
 import React, { useState, useMemo, useEffect } from 'react'
+import ReactDOM from 'react-dom'
 import { useStore } from '../store/useStore'
 import {
   DOE_MANUAL_DESIGNS,
@@ -172,7 +173,7 @@ export default function DoEManualModal({
     })
   }
 
-  return (
+  const modalContent = (
     <div
       style={{
         position: 'fixed',
@@ -182,7 +183,7 @@ export default function DoEManualModal({
         bottom: 0,
         background: 'rgba(15, 23, 42, 0.75)',
         backdropFilter: 'blur(8px)',
-        zIndex: 1100,
+        zIndex: 99999,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -1046,4 +1047,10 @@ export default function DoEManualModal({
       )}
     </div>
   )
+
+  if (typeof document !== 'undefined') {
+    return ReactDOM.createPortal(modalContent, document.body)
+  }
+
+  return modalContent
 }

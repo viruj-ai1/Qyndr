@@ -80,7 +80,7 @@ export default function CompareDesignsModal({
         bottom: 0,
         background: 'rgba(15, 23, 42, 0.82)',
         backdropFilter: 'blur(8px)',
-        zIndex: 1200,
+        zIndex: 100000,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

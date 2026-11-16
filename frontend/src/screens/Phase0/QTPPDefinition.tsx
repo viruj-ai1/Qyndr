@@ -206,17 +206,6 @@ export default function QTPPDefinition() {
     )
   }
 
-  const handleMove = (index: number, direction: 'up' | 'down') => {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1
-    if (targetIndex < 0 || targetIndex >= items.length) return
-    const updated = [...items]
-    const temp = updated[index]
-    updated[index] = updated[targetIndex]
-    updated[targetIndex] = temp
-    setItems(updated)
-  }
-
-
   const handleClearAll = () => {
     setItems([])
     setSelectedIds([])
@@ -360,17 +349,16 @@ export default function QTPPDefinition() {
                   </th>
                 )}
                 <th style={{ width: '4%' }}>#</th>
-                <th style={{ width: isEditMode ? '22%' : '23%' }}>Attribute Name</th>
-                <th style={{ width: isEditMode ? '35%' : '37%' }}>Target / Acceptance Criterion</th>
-                <th style={{ width: isEditMode ? '18%' : '19%' }}>Justification / Source</th>
-                <th style={{ width: isEditMode ? '13%' : '14%' }}>Attribute Type</th>
-                <th style={{ width: '5%', textAlign: 'center' }}>Order</th>
+                <th style={{ width: isEditMode ? '24%' : '25%' }}>Attribute Name</th>
+                <th style={{ width: isEditMode ? '38%' : '40%' }}>Target / Acceptance Criterion</th>
+                <th style={{ width: isEditMode ? '20%' : '20%' }}>Justification / Source</th>
+                <th style={{ width: isEditMode ? '15%' : '15%' }}>Attribute Type</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={isEditMode ? 7 : 6} style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-muted)' }}>
+                  <td colSpan={isEditMode ? 6 : 5} style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-muted)' }}>
                     <div style={{ fontSize: '2.2rem', marginBottom: '0.6rem' }}>📋</div>
                     <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem', marginBottom: '0.35rem' }}>
                       No QTPP Attributes Defined Yet
@@ -445,28 +433,6 @@ export default function QTPPDefinition() {
                             <option key={opt} value={opt}>{opt}</option>
                           ))}
                         </select>
-                      </td>
-                      <td style={{ textAlign: 'center', verticalAlign: 'top', paddingTop: '0.9rem' }}>
-                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem', lineHeight: 1 }}
-                            disabled={idx === 0}
-                            onClick={() => handleMove(idx, 'up')}
-                            title="Move Up"
-                          >
-                            ▲
-                          </button>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem', lineHeight: 1 }}
-                            disabled={idx === items.length - 1}
-                            onClick={() => handleMove(idx, 'down')}
-                            title="Move Down"
-                          >
-                            ▼
-                          </button>
-                        </div>
                       </td>
                     </tr>
                   )

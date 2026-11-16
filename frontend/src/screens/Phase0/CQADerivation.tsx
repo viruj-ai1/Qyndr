@@ -79,6 +79,8 @@ export default function CQADerivation() {
   }
 
   const [items, setItems] = useState<CQAMapping[]>(getInitialCQAs)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [isEditMode, setIsEditMode] = useState(false)
   const [saving, setSaving] = useState(false)
   const [suggestions, setSuggestions] = useState<Record<string, AttributeSuggestion>>({})
   const [missingCqas, setMissingCqas] = useState<MissingCQA[]>([])
@@ -101,6 +103,11 @@ export default function CQADerivation() {
   const [loadingAudit, setLoadingAudit] = useState(false)
 
   const isFirstMount = useRef(true)
+
+  // Prune any selectedIds that no longer exist in items
+  useEffect(() => {
+    setSelectedIds(prev => prev.filter(id => items.some(i => i.id === id)))
+  }, [items])
 
   // Fetch suggestions and missing CQAs from backend service
   useEffect(() => {
@@ -370,6 +377,58 @@ export default function CQADerivation() {
     setItems(prev => prev.filter(c => c.id !== id))
   }
 
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    )
+  }
+
+  const handleDeleteSelected = () => {
+    if (selectedIds.length === 0) {
+      toast('Select the checkbox next to each CQA you want to delete.')
+      return
+    }
+    const count = selectedIds.length
+    const toDelete = items.filter(c => selectedIds.includes(c.id))
+    if (currentProject?.id) {
+      toDelete.forEach(cqa => {
+        CQAApi.recordAudit(currentProject.id, {
+          cqa_id: cqa.id,
+          action: 'DELETE',
+          old_value: cqa,
+          new_value: null
+        }).catch(() => {})
+      })
+    }
+    const remaining = items.filter(c => !selectedIds.includes(c.id))
+    setItems(remaining)
+    setSelectedIds([])
+    if (remaining.length === 0) {
+      setIsEditMode(false)
+    }
+    toast.success(`Deleted ${count} ${count === 1 ? 'CQA' : 'CQAs'}`)
+  }
+
+  const handleClearAll = () => {
+    if (items.length === 0) return
+    if (currentProject?.id) {
+      items.forEach(cqa => {
+        CQAApi.recordAudit(currentProject.id, {
+          cqa_id: cqa.id,
+          action: 'DELETE',
+          old_value: cqa,
+          new_value: null
+        }).catch(() => {})
+      })
+      Projects.savePhase0(currentProject.id, { cqas: [] }).catch(() => {})
+    }
+    setItems([])
+    setCqas([])
+    setSelectedIds([])
+    setIsEditMode(false)
+    toast.success('Cleared all assessed CQAs')
+  }
+
   const handleSaveAndNext = async () => {
     const valid = items.filter(c => c.name.trim() !== '')
     if (valid.length === 0) {
@@ -542,14 +601,77 @@ export default function CQADerivation() {
                   {items.filter(c => c.is_critical).length} Critical · {items.filter(c => !c.is_critical).length} Monitored
                 </span>
               </div>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={handleAddCustomCQA}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-              >
-                + Add Custom CQA Entry
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                {!isEditMode ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setIsEditMode(true)}
+                    title="Edit CQA attributes"
+                    style={{
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem'
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    Edit
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleDeleteSelected}
+                      style={{
+                        color: selectedIds.length > 0 ? '#ef4444' : 'var(--danger)',
+                        borderColor: 'rgba(239, 68, 68, 0.35)',
+                        fontWeight: 600
+                      }}
+                      title={selectedIds.length === 0 ? "Select CQAs using checkboxes to delete" : `Delete ${selectedIds.length} selected CQAs`}
+                    >
+                      Delete CQA {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+                    </button>
+
+                    {items.length > 0 && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={handleClearAll}
+                        title="Clear all CQAs"
+                      >
+                        Clear All
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleAddCustomCQA}
+                      title="Add a custom CQA entry"
+                    >
+                      + Add Quality Attribute
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => {
+                        setIsEditMode(false)
+                        setSelectedIds([])
+                      }}
+                      style={{ fontWeight: 600 }}
+                      title="Done editing"
+                    >
+                      Done
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {items.length === 0 ? (
@@ -571,7 +693,7 @@ export default function CQADerivation() {
                   Toggle any target on the left QTPP Reference List to evaluate its criticality, or click below to author a custom in-process attribute.
                 </div>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddCustomCQA}>
-                  + Add Custom CQA Entry
+                  + Add Quality Attribute
                 </button>
               </div>
             ) : (
@@ -579,21 +701,36 @@ export default function CQADerivation() {
                 {items.map((cqa, idx) => {
                   const crit = cqa.criticality_score ?? ((cqa.impact_score ?? 3) * (cqa.uncertainty_score ?? 3))
                   const isCrit = cqa.is_critical ?? (crit >= 12)
+                  const isChecked = selectedIds.includes(cqa.id)
 
                   return (
                     <div
                       key={cqa.id}
                       style={{
                         padding: '1.15rem',
-                        background: 'var(--bg-surface)',
+                        background: isChecked ? 'rgba(239, 68, 68, 0.04)' : 'var(--bg-surface)',
                         borderRadius: '10px',
-                        border: isCrit ? '1.5px solid rgba(220, 38, 38, 0.3)' : '1px solid var(--border)',
-                        boxShadow: 'var(--shadow-sm)'
+                        border: isChecked
+                          ? '1.5px solid rgba(239, 68, 68, 0.4)'
+                          : isCrit
+                          ? '1.5px solid rgba(220, 38, 38, 0.3)'
+                          : '1px solid var(--border)',
+                        boxShadow: 'var(--shadow-sm)',
+                        transition: 'all 0.15s ease'
                       }}
                     >
                       {/* Header Row */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', paddingBottom: '0.65rem', borderBottom: '1px solid var(--border)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                          {isEditMode && (
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleToggleSelect(cqa.id)}
+                              title={`Select ${cqa.name || 'CQA'} to delete`}
+                              style={{ cursor: 'pointer', marginRight: '0.2rem', width: '15px', height: '15px' }}
+                            />
+                          )}
                           <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--primary)' }}>
                             {cqa.name || `CQA #${idx + 1}`}
                           </span>
@@ -646,14 +783,6 @@ export default function CQADerivation() {
                             title="View audit trail for this CQA"
                           >
                             📜 Audit
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-danger"
-                            onClick={() => handleRemoveCQA(cqa.id)}
-                            style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem' }}
-                          >
-                            ✕
                           </button>
                         </div>
                       </div>

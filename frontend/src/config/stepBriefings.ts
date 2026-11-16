@@ -129,7 +129,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
     purpose: 'Evaluate factor space geometry and recommend the optimal experimental design strategy.',
     youDo: [
       'Review recommended designs (e.g., Definitive Screening, Fractional Factorial, CCD, Box-Behnken).',
-      'Use the 3-Question Selection Wizard to align on screening vs. optimization rigor.'
+      'Use the 3-Step Design Advisor to align on screening vs. optimization rigor.'
     ],
     systemDoes: [
       'Analyzes factor count (k), interaction resolution, and run budget efficiency.',

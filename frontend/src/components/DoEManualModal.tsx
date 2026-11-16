@@ -242,11 +242,11 @@ export default function DoEManualModal({
               </span>
             </div>
             <h2 style={{ fontSize: '1.35rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>
-              {viewMode === 'stepper' ? 'DoE Selection Wizard' : 'Pharma DoE Case Studies & Reference'}
+              {viewMode === 'stepper' ? 'Experimental Design Advisor' : 'Pharma DoE Case Studies & Reference'}
             </h2>
             <p style={{ margin: '0.25rem 0 0', fontSize: '0.82rem', opacity: 0.88, lineHeight: 1.4 }}>
               {viewMode === 'stepper'
-                ? 'Answer 3 simple questions to find the ideal experimental design in under 10 seconds.'
+                ? 'Answer 3 key process questions to identify the optimal design for your campaign.'
                 : 'Scientific case studies across API synthesis, fluid bed granulation, and lipid formulations.'}
             </p>
           </div>
@@ -734,7 +734,7 @@ export default function DoEManualModal({
                     style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
                   >
                     <ArrowLeft size={15} />
-                    <span>← Back to 3-Question Wizard</span>
+                    <span>← Back to Design Advisor</span>
                   </button>
 
                   {/* Compare Designs Button */}

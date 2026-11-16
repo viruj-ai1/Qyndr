@@ -258,14 +258,14 @@ export default function RecommendDOE() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.15rem' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                DoE Selection Wizard & Strategy Guide
+                Experimental Design Advisor & Strategy Guide
               </h3>
               <span className="badge badge-accent" style={{ fontSize: '0.7rem', padding: '1px 7px', fontWeight: 700 }}>
                 ICH Q8(R2) Aligned
               </span>
             </div>
             <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              Minimal 3-question guided visual stepper to recommend the optimal experimental design in under 10 seconds.
+              Structured 3-step decision protocol to identify the optimal design based on factor count, curvature, and experimental budget.
             </p>
           </div>
         </div>
@@ -287,7 +287,7 @@ export default function RecommendDOE() {
           }}
         >
           <BookOpen size={16} />
-          <span>Open 3-Question Wizard</span>
+          <span>Open Design Advisor</span>
           <ArrowRight size={15} />
         </button>
       </div>
@@ -677,7 +677,7 @@ export default function RecommendDOE() {
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
           >
             <BookOpen size={15} />
-            <span>🧙‍♂️ DoE Selection Wizard</span>
+            <span>🧪 DoE Strategy Advisor</span>
           </button>
           <button
             className="btn btn-accent"

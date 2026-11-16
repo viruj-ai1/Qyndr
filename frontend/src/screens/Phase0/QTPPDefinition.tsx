@@ -73,7 +73,7 @@ export default function QTPPDefinition() {
 
   const [items, setItems] = useState<QTPPItem[]>(getInitialItems)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [isSelectMode, setIsSelectMode] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(false)
   const [saving, setSaving] = useState(false)
   const isFirstMount = useRef(true)
 
@@ -81,7 +81,7 @@ export default function QTPPDefinition() {
   useEffect(() => {
     setItems(getInitialItems())
     setSelectedIds([])
-    setIsSelectMode(false)
+    setIsEditMode(false)
   }, [currentProject?.id])
 
   // Prune any selectedIds that no longer exist in items
@@ -147,14 +147,16 @@ export default function QTPPDefinition() {
 
   const handleDeleteSelected = () => {
     if (selectedIds.length === 0) {
-      toast('No attributes selected to delete.')
+      toast('Select the checkbox next to each attribute you want to delete.')
       return
     }
     const count = selectedIds.length
     const remaining = items.filter(i => !selectedIds.includes(i.id))
     setItems(remaining)
     setSelectedIds([])
-    setIsSelectMode(false)
+    if (remaining.length === 0) {
+      setIsEditMode(false)
+    }
     toast.success(`Deleted ${count} ${count === 1 ? 'attribute' : 'attributes'}`)
   }
 
@@ -217,6 +219,8 @@ export default function QTPPDefinition() {
 
   const handleClearAll = () => {
     setItems([])
+    setSelectedIds([])
+    setIsEditMode(false)
     setQtpp([])
     if (currentProject?.id) {
       Projects.savePhase0(currentProject.id, { qtpp: [] }).catch(() => {})
@@ -273,66 +277,75 @@ export default function QTPPDefinition() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            {/* Delete QTPP Button - Permanent trigger that enters select mode */}
-            {!isSelectMode ? (
+            {!isEditMode ? (
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                onClick={() => {
-                  if (items.length === 0) {
-                    toast('No attributes available to delete.')
-                    return
-                  }
-                  setIsSelectMode(true)
-                }}
-                disabled={items.length === 0}
-                title="Click to select specific QTPP attributes to delete"
+                onClick={() => setIsEditMode(true)}
+                title="Edit QTPP attributes"
                 style={{
-                  color: 'var(--danger)',
-                  borderColor: 'rgba(239, 68, 68, 0.35)',
-                  fontWeight: 600
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
                 }}
               >
-                Delete QTPP
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                Edit
               </button>
             ) : (
-              <div style={{ display: 'inline-flex', gap: '0.35rem', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  className="btn btn-danger btn-sm"
-                  onClick={handleDeleteSelected}
-                  disabled={selectedIds.length === 0}
-                  title="Confirm delete selected attributes"
-                  style={{ fontWeight: 600 }}
-                >
-                  Confirm Delete {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
-                </button>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
+                  onClick={handleDeleteSelected}
+                  style={{
+                    color: selectedIds.length > 0 ? '#ef4444' : 'var(--danger)',
+                    borderColor: 'rgba(239, 68, 68, 0.35)',
+                    fontWeight: 600
+                  }}
+                  title={selectedIds.length === 0 ? "Select rows below using checkboxes to delete" : `Delete ${selectedIds.length} selected attributes`}
+                >
+                  Delete QTPP {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+                </button>
+
+                {items.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleClearAll}
+                    title="Clear all rows to start with a blank table"
+                  >
+                    Clear All
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleAddRow}
+                  title="Add a new quality attribute row"
+                >
+                  + Add Quality Attribute
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
                   onClick={() => {
-                    setIsSelectMode(false)
+                    setIsEditMode(false)
                     setSelectedIds([])
                   }}
-                  title="Cancel deletion"
+                  style={{ fontWeight: 600 }}
+                  title="Done editing"
                 >
-                  Cancel
+                  Done
                 </button>
               </div>
             )}
-
-            {items.length > 0 && (
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={handleClearAll}
-                title="Clear all rows to start with a blank table"
-              >
-                Clear All
-              </button>
-            )}
-            <button className="btn btn-secondary btn-sm" onClick={handleAddRow}>
-              + Add Quality Attribute
-            </button>
           </div>
         </div>
 
@@ -341,23 +354,23 @@ export default function QTPPDefinition() {
           <table className="data-table" style={{ width: '100%', fontSize: '0.85rem' }}>
             <thead>
               <tr>
-                {isSelectMode && (
+                {isEditMode && (
                   <th style={{ width: '3%', textAlign: 'center' }}>
                     {/* Intentionally left blank: users select specific individual QTTPs to delete */}
                   </th>
                 )}
                 <th style={{ width: '4%' }}>#</th>
-                <th style={{ width: isSelectMode ? '22%' : '23%' }}>Attribute Name</th>
-                <th style={{ width: isSelectMode ? '35%' : '37%' }}>Target / Acceptance Criterion</th>
-                <th style={{ width: isSelectMode ? '18%' : '19%' }}>Justification / Source</th>
-                <th style={{ width: isSelectMode ? '13%' : '14%' }}>Attribute Type</th>
+                <th style={{ width: isEditMode ? '22%' : '23%' }}>Attribute Name</th>
+                <th style={{ width: isEditMode ? '35%' : '37%' }}>Target / Acceptance Criterion</th>
+                <th style={{ width: isEditMode ? '18%' : '19%' }}>Justification / Source</th>
+                <th style={{ width: isEditMode ? '13%' : '14%' }}>Attribute Type</th>
                 <th style={{ width: '5%', textAlign: 'center' }}>Order</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={isSelectMode ? 7 : 6} style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-muted)' }}>
+                  <td colSpan={isEditMode ? 7 : 6} style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-muted)' }}>
                     <div style={{ fontSize: '2.2rem', marginBottom: '0.6rem' }}>📋</div>
                     <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem', marginBottom: '0.35rem' }}>
                       No QTPP Attributes Defined Yet
@@ -377,7 +390,7 @@ export default function QTPPDefinition() {
                   const isChecked = selectedIds.includes(row.id)
                   return (
                     <tr key={row.id} style={{ background: isChecked ? 'rgba(239, 68, 68, 0.04)' : undefined }}>
-                      {isSelectMode && (
+                      {isEditMode && (
                         <td style={{ textAlign: 'center', verticalAlign: 'top', paddingTop: '1.05rem' }}>
                           <input
                             type="checkbox"

@@ -197,17 +197,6 @@ export default function ReverseRiskAssessment() {
     setSelectedParamIds([])
   }
 
-  // Clear all parameters for current stage
-  const handleClearAll = () => {
-    if (currentParams.length === 0) return
-    setLocalRisk({
-      ...localRisk,
-      [currentStage.id]: { parameters: [] }
-    })
-    setSelectedParamIds([])
-    toast('All parameters cleared for this stage', { icon: 'ℹ️' })
-  }
-
   // Sorted parameters by RPN descending
   const sortedParams = useMemo(() => {
     return [...currentParams].sort((a, b) => b.rpn - a.rpn)
@@ -439,17 +428,6 @@ export default function ReverseRiskAssessment() {
                 >
                   Delete Parameter {selectedParamIds.length > 0 ? `(${selectedParamIds.length})` : ''}
                 </button>
-
-                {currentParams.length > 0 && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={handleClearAll}
-                    title="Clear all parameters for this stage"
-                  >
-                    Clear All
-                  </button>
-                )}
 
                 <button
                   type="button"

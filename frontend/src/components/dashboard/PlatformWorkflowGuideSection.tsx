@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PLATFORM_WORKFLOW_INTRO, PLATFORM_PHASES } from '../../data/platformGuide';
+import { PLATFORM_WORKFLOW_INTRO_DATA, PLATFORM_PHASES } from '../../data/platformGuide';
 
 export interface PlatformWorkflowGuideSectionProps {
   id?: string;
@@ -226,68 +226,151 @@ export const PlatformWorkflowGuideSection: React.FC<PlatformWorkflowGuideSection
             <div
               style={{
                 display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: '1rem',
-                gap: '1rem',
-                flexWrap: 'wrap'
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                marginBottom: '0.75rem',
+                gap: '0.75rem'
               }}
             >
-              <div style={{ flex: 1, minWidth: '280px' }}>
-                {/* Intro Callout Box */}
-                <div
-                  style={{
-                    padding: '0.85rem 1.15rem',
-                    borderRadius: '8px',
-                    background: 'rgba(239, 246, 255, 0.75)',
-                    border: '1px solid #bfdbfe',
-                    color: '#1e3a8a',
-                    fontSize: '0.835rem',
-                    lineHeight: 1.55
-                  }}
-                >
-                  <div style={{ fontWeight: 700, marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#1d4ed8' }}>
-                    <span>💡</span> About the DoE and QbD Platform
-                  </div>
-                  <div>{PLATFORM_WORKFLOW_INTRO}</div>
-                </div>
+              {/* Expand all / Collapse all links */}
+              <button
+                type="button"
+                onClick={expandAllSteps}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--primary)',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: 0,
+                  textDecoration: 'underline'
+                }}
+              >
+                Expand all details
+              </button>
+              <span style={{ color: 'var(--border)' }}>|</span>
+              <button
+                type="button"
+                onClick={collapseAllSteps}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: 0,
+                  textDecoration: 'underline'
+                }}
+              >
+                Collapse all details
+              </button>
+            </div>
+
+            {/* Structured Intro Callout Box */}
+            <div
+              style={{
+                padding: '1.1rem 1.25rem',
+                borderRadius: '8px',
+                background: 'rgba(239, 246, 255, 0.75)',
+                border: '1px solid #bfdbfe',
+                color: '#1e3a8a',
+                fontSize: '0.835rem',
+                lineHeight: 1.55,
+                marginBottom: '1.25rem'
+              }}
+            >
+              {/* 1) Title */}
+              <div
+                style={{
+                  fontWeight: 700,
+                  fontSize: '0.92rem',
+                  marginBottom: '0.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  color: '#1d4ed8'
+                }}
+              >
+                <span>💡</span> {PLATFORM_WORKFLOW_INTRO_DATA.title}
               </div>
 
-              {/* Expand all / Collapse all links */}
-              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', paddingTop: '0.2rem' }}>
-                <button
-                  type="button"
-                  onClick={expandAllSteps}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--primary)',
-                    fontSize: '0.78rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    padding: 0,
-                    textDecoration: 'underline'
-                  }}
-                >
-                  Expand all details
-                </button>
-                <span style={{ color: 'var(--border)' }}>|</span>
-                <button
-                  type="button"
-                  onClick={collapseAllSteps}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    fontSize: '0.78rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    padding: 0,
-                    textDecoration: 'underline'
-                  }}
-                >
-                  Collapse all details
-                </button>
+              {/* 2) Intro paragraph */}
+              <p style={{ margin: '0 0 1rem 0', color: '#1e3a8a', fontSize: '0.84rem', lineHeight: 1.55 }}>
+                {PLATFORM_WORKFLOW_INTRO_DATA.introParagraph}
+              </p>
+
+              {/* 3) "How it works" 4 mini-cards row */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: '0.75rem',
+                  marginBottom: '1rem'
+                }}
+              >
+                {PLATFORM_WORKFLOW_INTRO_DATA.howItWorks.map((card) => {
+                  return (
+                    <div
+                      key={card.phaseId}
+                      style={{
+                        background: '#ffffff',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: '6px',
+                        padding: '0.65rem 0.8rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.25rem',
+                        boxShadow: '0 1px 2px rgba(30, 58, 138, 0.04)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
+                            color: '#2563eb',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                            background: 'rgba(37, 99, 235, 0.08)',
+                            padding: '1px 6px',
+                            borderRadius: '4px'
+                          }}
+                        >
+                          {card.phaseTag}
+                        </span>
+                        <strong style={{ fontSize: '0.82rem', color: '#0f172a' }}>
+                          {card.title}
+                        </strong>
+                      </div>
+                      <div style={{ fontSize: '0.76rem', color: '#475569', lineHeight: 1.45 }}>
+                        {card.description}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 4) "What you get" line */}
+              <div
+                style={{
+                  fontSize: '0.8rem',
+                  color: '#1e3a8a',
+                  lineHeight: 1.5,
+                  paddingTop: '0.5rem',
+                  borderTop: '1px solid rgba(191, 219, 254, 0.7)',
+                  marginBottom: '0.35rem'
+                }}
+              >
+                <strong style={{ color: '#1d4ed8' }}>What you get:</strong>{' '}
+                <span>{PLATFORM_WORKFLOW_INTRO_DATA.whatYouGet.join(' · ')}</span>
+              </div>
+
+              {/* 5) "Best for" line */}
+              <div style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.45 }}>
+                <strong style={{ color: '#475569' }}>Best for:</strong>{' '}
+                <span>{PLATFORM_WORKFLOW_INTRO_DATA.bestFor}</span>
               </div>
             </div>
 

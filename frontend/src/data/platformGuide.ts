@@ -14,8 +14,63 @@ export interface WorkflowPhase {
   steps: WorkflowStepItem[];
 }
 
-export const PLATFORM_WORKFLOW_INTRO =
-  "The DoE and QbD Platform guides chemists through the complete Quality by Design (ICH Q8/Q9/Q14) and Design of Experiments (DoE) lifecycle. It takes a drug substance from its quality target profile (QTPP), identifies critical quality targets and process risks, designs lab experiments, finds the optimal reaction sweet spot, and freezes regulatory operating ranges (PAR and NOR) for tech transfer and manufacturing.";
+export interface PlatformWorkflowIntroData {
+  title: string;
+  introParagraph: string;
+  howItWorks: Array<{
+    phaseId: string;
+    phaseTag: string;
+    title: string;
+    description: string;
+  }>;
+  whatYouGet: string[];
+  bestFor: string;
+}
+
+export const PLATFORM_WORKFLOW_INTRO_DATA: PlatformWorkflowIntroData = {
+  title: "About the DoE and QbD Platform",
+  introParagraph:
+    "The DoE and QbD Platform is an end-to-end workspace for pharmaceutical process development. It guides chemists through the complete Quality by Design (ICH Q8/Q9/Q14) and Design of Experiments (DoE) lifecycle, from defining the quality target of the drug substance to filing a validated design space. Every decision is linked, so each parameter range, experiment and conclusion can be traced back to the patient-quality requirement it protects.",
+  howItWorks: [
+    {
+      phaseId: "phase-0",
+      phaseTag: "Phase 0",
+      title: "Define & Assess",
+      description: "Set the quality targets (QTPP, CQAs), map the synthesis route and rank process risks with FMEA to find the critical parameters."
+    },
+    {
+      phaseId: "phase-1",
+      phaseTag: "Phase 1",
+      title: "Design & Run",
+      description: "Set factor ranges and responses, get a recommended statistical design, and run the lab trials with a randomized run sheet."
+    },
+    {
+      phaseId: "phase-2",
+      phaseTag: "Phase 2",
+      title: "Optimize & Refine",
+      description: "Model the results, find the optimal setpoints, and use targeted follow-up experiments where uncertainty remains."
+    },
+    {
+      phaseId: "phase-3",
+      phaseTag: "Phase 3",
+      title: "Lock & File",
+      description: "Fix the Proven Acceptable Ranges (PAR) and Normal Operating Ranges (NOR) and generate the audit-ready report."
+    }
+  ],
+  whatYouGet: [
+    "Validated CQA list",
+    "Prioritized CPP risk matrix",
+    "Statistically designed experiments",
+    "Optimal reaction conditions",
+    "PAR/NOR design space",
+    "Audit-ready PDF/Excel report"
+  ],
+  bestFor:
+    "process chemists, formulation and CMC scientists, and QA/regulatory teams preparing for technology transfer and regulatory submission."
+};
+
+// Backward compatibility if imported elsewhere
+export const PLATFORM_WORKFLOW_INTRO = PLATFORM_WORKFLOW_INTRO_DATA.introParagraph;
 
 export const PLATFORM_PHASES: WorkflowPhase[] = [
   {

@@ -4,7 +4,10 @@ export interface WorkflowStepItem {
   number: number;
   id: string;
   name: string;
+  purpose?: string;
   whatHappens: string;
+  youDo?: string[];
+  systemDoes?: string[];
   output: string;
 }
 
@@ -81,42 +84,60 @@ export const PLATFORM_PHASES: WorkflowPhase[] = [
         number: 1,
         id: 'create-project',
         name: 'Create Project',
-        whatHappens: 'Chemist enters API, salt form and development objective.',
-        output: STEP_BRIEFINGS['create-project']?.output || 'Central project record that all later stages and DOE matrices attach to.'
+        purpose: STEP_BRIEFINGS['create-project']?.purpose || 'Set up the project foundation with API/compound details and overarching development goals.',
+        whatHappens: 'Chemist enters API, salt form and development objective to establish a persistent development repository.',
+        youDo: STEP_BRIEFINGS['create-project']?.youDo,
+        systemDoes: STEP_BRIEFINGS['create-project']?.systemDoes,
+        output: STEP_BRIEFINGS['create-project']?.output || 'A centralized project record that all later stages and DOE matrices attach to.'
       },
       {
         number: 2,
         id: 'qtpp',
         name: 'QTPP Definition',
-        whatHappens: 'Define patient safety and therapeutic requirements.',
+        purpose: STEP_BRIEFINGS['qtpp']?.purpose || 'Define the Quality Target Product Profile stating target therapeutic & manufacturing requirements.',
+        whatHappens: 'Define patient safety, route of administration, clinical specifications, stability, and release criteria.',
+        youDo: STEP_BRIEFINGS['qtpp']?.youDo,
+        systemDoes: STEP_BRIEFINGS['qtpp']?.systemDoes,
         output: STEP_BRIEFINGS['qtpp']?.output || 'QTPP specification table serving as the baseline to derive Critical Quality Attributes.'
       },
       {
         number: 3,
         id: 'cqa',
         name: 'CQA Derivation',
-        whatHappens: 'Map QTPP goals to measurable attributes and score them for severity and uncertainty.',
+        purpose: STEP_BRIEFINGS['cqa']?.purpose || 'Identify and prioritize Critical Quality Attributes that directly impact patient safety and efficacy.',
+        whatHappens: 'Map QTPP goals to measurable product attributes and score severity impact and uncertainty to prioritize CQAs.',
+        youDo: STEP_BRIEFINGS['cqa']?.youDo,
+        systemDoes: STEP_BRIEFINGS['cqa']?.systemDoes,
         output: STEP_BRIEFINGS['cqa']?.output || 'Prioritized CQA registry with validated specification limits.'
       },
       {
         number: 4,
         id: 'route-mapping',
         name: 'Route Mapping',
-        whatHappens: 'Structure the synthesis route into stages with reagents, solvents and intermediates.',
+        purpose: STEP_BRIEFINGS['route-mapping']?.purpose || 'Map synthetic chemistry routes, unit operations, input materials, and process conditions.',
+        whatHappens: 'Structure the synthesis route into unit operations, specifying raw materials, reagents, solvents, and intermediates.',
+        youDo: STEP_BRIEFINGS['route-mapping']?.youDo,
+        systemDoes: STEP_BRIEFINGS['route-mapping']?.systemDoes,
         output: STEP_BRIEFINGS['route-mapping']?.output || 'Detailed process map linking chemistry unit operations to potential risk factors.'
       },
       {
         number: 5,
         id: 'risk-assessment',
         name: 'Risk Assessment (FMEA Parameter Matrix)',
-        whatHappens: 'Evaluate parameters with FMEA (Severity × Occurrence × Detectability).',
+        purpose: STEP_BRIEFINGS['risk-assessment']?.purpose || 'Perform reverse FMEA risk analysis to evaluate which parameters could potentially deviate CQAs.',
+        whatHappens: 'Evaluate parameters with FMEA (Severity × Occurrence × Detectability) against the RPN threshold.',
+        youDo: STEP_BRIEFINGS['risk-assessment']?.youDo,
+        systemDoes: STEP_BRIEFINGS['risk-assessment']?.systemDoes,
         output: STEP_BRIEFINGS['risk-assessment']?.output || 'Ranked FMEA risk matrix isolating high-risk parameters requiring empirical DOE study.'
       },
       {
         number: 6,
         id: 'stage-campaign-matrix',
         name: 'Stage Campaign Matrix',
-        whatHappens: 'Review risks across stages and select the unit operation to run DoE on.',
+        purpose: STEP_BRIEFINGS['stage-campaign-matrix']?.purpose || 'Select and activate the specific manufacturing unit operation to optimize in this DOE campaign.',
+        whatHappens: 'Review risk distributions across all stages and select the target unit operation to carry into experimental design.',
+        youDo: STEP_BRIEFINGS['stage-campaign-matrix']?.youDo,
+        systemDoes: STEP_BRIEFINGS['stage-campaign-matrix']?.systemDoes,
         output: STEP_BRIEFINGS['stage-campaign-matrix']?.output || 'Active campaign context configured for experimental study.'
       }
     ]
@@ -129,21 +150,30 @@ export const PLATFORM_PHASES: WorkflowPhase[] = [
         number: 7,
         id: 'define-factors',
         name: 'Define Factors & Responses',
-        whatHappens: 'Set factor ranges and units, and select CQA responses with optimization goals.',
+        purpose: STEP_BRIEFINGS['define-factors']?.purpose || 'Establish operational ranges for process factors and quantitative metrics for response variables.',
+        whatHappens: 'Set factor ranges, engineering units, baseline levels, and define CQA responses with optimization goals.',
+        youDo: STEP_BRIEFINGS['define-factors']?.youDo,
+        systemDoes: STEP_BRIEFINGS['define-factors']?.systemDoes,
         output: STEP_BRIEFINGS['define-factors']?.output || 'Rigorous factor and response definition governing experimental design construction.'
       },
       {
         number: 8,
         id: 'recommend-doe',
         name: 'Recommend DoE',
+        purpose: STEP_BRIEFINGS['recommend-doe']?.purpose || 'Evaluate factor space geometry and recommend the optimal experimental design strategy.',
         whatHappens: 'System recommends a statistical design (DSD, CCD, Box-Behnken, Fractional Factorial) based on factors, interactions and budget.',
+        youDo: STEP_BRIEFINGS['recommend-doe']?.youDo,
+        systemDoes: STEP_BRIEFINGS['recommend-doe']?.systemDoes,
         output: STEP_BRIEFINGS['recommend-doe']?.output || 'Selected DOE design architecture with target run counts and center points.'
       },
       {
         number: 9,
         id: 'generate-doe',
         name: 'DoE Matrix & Lab Results Entry',
-        whatHappens: 'Generate the randomized run table, export the batch sheet, run trials and enter results.',
+        purpose: STEP_BRIEFINGS['generate-doe']?.purpose || 'Generate randomized experimental run matrix, execute laboratory trials, and record response data.',
+        whatHappens: 'Generate the randomized run matrix, export batch sheets, execute bench trials, and record measured response data.',
+        youDo: STEP_BRIEFINGS['generate-doe']?.youDo,
+        systemDoes: STEP_BRIEFINGS['generate-doe']?.systemDoes,
         output: STEP_BRIEFINGS['generate-doe']?.output || 'Completed empirical dataset ready for statistical and machine learning analysis.'
       }
     ]
@@ -156,35 +186,50 @@ export const PLATFORM_PHASES: WorkflowPhase[] = [
         number: 10,
         id: 'initial-optimization',
         name: 'Initial Optimum',
-        whatHappens: 'Response surface models and a desirability function compute the initial optimum.',
+        purpose: STEP_BRIEFINGS['initial-optimization']?.purpose || 'Fit response surface regression models to uncover factor effects and identify initial sweet spot.',
+        whatHappens: 'Fit response surface models, evaluate factor effects and interactions, and calculate initial composite desirability.',
+        youDo: STEP_BRIEFINGS['initial-optimization']?.youDo,
+        systemDoes: STEP_BRIEFINGS['initial-optimization']?.systemDoes,
         output: STEP_BRIEFINGS['initial-optimization']?.output || 'First-iteration optimal parameter coordinates and initial empirical model.'
       },
       {
         number: 11,
         id: 'enough-data',
         name: 'Enough Data? (Chemist Decision Gate)',
-        whatHappens: 'Chemist reviews desirability and model confidence. Option A (high desirability, strong fit): finalize. Option B (uncertainty or off-target CQAs): go to targeted refinement.',
+        purpose: STEP_BRIEFINGS['enough-data']?.purpose || 'Assess model predictive certainty and determine whether to proceed directly or run Bayesian iterations.',
+        whatHappens: 'Review model quality and confidence: proceed directly to lock design space or trigger targeted follow-up experiments.',
+        youDo: STEP_BRIEFINGS['enough-data']?.youDo,
+        systemDoes: STEP_BRIEFINGS['enough-data']?.systemDoes,
         output: STEP_BRIEFINGS['enough-data']?.output || 'Workflow branch decision: finalize optimum or proceed to active GP learning.'
       },
       {
         number: 12,
         id: 'gp-model',
         name: 'GP Model',
-        whatHappens: 'Factor slices with uncertainty bands show process sensitivity around the optimum.',
+        purpose: STEP_BRIEFINGS['gp-model']?.purpose || 'Fit non-parametric Gaussian Process regression surrogate to model complex response behaviors.',
+        whatHappens: 'Inspect 1D factor slice curves with 95% confidence bands to evaluate process sensitivities and response curvature.',
+        youDo: STEP_BRIEFINGS['gp-model']?.youDo,
+        systemDoes: STEP_BRIEFINGS['gp-model']?.systemDoes,
         output: STEP_BRIEFINGS['gp-model']?.output || 'Trained GP probabilistic model providing mean predictions and uncertainty intervals.'
       },
       {
         number: 13,
         id: 'bayesian-opt',
         name: 'Targeted Optimization',
-        whatHappens: 'Acquisition logic proposes the single best follow-up experiment.',
+        purpose: STEP_BRIEFINGS['bayesian-opt']?.purpose || 'Leverage acquisition functions to balance exploration and exploitation for the next experiment.',
+        whatHappens: 'Acquisition algorithms identify optimal candidate experiment coordinates balancing high reward and uncertainty reduction.',
+        youDo: STEP_BRIEFINGS['bayesian-opt']?.youDo,
+        systemDoes: STEP_BRIEFINGS['bayesian-opt']?.systemDoes,
         output: STEP_BRIEFINGS['bayesian-opt']?.output || 'High-utility candidate experiment recipe recommended for laboratory testing.'
       },
       {
         number: 14,
         id: 'new-experiment',
         name: 'New Experiment & Model Update',
-        whatHappens: 'Run the recommended experiment, enter the result, and the models update.',
+        purpose: STEP_BRIEFINGS['new-experiment']?.purpose || 'Execute the Bayesian-recommended experiment in the laboratory and record observed responses.',
+        whatHappens: 'Conduct the targeted confirmatory experiment at specified coordinates and input analytical results to update models.',
+        youDo: STEP_BRIEFINGS['new-experiment']?.youDo,
+        systemDoes: STEP_BRIEFINGS['new-experiment']?.systemDoes,
         output: STEP_BRIEFINGS['new-experiment']?.output || 'Updated empirical dataset enriching the surrogate model with targeted knowledge.'
       }
     ]
@@ -197,14 +242,20 @@ export const PLATFORM_PHASES: WorkflowPhase[] = [
         number: 15,
         id: 'final-optimum',
         name: 'Final Optimum & Design Space',
-        whatHappens: 'Lock the best setpoints and compute PAR (Proven Acceptable Ranges) and NOR (Normal Operating Ranges).',
+        purpose: STEP_BRIEFINGS['final-optimum']?.purpose || 'Synthesize all empirical runs to establish the global Pareto optimum and Proven Acceptable Ranges.',
+        whatHappens: 'Establish the global multi-response optimum and calculate Proven Acceptable Ranges (PAR) and Normal Operating Ranges (NOR).',
+        youDo: STEP_BRIEFINGS['final-optimum']?.youDo,
+        systemDoes: STEP_BRIEFINGS['final-optimum']?.systemDoes,
         output: STEP_BRIEFINGS['final-optimum']?.output || 'Validated optimal setpoints and robust regulatory design space boundaries (PAR/NOR).'
       },
       {
         number: 16,
         id: 'report',
         name: 'Generate Report',
-        whatHappens: 'Compile full traceability (QTPP → CQA → CPP → DoE → Lab Data → PAR/NOR → Optimum) with audit trail and PDF/Excel export.',
+        purpose: STEP_BRIEFINGS['report']?.purpose || 'Compile comprehensive QbD regulatory summary documenting the complete development lifecycle.',
+        whatHappens: 'Compile full end-to-end traceability (QTPP → CQA → CPP → DoE → Lab Data → PAR/NOR → Optimum) with audit history.',
+        youDo: STEP_BRIEFINGS['report']?.youDo,
+        systemDoes: STEP_BRIEFINGS['report']?.systemDoes,
         output: STEP_BRIEFINGS['report']?.output || 'Comprehensive QbD regulatory report package ready for tech transfer or filing.'
       }
     ]

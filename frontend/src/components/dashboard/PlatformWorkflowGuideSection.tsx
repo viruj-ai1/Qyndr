@@ -516,24 +516,86 @@ export const PlatformWorkflowGuideSection: React.FC<PlatformWorkflowGuideSection
                                 </span>
                               </div>
 
-                              {/* Step Details (What happens + Output) */}
+                              {/* Step Details (Expanded rich view) */}
                               {isStepOpen && (
                                 <div
                                   style={{
-                                    padding: '0.5rem 0.85rem 0.75rem 2.5rem',
+                                    padding: '0.75rem 1rem 0.85rem 2.5rem',
                                     borderTop: '1px solid #edf2f7',
-                                    fontSize: '0.8rem',
-                                    lineHeight: 1.5,
-                                    color: '#334155'
+                                    fontSize: '0.82rem',
+                                    lineHeight: 1.55,
+                                    color: '#334155',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.5rem'
                                   }}
                                 >
-                                  <div style={{ marginBottom: '0.35rem' }}>
-                                    <strong style={{ color: '#1e293b' }}>What happens:</strong>{' '}
-                                    <span>{step.whatHappens}</span>
+                                  {step.purpose && (
+                                    <div style={{ color: '#475569', fontSize: '0.8rem', fontStyle: 'italic', marginBottom: '0.15rem' }}>
+                                      {step.purpose}
+                                    </div>
+                                  )}
+
+                                  <div>
+                                    <strong style={{ color: '#0f172a' }}>What happens:</strong>{' '}
+                                    <span style={{ color: '#334155' }}>{step.whatHappens}</span>
                                   </div>
-                                  <div style={{ color: '#64748b', fontSize: '0.78rem' }}>
-                                    <strong style={{ color: '#475569' }}>Output:</strong>{' '}
-                                    <span>{step.output}</span>
+
+                                  {((step.youDo && step.youDo.length > 0) || (step.systemDoes && step.systemDoes.length > 0)) && (
+                                    <div
+                                      style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                                        gap: '0.65rem',
+                                        margin: '0.35rem 0',
+                                        background: 'rgba(241, 245, 249, 0.7)',
+                                        padding: '0.65rem 0.85rem',
+                                        borderRadius: '6px',
+                                        border: '1px solid #e2e8f0'
+                                      }}
+                                    >
+                                      {step.youDo && step.youDo.length > 0 && (
+                                        <div>
+                                          <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.25rem' }}>
+                                            👤 Chemist Action
+                                          </div>
+                                          <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.78rem', color: '#475569', lineHeight: 1.45 }}>
+                                            {step.youDo.map((item, idx) => (
+                                              <li key={idx}>{item}</li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                      {step.systemDoes && step.systemDoes.length > 0 && (
+                                        <div>
+                                          <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#005baa', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.25rem' }}>
+                                            ⚙️ Platform Execution
+                                          </div>
+                                          <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.78rem', color: '#475569', lineHeight: 1.45 }}>
+                                            {step.systemDoes.map((item, idx) => (
+                                              <li key={idx}>{item}</li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  <div
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'flex-start',
+                                      gap: '0.4rem',
+                                      background: 'rgba(13, 148, 136, 0.06)',
+                                      padding: '0.45rem 0.75rem',
+                                      borderRadius: '4px',
+                                      border: '1px solid rgba(13, 148, 136, 0.2)',
+                                      fontSize: '0.79rem'
+                                    }}
+                                  >
+                                    <strong style={{ color: '#0f766e', flexShrink: 0 }}>Output:</strong>{' '}
+                                    <span style={{ color: '#134e4a' }}>{step.output}</span>
                                   </div>
                                 </div>
                               )}

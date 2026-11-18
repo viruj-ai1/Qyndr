@@ -269,22 +269,9 @@ export default function ReverseRiskAssessment() {
           </div>
           <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--primary)', marginTop: '4px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
             <span>Assessing Stage {safeStageIndex + 1} of {stages.length}:</span>
-            <span style={{ color: 'var(--text-primary)' }}>{currentStage.name}</span>
-            {currentStage.unitOpType && (
-              <span
-                style={{
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  padding: '2px 8px',
-                  borderRadius: '999px',
-                  background: 'rgba(0, 91, 170, 0.08)',
-                  color: 'var(--primary)',
-                  border: '1px solid rgba(0, 91, 170, 0.18)'
-                }}
-              >
-                {currentStage.unitOpType}
-              </span>
-            )}
+            <span style={{ color: 'var(--text-primary)' }}>
+              {currentStage.name.replace(/^Stage\s*\d+\s*:\s*/i, '').replace(/^Unit\s*Op\s*\d+\s*:\s*/i, '').trim()}
+            </span>
           </div>
         </div>
 

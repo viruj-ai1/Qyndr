@@ -240,13 +240,15 @@ export default function CreateProject() {
           style={{
             display: 'inline-flex',
             alignItems: 'center',
+            gap: '0.45rem',
             fontWeight: 600,
             fontSize: '0.85rem',
-            padding: '0.5rem 1rem'
+            padding: '0.5rem 0.9rem'
           }}
           title="Open Project Input Templates and Examples"
         >
-          Templates
+          <Info size={15} style={{ color: 'var(--primary)' }} />
+          <span>Template</span>
         </button>
       </div>
 

@@ -226,30 +226,10 @@ export default function CreateProject() {
 
   return (
     <div>
-      {/* Page Header with Top-Right "📋 Templates" Button */}
-      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-        <div>
-          <h1 className="page-title">Create Project</h1>
-          <p className="page-desc">Create the project and enter the API, goal, and process details.</p>
-        </div>
-
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={(e) => handleOpenTemplateModal('description', e.currentTarget)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.45rem',
-            fontWeight: 600,
-            fontSize: '0.85rem',
-            padding: '0.5rem 0.9rem'
-          }}
-          title="Open Project Input Templates and Examples"
-        >
-          <ClipboardList size={16} style={{ color: 'var(--primary)' }} />
-          <span>📋 Templates</span>
-        </button>
+      {/* Page Header */}
+      <div className="page-header">
+        <h1 className="page-title">Create Project</h1>
+        <p className="page-desc">Create the project and enter the API, goal, and process details.</p>
       </div>
 
       <div className="card">

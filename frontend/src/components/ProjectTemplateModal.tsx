@@ -1,5 +1,6 @@
 // frontend/src/components/ProjectTemplateModal.tsx
 import React, { useState, useEffect, useRef } from 'react'
+import ReactDOM from 'react-dom'
 import {
   X,
   Copy,
@@ -442,18 +443,18 @@ export default function ProjectTemplateModal({
 
   const projectNameLen = (activeTab === 'projectName' && currentTabState.alignedValue) ? currentTabState.alignedValue.length : 0
 
-  return (
+  const modalElement = (
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 1000,
+        zIndex: 99999,
         backgroundColor: 'rgba(15, 23, 42, 0.65)',
         backdropFilter: 'blur(4px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '1rem'
+        padding: '1.5rem 1rem'
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
@@ -476,7 +477,7 @@ export default function ProjectTemplateModal({
           boxShadow: '0 20px 45px -10px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0,0,0,0.08)',
           width: '100%',
           maxWidth: '960px',
-          maxHeight: '88vh',
+          maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -1085,4 +1086,10 @@ export default function ProjectTemplateModal({
       `}</style>
     </div>
   )
+
+  if (typeof document !== 'undefined') {
+    return ReactDOM.createPortal(modalElement, document.body)
+  }
+
+  return modalElement
 }

@@ -180,5 +180,20 @@ export const RouteApi = {
     api.get(`/projects/${projectId}/route/validate`).then(r => r.data),
 }
 
+/* ── Project Input Template Auto-Alignment ─────────────────── */
+import type { AlignInputRequest, AlignInputResponse, ExtractDocResponse } from '../types/projectInput'
+
+export const ProjectInputApi = {
+  align: (payload: AlignInputRequest): Promise<AlignInputResponse> =>
+    api.post('/project-input/align', payload).then(r => r.data),
+  extractDoc: (file: File): Promise<ExtractDocResponse> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/project-input/extract', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }).then(r => r.data)
+  }
+}
+
 export default api
 

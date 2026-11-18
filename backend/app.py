@@ -30,6 +30,7 @@ from api.report_routes import router as reports_router
 from api.chat        import router as chat_router
 from api.cqa         import router as cqa_router
 from api.route       import router as route_router
+from api.project_input_routes import router as project_input_router
 
 
 @asynccontextmanager
@@ -104,6 +105,7 @@ app.include_router(reports_router,      prefix=PREFIX, dependencies=auth_dep)
 app.include_router(chat_router,         dependencies=auth_dep)
 app.include_router(cqa_router,          dependencies=auth_dep)
 app.include_router(route_router,        dependencies=auth_dep)
+app.include_router(project_input_router, dependencies=auth_dep)
 
 
 # ── Root & Health ───────────────────────────────────────────

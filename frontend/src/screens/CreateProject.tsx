@@ -85,7 +85,24 @@ export default function CreateProject() {
     setIsTemplateModalOpen(true)
   }
 
-  // Insert Template or Example into target field with replace/append
+  // Highlight state for recently filled fields (1.5s flash)
+  const [highlightedFields, setHighlightedFields] = useState<Partial<Record<FieldKey, boolean>>>({})
+
+  const triggerFieldHighlight = (fields: FieldKey[]) => {
+    const nextHl: Partial<Record<FieldKey, boolean>> = {}
+    fields.forEach(f => { nextHl[f] = true })
+    setHighlightedFields(prev => ({ ...prev, ...nextHl }))
+
+    setTimeout(() => {
+      setHighlightedFields(prev => {
+        const cleaned = { ...prev }
+        fields.forEach(f => { delete cleaned[f] })
+        return cleaned
+      })
+    }, 1500)
+  }
+
+  // Insert Template or Aligned value into target field with replace/append
   const handleInsert = (fieldKey: FieldKey, text: string, mode: 'replace' | 'append') => {
     const fieldMap: Record<FieldKey, { stateKey: string; ref: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null> }> = {
       projectName: { stateKey: 'name', ref: nameInputRef },
@@ -106,11 +123,14 @@ export default function CreateProject() {
     }
 
     set(stateKey, nextVal)
+    triggerFieldHighlight([fieldKey])
+    toast.success('Data aligned and added to the form')
 
-    // Focus target element and highlight first [PLACEHOLDER] if present
+    // Scroll to target element and focus
     setTimeout(() => {
       const el = ref.current
       if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
         el.focus()
         const firstBracket = nextVal.indexOf('[')
         const closingBracket = nextVal.indexOf(']')
@@ -118,7 +138,42 @@ export default function CreateProject() {
           el.setSelectionRange(firstBracket, closingBracket + 1)
         }
       }
-    }, 100)
+    }, 150)
+  }
+
+  // Batch apply aligned data across all 4 fields
+  const handleBatchApply = (values: Partial<Record<FieldKey, string>>) => {
+    const updatedForm = { ...form }
+    const updatedKeys: FieldKey[] = []
+
+    if (values.projectName !== undefined) {
+      updatedForm.name = values.projectName
+      updatedKeys.push('projectName')
+    }
+    if (values.compound !== undefined) {
+      updatedForm.compound = values.compound
+      updatedKeys.push('compound')
+    }
+    if (values.objective !== undefined) {
+      updatedForm.objective = values.objective
+      updatedKeys.push('objective')
+    }
+    if (values.description !== undefined) {
+      updatedForm.description = deduplicateDescriptionSections(values.description)
+      updatedKeys.push('description')
+    }
+
+    setForm(updatedForm)
+    triggerFieldHighlight(updatedKeys)
+    toast.success('Data aligned and added to the form')
+
+    // Scroll to the first updated field
+    setTimeout(() => {
+      if (nameInputRef.current) {
+        nameInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        nameInputRef.current.focus()
+      }
+    }, 150)
   }
 
   // Check if target field has non-empty content
@@ -263,6 +318,14 @@ export default function CreateProject() {
               placeholder="e.g. LXP-Stage-1 Crystallization Optimization"
               value={form.name}
               onChange={e => set('name', e.target.value)}
+              style={{
+                transition: 'all 0.3s ease',
+                ...(highlightedFields.projectName ? {
+                  borderColor: '#10b981',
+                  boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.25)',
+                  background: '#f0fdf4'
+                } : {})
+              }}
             />
           </div>
 
@@ -276,6 +339,14 @@ export default function CreateProject() {
                 placeholder="e.g. Propofol or LXP-001"
                 value={form.compound}
                 onChange={e => set('compound', e.target.value)}
+                style={{
+                  transition: 'all 0.3s ease',
+                  ...(highlightedFields.compound ? {
+                    borderColor: '#10b981',
+                    boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.25)',
+                    background: '#f0fdf4'
+                  } : {})
+                }}
               />
             </div>
 
@@ -287,6 +358,14 @@ export default function CreateProject() {
                 placeholder="e.g. Maximize yield, minimize impurities"
                 value={form.objective}
                 onChange={e => set('objective', e.target.value)}
+                style={{
+                  transition: 'all 0.3s ease',
+                  ...(highlightedFields.objective ? {
+                    borderColor: '#10b981',
+                    boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.25)',
+                    background: '#f0fdf4'
+                  } : {})
+                }}
               />
             </div>
           </div>
@@ -298,7 +377,18 @@ export default function CreateProject() {
               ref={descriptionInputRef}
               className="form-textarea"
               rows={8}
-              style={{ minHeight: '180px', resize: 'vertical', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.825rem' }}
+              style={{
+                minHeight: '180px',
+                resize: 'vertical',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: '0.825rem',
+                transition: 'all 0.3s ease',
+                ...(highlightedFields.description ? {
+                  borderColor: '#10b981',
+                  boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.25)',
+                  background: '#f0fdf4'
+                } : {})
+              }}
               placeholder="Describe the process, background, target quality criteria (e.g. assay/purity specifications, impurity limits, reaction yield), and known constraints…"
               value={form.description}
               onChange={e => set('description', e.target.value)}
@@ -422,6 +512,7 @@ export default function CreateProject() {
         initialTab={templateModalTab}
         onClose={() => setIsTemplateModalOpen(false)}
         onInsert={handleInsert}
+        onBatchApply={handleBatchApply}
         fieldHasContent={fieldHasContent}
         triggerRef={templateTriggerRef}
       />

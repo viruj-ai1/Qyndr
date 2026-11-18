@@ -681,27 +681,6 @@ export default function ProjectTemplateModal({
                   <Sparkles size={15} style={{ color: 'var(--accent)' }} />
                   <span>YOUR DATA (AUTO-ALIGN TO TEMPLATE)</span>
                 </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".txt,.docx,.pdf,.xlsx,.csv"
-                    style={{ display: 'none' }}
-                    onChange={handleFileUpload}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-xs"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingFile || currentTabState.status === 'loading'}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                    title="Upload .txt, .docx, .pdf, .xlsx, or .csv file to extract text"
-                  >
-                    {uploadingFile ? <Loader2 size={13} className="spin" /> : <Upload size={13} />}
-                    <span>{uploadingFile ? 'Extracting…' : 'Upload file'}</span>
-                  </button>
-                </div>
               </div>
 
               {/* Removable file chip if present */}

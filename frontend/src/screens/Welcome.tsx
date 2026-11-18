@@ -15,7 +15,8 @@ import {
 } from '../utils/projectUtils'
 import {
   ProjectSection,
-  ProjectCard
+  ProjectCard,
+  PlatformWorkflowGuideSection
 } from '../components/dashboard'
 
 export default function Welcome() {
@@ -29,6 +30,24 @@ export default function Welcome() {
   const [selectedDeleteId, setSelectedDeleteId] = useState<number | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteSearchQuery, setDeleteSearchQuery] = useState('')
+  const [guideExpanded, setGuideExpanded] = useState(false)
+
+  const handleOpenGuideShortcut = () => {
+    setGuideExpanded(true)
+    setTimeout(() => {
+      const guideEl = document.getElementById('platform-workflow-guide')
+      if (guideEl) {
+        guideEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        // Briefly highlight the row border for ~1.2s
+        guideEl.style.borderColor = '#0d9488'
+        guideEl.style.boxShadow = '0 0 0 3px rgba(13, 148, 136, 0.35)'
+        setTimeout(() => {
+          guideEl.style.borderColor = 'var(--border)'
+          guideEl.style.boxShadow = 'var(--shadow-sm)'
+        }, 1200)
+      }
+    }, 50)
+  }
 
   useEffect(() => {
     let retries = 3
@@ -200,6 +219,46 @@ export default function Welcome() {
 
           {/* Top-Right: Actions & Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            {/* Header Shortcut: Workflow Guide */}
+            <button
+              type="button"
+              onClick={handleOpenGuideShortcut}
+              className="btn btn-secondary"
+              aria-label="Workflow Guide"
+              title="Open Platform Workflow Guide (overview & step-by-step walkthrough)"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.45rem 0.85rem',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                color: '#0f766e',
+                background: 'rgba(13, 148, 136, 0.08)',
+                border: '1px solid rgba(13, 148, 136, 0.25)',
+                borderRadius: '999px',
+                height: '38px',
+                boxSizing: 'border-box',
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(13, 148, 136, 0.15)'
+                e.currentTarget.style.borderColor = 'rgba(13, 148, 136, 0.45)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(13, 148, 136, 0.08)'
+                e.currentTarget.style.borderColor = 'rgba(13, 148, 136, 0.25)'
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              </svg>
+              <span className="hidden sm:inline">Workflow Guide</span>
+            </button>
+
             {/* Search Input in Top Header */}
             <div style={{ position: 'relative', width: '280px' }}>
               <input
@@ -568,6 +627,13 @@ export default function Welcome() {
               </ProjectSection>
             </>
           )}
+
+          {/* ── Section 4: Platform Workflow Guide (Always available, collapsed by default) ── */}
+          <PlatformWorkflowGuideSection
+            id="platform-workflow-guide"
+            isExpanded={guideExpanded}
+            onToggleExpand={() => setGuideExpanded(!guideExpanded)}
+          />
         </div>
       </main>
 

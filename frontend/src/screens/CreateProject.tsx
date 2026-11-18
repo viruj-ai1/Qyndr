@@ -256,29 +256,7 @@ export default function CreateProject() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* Project Name */}
           <div className="form-group">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-              <label className="form-label" style={{ margin: 0 }}>Project Name *</label>
-              <button
-                type="button"
-                onClick={(e) => handleOpenTemplateModal('projectName', e.currentTarget)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--primary)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                  padding: 0
-                }}
-                title="View Project Name template and example"
-              >
-                <Info size={13} />
-                <span>Template</span>
-              </button>
-            </div>
+            <label className="form-label">Project Name *</label>
             <input
               ref={nameInputRef}
               className="form-input"
@@ -291,29 +269,7 @@ export default function CreateProject() {
           {/* Compound / API and Primary Objective */}
           <div className="grid-2">
             <div className="form-group">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                <label className="form-label" style={{ margin: 0 }}>Compound / API</label>
-                <button
-                  type="button"
-                  onClick={(e) => handleOpenTemplateModal('compound', e.currentTarget)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--primary)',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    padding: 0
-                  }}
-                  title="View Compound / API template and example"
-                >
-                  <Info size={13} />
-                  <span>Template</span>
-                </button>
-              </div>
+              <label className="form-label">Compound / API</label>
               <input
                 ref={compoundInputRef}
                 className="form-input"
@@ -324,29 +280,7 @@ export default function CreateProject() {
             </div>
 
             <div className="form-group">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                <label className="form-label" style={{ margin: 0 }}>Primary Objective</label>
-                <button
-                  type="button"
-                  onClick={(e) => handleOpenTemplateModal('objective', e.currentTarget)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--primary)',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    padding: 0
-                  }}
-                  title="View Primary Objective template and example"
-                >
-                  <Info size={13} />
-                  <span>Template</span>
-                </button>
-              </div>
+              <label className="form-label">Primary Objective</label>
               <input
                 ref={objectiveInputRef}
                 className="form-input"
@@ -359,29 +293,7 @@ export default function CreateProject() {
 
           {/* Project Description */}
           <div className="form-group">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-              <label className="form-label" style={{ margin: 0 }}>Project Description</label>
-              <button
-                type="button"
-                onClick={(e) => handleOpenTemplateModal('description', e.currentTarget)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--primary)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                  padding: 0
-                }}
-                title="View full structured Project Description template"
-              >
-                <Info size={13} />
-                <span>Template</span>
-              </button>
-            </div>
+            <label className="form-label">Project Description</label>
             <textarea
               ref={descriptionInputRef}
               className="form-textarea"

@@ -38,6 +38,8 @@ export default function ReverseRiskAssessment() {
     })
     return defaultDict
   })
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [selectedParamIds, setSelectedParamIds] = useState<string[]>([])
   const isFirstMount = useRef(true)
   const cutoffInputRef = useRef<HTMLInputElement | null>(null)
   const [showRpnGuide, setShowRpnGuide] = useState(false)
@@ -170,6 +172,40 @@ export default function ReverseRiskAssessment() {
       ...localRisk,
       [currentStage.id]: { parameters: updated }
     })
+    setSelectedParamIds(prev => prev.filter(id => id !== paramId))
+  }
+
+  // Toggle selection for deletion
+  const handleToggleSelect = (paramId: string) => {
+    setSelectedParamIds(prev =>
+      prev.includes(paramId) ? prev.filter(id => id !== paramId) : [...prev, paramId]
+    )
+  }
+
+  // Delete selected parameters
+  const handleDeleteSelected = () => {
+    if (selectedParamIds.length === 0) {
+      toast('Please select parameters to delete using the checkboxes', { icon: 'ℹ️' })
+      return
+    }
+    const updated = currentParams.filter(p => !selectedParamIds.includes(p.id))
+    setLocalRisk({
+      ...localRisk,
+      [currentStage.id]: { parameters: updated }
+    })
+    toast.success(`Deleted ${selectedParamIds.length} parameter(s)`)
+    setSelectedParamIds([])
+  }
+
+  // Clear all parameters for current stage
+  const handleClearAll = () => {
+    if (currentParams.length === 0) return
+    setLocalRisk({
+      ...localRisk,
+      [currentStage.id]: { parameters: [] }
+    })
+    setSelectedParamIds([])
+    toast('All parameters cleared for this stage', { icon: 'ℹ️' })
   }
 
   // Sorted parameters by RPN descending
@@ -368,10 +404,76 @@ export default function ReverseRiskAssessment() {
               </button>
             </div>
           </div>
-          <div>
-            <button className="btn btn-secondary btn-sm" onClick={handleAddParam}>
-              + Add Parameter
-            </button>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {!isEditMode ? (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setIsEditMode(true)}
+                title="Edit parameters (modify, add, or delete)"
+                style={{
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                Edit
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleDeleteSelected}
+                  style={{
+                    color: selectedParamIds.length > 0 ? '#ef4444' : 'var(--danger)',
+                    borderColor: 'rgba(239, 68, 68, 0.35)',
+                    fontWeight: 600
+                  }}
+                  title={selectedParamIds.length === 0 ? "Select parameters using checkboxes to delete" : `Delete ${selectedParamIds.length} selected parameter(s)`}
+                >
+                  Delete Parameter {selectedParamIds.length > 0 ? `(${selectedParamIds.length})` : ''}
+                </button>
+
+                {currentParams.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleClearAll}
+                    title="Clear all parameters for this stage"
+                  >
+                    Clear All
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleAddParam}
+                  title="Add a new parameter"
+                >
+                  + Add Parameter
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    setIsEditMode(false)
+                    setSelectedParamIds([])
+                  }}
+                  style={{ fontWeight: 600 }}
+                  title="Done editing"
+                >
+                  Done
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -379,7 +481,12 @@ export default function ReverseRiskAssessment() {
           <table className="data-table" style={{ width: '100%', fontSize: '0.82rem' }}>
             <thead>
               <tr>
-                <th style={{ width: '22%' }}>Process Parameter</th>
+                {isEditMode && (
+                  <th style={{ width: '3%', textAlign: 'center' }}>
+                    {/* Checkbox column header */}
+                  </th>
+                )}
+                <th style={{ width: isEditMode ? '21%' : '23%' }}>Process Parameter</th>
                 <th style={{ width: '12%' }}>Parameter Type</th>
                 <th style={{ width: '16%' }}>Linked CQA(s)</th>
                 <th style={{ width: '6%', textAlign: 'center' }}>S</th>
@@ -407,21 +514,41 @@ export default function ReverseRiskAssessment() {
                   </div>
                 </th>
                 <th style={{ width: '10%', textAlign: 'center' }}>Status Badge</th>
-                <th style={{ width: '17%' }}>Rationale / Failure Mode</th>
-                <th style={{ width: '4%', textAlign: 'center' }}>Del</th>
+                <th style={{ width: isEditMode ? '18%' : '20%' }}>Rationale / Failure Mode</th>
               </tr>
             </thead>
             <tbody>
               {sortedParams.map(p => {
                 const isOverThreshold = p.rpn > rpnThreshold
+                const isChecked = selectedParamIds.includes(p.id)
+                const readOnlyInputStyle = !isEditMode ? {
+                  cursor: 'default',
+                  backgroundColor: 'rgba(241, 245, 249, 0.7)',
+                  color: 'var(--text-main)',
+                  borderColor: 'rgba(203, 213, 225, 0.6)'
+                } : undefined
+
                 return (
-                  <tr key={p.id} style={{ background: p.criticalFlag ? 'rgba(239,68,68,0.04)' : 'transparent' }}>
+                  <tr key={p.id} style={{ background: isChecked ? 'rgba(239, 68, 68, 0.04)' : p.criticalFlag ? 'rgba(239,68,68,0.04)' : 'transparent' }}>
+                    {isEditMode && (
+                      <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleSelect(p.id)}
+                          title={`Select ${p.name || 'parameter'} to delete`}
+                          style={{ cursor: 'pointer', width: '15px', height: '15px' }}
+                        />
+                      </td>
+                    )}
                     <td>
                       <input
                         type="text"
                         className="input input-sm"
                         placeholder="e.g. Reaction Temperature (°C)"
                         value={p.name}
+                        readOnly={!isEditMode}
+                        style={readOnlyInputStyle}
                         onChange={e => handleParamChange(p.id, 'name', e.target.value)}
                       />
                     </td>
@@ -429,6 +556,8 @@ export default function ReverseRiskAssessment() {
                       <select
                         className="input input-sm"
                         value={p.type}
+                        disabled={!isEditMode}
+                        style={readOnlyInputStyle}
                         onChange={e => handleParamChange(p.id, 'type', e.target.value as any)}
                       >
                         <option value="CPP-candidate">CPP-candidate</option>
@@ -443,18 +572,21 @@ export default function ReverseRiskAssessment() {
                             <span
                               key={c.id}
                               style={{
-                                cursor: 'pointer',
+                                cursor: isEditMode ? 'pointer' : 'default',
                                 padding: '2px 5px',
                                 borderRadius: '4px',
                                 fontSize: '0.68rem',
                                 background: isSelected ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.05)',
-                                color: isSelected ? '#fff' : 'var(--text-muted)'
+                                color: isSelected ? '#fff' : 'var(--text-muted)',
+                                opacity: !isEditMode && !isSelected ? 0.45 : 1
                               }}
                               onClick={() => {
+                                if (!isEditMode) return
                                 const current = p.linkedCqaIds || []
                                 const updated = current.includes(c.id) ? current.filter(id => id !== c.id) : [...current, c.id]
                                 handleParamChange(p.id, 'linkedCqaIds', updated)
                               }}
+                              title={isEditMode ? `Click to ${isSelected ? 'unlink' : 'link'} ${c.name}` : undefined}
                             >
                               {c.name.split(' ')[0]}
                             </span>
@@ -466,6 +598,8 @@ export default function ReverseRiskAssessment() {
                       <select
                         className="input input-sm"
                         value={p.severity}
+                        disabled={!isEditMode}
+                        style={readOnlyInputStyle}
                         onChange={e => handleParamChange(p.id, 'severity', parseInt(e.target.value))}
                       >
                         {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
@@ -475,6 +609,8 @@ export default function ReverseRiskAssessment() {
                       <select
                         className="input input-sm"
                         value={p.occurrence}
+                        disabled={!isEditMode}
+                        style={readOnlyInputStyle}
                         onChange={e => handleParamChange(p.id, 'occurrence', parseInt(e.target.value))}
                       >
                         {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
@@ -484,6 +620,8 @@ export default function ReverseRiskAssessment() {
                       <select
                         className="input input-sm"
                         value={p.detectability}
+                        disabled={!isEditMode}
+                        style={readOnlyInputStyle}
                         onChange={e => handleParamChange(p.id, 'detectability', parseInt(e.target.value))}
                       >
                         {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
@@ -507,17 +645,10 @@ export default function ReverseRiskAssessment() {
                         className="input input-sm"
                         placeholder="Risk rationale or failure mode..."
                         value={p.rationale}
+                        readOnly={!isEditMode}
+                        style={readOnlyInputStyle}
                         onChange={e => handleParamChange(p.id, 'rationale', e.target.value)}
                       />
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button
-                        className="btn btn-icon btn-xs btn-danger"
-                        onClick={() => handleRemoveParam(p.id)}
-                        title="Delete parameter"
-                      >
-                        ✕
-                      </button>
                     </td>
                   </tr>
                 )

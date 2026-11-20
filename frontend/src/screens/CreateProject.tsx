@@ -1,6 +1,6 @@
 // src/screens/CreateProject.tsx – Step 01: Project Setup
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { ClipboardList, Info, AlertTriangle, PlusCircle } from 'lucide-react'
+import { Info, AlertTriangle } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { Projects } from '../services/api'
 import { extractTargetsFromDescription } from '../utils/targetParser'
@@ -8,7 +8,6 @@ import toast from 'react-hot-toast'
 import ProjectTemplateModal, { TabKey } from '../components/ProjectTemplateModal'
 import {
   FieldKey,
-  DESCRIPTION_SECTIONS,
   deduplicateDescriptionSections
 } from '../data/projectTemplates'
 
@@ -28,7 +27,7 @@ export default function CreateProject() {
   const [templateModalTab, setTemplateModalTab] = useState<TabKey>('description')
   const templateTriggerRef = useRef<HTMLElement | null>(null)
 
-  // Refs for focusing fields after inserting
+  // Refs for focusing fields
   const nameInputRef = useRef<HTMLInputElement | null>(null)
   const compoundInputRef = useRef<HTMLInputElement | null>(null)
   const objectiveInputRef = useRef<HTMLInputElement | null>(null)
@@ -85,97 +84,6 @@ export default function CreateProject() {
     setIsTemplateModalOpen(true)
   }
 
-  // Highlight state for recently filled fields (1.5s flash)
-  const [highlightedFields, setHighlightedFields] = useState<Partial<Record<FieldKey, boolean>>>({})
-
-  const triggerFieldHighlight = (fields: FieldKey[]) => {
-    const nextHl: Partial<Record<FieldKey, boolean>> = {}
-    fields.forEach(f => { nextHl[f] = true })
-    setHighlightedFields(prev => ({ ...prev, ...nextHl }))
-
-    setTimeout(() => {
-      setHighlightedFields(prev => {
-        const cleaned = { ...prev }
-        fields.forEach(f => { delete cleaned[f] })
-        return cleaned
-      })
-    }, 1500)
-  }
-
-  // Insert Template or Aligned value into target field with replace/append
-  const handleInsert = (fieldKey: FieldKey, text: string, mode: 'replace' | 'append') => {
-    const fieldMap: Record<FieldKey, { stateKey: string; ref: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null> }> = {
-      projectName: { stateKey: 'name', ref: nameInputRef },
-      compound:    { stateKey: 'compound', ref: compoundInputRef },
-      objective:   { stateKey: 'objective', ref: objectiveInputRef },
-      description: { stateKey: 'description', ref: descriptionInputRef }
-    }
-
-    const { stateKey, ref } = fieldMap[fieldKey]
-    const currentVal = (form as any)[stateKey] || ''
-
-    let nextVal = text
-    if (mode === 'append' && currentVal.trim()) {
-      nextVal = `${currentVal.trim()}\n\n${text}`
-    }
-    if (fieldKey === 'description') {
-      nextVal = deduplicateDescriptionSections(nextVal)
-    }
-
-    set(stateKey, nextVal)
-    triggerFieldHighlight([fieldKey])
-    toast.success('Data aligned and added to the form')
-
-    // Scroll to target element and focus
-    setTimeout(() => {
-      const el = ref.current
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        el.focus()
-        const firstBracket = nextVal.indexOf('[')
-        const closingBracket = nextVal.indexOf(']')
-        if (firstBracket !== -1 && closingBracket > firstBracket) {
-          el.setSelectionRange(firstBracket, closingBracket + 1)
-        }
-      }
-    }, 150)
-  }
-
-  // Batch apply aligned data across all 4 fields
-  const handleBatchApply = (values: Partial<Record<FieldKey, string>>) => {
-    const updatedForm = { ...form }
-    const updatedKeys: FieldKey[] = []
-
-    if (values.projectName !== undefined) {
-      updatedForm.name = values.projectName
-      updatedKeys.push('projectName')
-    }
-    if (values.compound !== undefined) {
-      updatedForm.compound = values.compound
-      updatedKeys.push('compound')
-    }
-    if (values.objective !== undefined) {
-      updatedForm.objective = values.objective
-      updatedKeys.push('objective')
-    }
-    if (values.description !== undefined) {
-      updatedForm.description = deduplicateDescriptionSections(values.description)
-      updatedKeys.push('description')
-    }
-
-    setForm(updatedForm)
-    triggerFieldHighlight(updatedKeys)
-    toast.success('Data aligned and added to the form')
-
-    // Scroll to the first updated field
-    setTimeout(() => {
-      if (nameInputRef.current) {
-        nameInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        nameInputRef.current.focus()
-      }
-    }, 150)
-  }
-
   // Check if target field has non-empty content
   const fieldHasContent = (fieldKey: FieldKey): boolean => {
     if (fieldKey === 'projectName') return !!form.name.trim()
@@ -195,56 +103,6 @@ export default function CreateProject() {
     if (placeholderRegex.test(form.description)) warnings.push('Project Description')
     return warnings
   }, [form.name, form.compound, form.objective, form.description])
-
-  // Live "Description Completeness" calculation for the 8 section headers
-  const descriptionCompleteness = useMemo(() => {
-    const text = form.description || ''
-    const textLower = text.toLowerCase()
-
-    // A section is considered present if its header appears anywhere in the description text
-    const present = DESCRIPTION_SECTIONS.filter(header => {
-      return textLower.includes(header.toLowerCase())
-    })
-
-    // To measure completeness percentage: check if there is non-bracket content after the header
-    const filled = present.filter(header => {
-      const headerLower = header.toLowerCase()
-      const idx = textLower.indexOf(headerLower)
-      if (idx === -1) return false
-      const after = text.slice(idx + header.length).trim()
-      return after.length > 0 && !after.startsWith('[')
-    })
-
-    const missing = DESCRIPTION_SECTIONS.filter(h => !present.includes(h))
-
-    return {
-      filledCount: filled.length,
-      presentCount: present.length,
-      totalCount: DESCRIPTION_SECTIONS.length,
-      percentage: Math.round((filled.length / DESCRIPTION_SECTIONS.length) * 100),
-      missing
-    }
-  }, [form.description])
-
-  // Append a missing section header to the description
-  const handleAppendMissingSection = (header: string) => {
-    const cur = form.description.trim()
-    const headerLower = header.toLowerCase().replace(/[:\s]/g, '')
-    const curLower = cur.toLowerCase().replace(/[:\s]/g, '')
-    if (curLower.includes(headerLower)) {
-      toast('Section is already present in description')
-      return
-    }
-    const addition = `${header}\n`
-    const nextDesc = deduplicateDescriptionSections(cur ? `${cur}\n\n${addition}` : addition)
-    set('description', nextDesc)
-    setTimeout(() => {
-      if (descriptionInputRef.current) {
-        descriptionInputRef.current.focus()
-        descriptionInputRef.current.setSelectionRange(nextDesc.length, nextDesc.length)
-      }
-    }, 50)
-  }
 
   async function handleSave() {
     if (!form.name.trim()) { toast.error('Project name is required'); return }
@@ -300,10 +158,10 @@ export default function CreateProject() {
             fontSize: '0.85rem',
             padding: '0.5rem 0.9rem'
           }}
-          title="Open Project Input Templates and Examples"
+          title="Open Project Input Reference Guide"
         >
           <Info size={15} style={{ color: 'var(--primary)' }} />
-          <span>Template</span>
+          <span>Reference Guide</span>
         </button>
       </div>
 
@@ -318,14 +176,6 @@ export default function CreateProject() {
               placeholder="e.g. LXP-Stage-1 Crystallization Optimization"
               value={form.name}
               onChange={e => set('name', e.target.value)}
-              style={{
-                transition: 'all 0.3s ease',
-                ...(highlightedFields.projectName ? {
-                  borderColor: '#10b981',
-                  boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.25)',
-                  background: '#f0fdf4'
-                } : {})
-              }}
             />
           </div>
 
@@ -339,14 +189,6 @@ export default function CreateProject() {
                 placeholder="e.g. Propofol or LXP-001"
                 value={form.compound}
                 onChange={e => set('compound', e.target.value)}
-                style={{
-                  transition: 'all 0.3s ease',
-                  ...(highlightedFields.compound ? {
-                    borderColor: '#10b981',
-                    boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.25)',
-                    background: '#f0fdf4'
-                  } : {})
-                }}
               />
             </div>
 
@@ -358,14 +200,6 @@ export default function CreateProject() {
                 placeholder="e.g. Maximize yield, minimize impurities"
                 value={form.objective}
                 onChange={e => set('objective', e.target.value)}
-                style={{
-                  transition: 'all 0.3s ease',
-                  ...(highlightedFields.objective ? {
-                    borderColor: '#10b981',
-                    boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.25)',
-                    background: '#f0fdf4'
-                  } : {})
-                }}
               />
             </div>
           </div>
@@ -382,12 +216,7 @@ export default function CreateProject() {
                 resize: 'vertical',
                 fontFamily: 'var(--font-mono, monospace)',
                 fontSize: '0.825rem',
-                transition: 'all 0.3s ease',
-                ...(highlightedFields.description ? {
-                  borderColor: '#10b981',
-                  boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.25)',
-                  background: '#f0fdf4'
-                } : {})
+                transition: 'all 0.3s ease'
               }}
               placeholder="Describe the process, background, target quality criteria (e.g. assay/purity specifications, impurity limits, reaction yield), and known constraints…"
               value={form.description}
@@ -399,77 +228,6 @@ export default function CreateProject() {
                 }
               }}
             />
-
-            {/* Description Completeness Indicator */}
-            <div
-              style={{
-                marginTop: '0.65rem',
-                background: '#f8fafc',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                padding: '0.65rem 0.85rem'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  Description Completeness: <strong>{descriptionCompleteness.filledCount} of {descriptionCompleteness.totalCount} sections filled</strong>
-                </span>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: descriptionCompleteness.percentage >= 75 ? 'var(--success)' : 'var(--primary)' }}>
-                  {descriptionCompleteness.percentage}%
-                </span>
-              </div>
-
-              {/* Thin Progress Bar */}
-              <div style={{ width: '100%', height: '5px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden' }}>
-                <div
-                  style={{
-                    width: `${descriptionCompleteness.percentage}%`,
-                    height: '100%',
-                    background: descriptionCompleteness.percentage >= 75 ? '#10b981' : 'linear-gradient(90deg, #005baa, #00aeb3)',
-                    transition: 'width 0.3s ease'
-                  }}
-                />
-              </div>
-
-              {/* Missing Section Chips */}
-              {descriptionCompleteness.missing.length > 0 && (
-                <div style={{ marginTop: '0.55rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem' }}>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>+ Add missing:</span>
-                  {descriptionCompleteness.missing.map((missingHeader) => (
-                    <button
-                      key={missingHeader}
-                      type="button"
-                      onClick={() => handleAppendMissingSection(missingHeader)}
-                      style={{
-                        background: '#ffffff',
-                        border: '1px dashed #cbd5e1',
-                        borderRadius: '4px',
-                        padding: '1px 6px',
-                        fontSize: '0.68rem',
-                        color: 'var(--text-secondary)',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.2rem',
-                        transition: 'all 0.15s ease'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--primary)'
-                        e.currentTarget.style.color = 'var(--primary)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = '#cbd5e1'
-                        e.currentTarget.style.color = 'var(--text-secondary)'
-                      }}
-                      title={`Append "${missingHeader}" to description`}
-                    >
-                      <PlusCircle size={10} />
-                      <span>{missingHeader.replace(':', '')}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
@@ -492,7 +250,7 @@ export default function CreateProject() {
             <AlertTriangle size={15} style={{ flexShrink: 0, color: '#d97706' }} />
             <span>
               Some bracketed placeholders (e.g. <code>[PLACEHOLDER]</code>) are still unfilled in:{' '}
-              <strong>{unfilledPlaceholderWarnings.join(', ')}</strong>. You can still proceed, but replacing them gives better QbD derivation.
+              <strong>{unfilledPlaceholderWarnings.join(', ')}</strong>. Replacing them with your specific experimental details gives more accurate downstream QbD derivation.
             </span>
           </div>
         )}
@@ -506,13 +264,11 @@ export default function CreateProject() {
         </div>
       </div>
 
-      {/* Reusable Template Modal */}
+      {/* Reference Guide Modal */}
       <ProjectTemplateModal
         isOpen={isTemplateModalOpen}
         initialTab={templateModalTab}
         onClose={() => setIsTemplateModalOpen(false)}
-        onInsert={handleInsert}
-        onBatchApply={handleBatchApply}
         fieldHasContent={fieldHasContent}
         triggerRef={templateTriggerRef}
       />

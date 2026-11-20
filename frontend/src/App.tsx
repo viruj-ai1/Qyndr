@@ -1,6 +1,5 @@
 // src/App.tsx  –  Root application component with step-based routing
 import { useStore, Step, normalizeStep } from './store/useStore'
-import Sidebar from './components/Layout/Sidebar'
 import Header  from './components/Layout/Header'
 import ErrorBoundary from './components/ErrorBoundary'
 
@@ -49,93 +48,50 @@ const SCREEN_MAP: Record<string, React.FC> = {
   'upload-results':        GenerateDOE,
   'statistical-analysis':  InitialOptimization,
   'initial-optimization':  InitialOptimization,
+  'initial-optimum':       InitialOptimization,
   'enough-data':           EnoughData,
   'gp-model':              GPModel,
   'bayesian-opt':          BayesianOpt,
   'new-experiment':        NewExperiment,
-  'lab-new':               NewExperiment,
-  'update-model':          BayesianOpt,
-  'more-improvement':      EnoughData,
   'final-optimum':         FinalOptimum,
   'report':                Report,
 }
 
-
 export default function App() {
-  const { currentStep, setStep } = useStore()
+  const { currentStep, currentProject } = useStore()
   const { user, loading } = useAuth()
 
-  // URL route handling & redirect from /campaign-dashboard to /stage-campaign-matrix
+  // Dynamic Page Title
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const pathname = window.location.pathname.toLowerCase().replace(/\/$/, '')
-    if (pathname === '/campaign-dashboard' || pathname === '/phase0-summary') {
-      window.history.replaceState(null, '', '/stage-campaign-matrix')
-      setStep('stage-campaign-matrix')
-    } else if (pathname === '/stage-campaign-matrix' || pathname === '/stage-overview') {
-      setStep('stage-campaign-matrix')
-    } else if (pathname === '/login') {
-      // If user navigated directly to /login
-      if (user) {
-        window.history.replaceState(null, '', '/')
-        setStep('welcome')
-      }
-    }
-  }, [setStep, user])
+    const rawStep = normalizeStep(currentStep)
+    const stepName = rawStep
+      .split('-')
+      .map(s => s.charAt(0).toUpperCase() + s.slice(1))
+      .join(' ')
+    const projName = currentProject?.name ? ` | ${currentProject.name}` : ''
+    document.title = `DoE and QbD Platform – ${stepName}${projName}`
+  }, [currentStep, currentProject?.name])
 
-  // 1. Loading session state check
   if (loading) {
     return (
-      <div
-        style={{
-          height: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--bg-base)',
-          color: 'var(--text-muted)',
-          gap: '1rem'
-        }}
-      >
-        <div
-          style={{
-            width: '32px',
-            height: '32px',
-            border: '3px solid rgba(0, 91, 170, 0.15)',
-            borderTopColor: 'var(--primary)',
-            borderRadius: '50%',
-            animation: 'spin 0.6s linear infinite'
-          }}
-        />
-        <div style={{ fontSize: '0.88rem', fontWeight: 500 }}>
-          Authenticating DOE session...
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8fafc' }}>
+        <div className="spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
       </div>
     )
   }
 
-  // 2. Unauthenticated Gate: Redirect to /login
-  const isLoginPage = typeof window !== 'undefined' && window.location.pathname.toLowerCase().startsWith('/login')
+  // Not logged in -> Show Login Screen
   if (!user) {
-    if (!isLoginPage && typeof window !== 'undefined') {
-      const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
-      window.history.replaceState(null, '', `/login?returnUrl=${returnUrl}`)
-    }
     return <Login />
   }
 
-  // 3. Authenticated: if user is on /login URL, push back to application root
-  if (isLoginPage && typeof window !== 'undefined') {
-    window.history.replaceState(null, '', '/')
-  }
+  const rawKey = normalizeStep(currentStep)
+  const Screen = SCREEN_MAP[rawKey] || Welcome
 
-  const normalized = normalizeStep(currentStep)
-  const Screen = SCREEN_MAP[normalized] || SCREEN_MAP[currentStep] || Welcome
-
-  if (currentStep === 'welcome') {
+  // Welcome page has its own standalone full-screen layout
+  if (rawKey === 'welcome') {
     return (
-      <div id="root">
+      <div style={{ position: 'relative', minHeight: '100vh' }}>
         <div className="bg-canvas">
           <div className="bg-orb orb-1" /><div className="bg-orb orb-2" /><div className="bg-orb orb-3" />
         </div>
@@ -153,7 +109,6 @@ export default function App() {
       </div>
       <Header />
       <div className="app-body">
-        <Sidebar />
         <main className="main-content">
           <ErrorBoundary><Screen /></ErrorBoundary>
         </main>

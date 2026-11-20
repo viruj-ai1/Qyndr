@@ -29,6 +29,8 @@ class Project(Base):
     audit_logs           = Column(JSON, default=list)
     locked_campaigns     = Column(JSON, default=list)
     api_targets          = Column(JSON, default=list)
+    step_statuses        = Column(JSON, default=dict)
+    unlocked_step        = Column(String(100), nullable=True)
     created_at           = Column(DateTime, default=datetime.utcnow)
     updated_at           = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

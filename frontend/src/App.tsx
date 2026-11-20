@@ -1,6 +1,8 @@
 // src/App.tsx  –  Root application component with step-based routing
 import { useStore, Step, normalizeStep } from './store/useStore'
 import Header  from './components/Layout/Header'
+import WorkflowStepper from './components/WorkflowStepper/WorkflowStepper'
+import RouteGuard from './components/WorkflowStepper/RouteGuard'
 import ErrorBoundary from './components/ErrorBoundary'
 
 // Phase 0 Screens
@@ -108,9 +110,12 @@ export default function App() {
         <div className="bg-orb orb-1" /><div className="bg-orb orb-2" /><div className="bg-orb orb-3" />
       </div>
       <Header />
+      <WorkflowStepper />
       <div className="app-body">
         <main className="main-content">
-          <ErrorBoundary><Screen /></ErrorBoundary>
+          <RouteGuard>
+            <ErrorBoundary><Screen /></ErrorBoundary>
+          </RouteGuard>
         </main>
       </div>
     </div>

@@ -145,6 +145,8 @@ export interface Project {
   risk_assessment_data?: Record<string, { parameters: RiskParameter[] }>
   audit_logs?: any[]; locked_campaigns?: string[]
   api_targets?: ApiTarget[]
+  step_statuses?: Record<string, 'completed' | 'current' | 'locked' | 'editing' | 'needs-review'>
+  unlocked_step?: string | null
   factors: Factor[]; responses: Response[]; experiments?: Experiment[]
   created_at?: string; updated_at?: string
 }
@@ -174,11 +176,15 @@ interface Store {
   bayesResult:     any
   finalResult:     any
   isBayesianEnabled: boolean
+  stepStatuses:    Record<string, 'completed' | 'current' | 'locked' | 'editing' | 'needs-review'>
+  unlockedStep:    string | null
   loading:         boolean
 
   // Actions
   setProject:      (p: Project | null) => void
   setStep:         (s: Step) => void
+  setStepStatuses: (statuses: Record<string, 'completed' | 'current' | 'locked' | 'editing' | 'needs-review'>) => void
+  setUnlockedStep: (stepId: string | null) => void
   setActiveStageId: (stageId: string | null) => void
   setRpnThreshold: (val: number) => void
   setQtpp:         (items: QTPPItem[]) => void
@@ -197,7 +203,7 @@ interface Store {
   reset:           () => void
 }
 
-const INITIAL: Omit<Store, keyof { setProject: any; setStep: any; setActiveStageId: any; setRpnThreshold: any; setQtpp: any; setCqas: any; setStages: any; setRiskAssessments: any; setApiTargets: any; addAuditLog: any; setExperiments: any; setAnalysis: any; setOptimum: any; setBayes: any; setFinal: any; enableBayesianOpt: any; setLoading: any; reset: any }> = {
+const INITIAL: Omit<Store, keyof { setProject: any; setStep: any; setStepStatuses: any; setUnlockedStep: any; setActiveStageId: any; setRpnThreshold: any; setQtpp: any; setCqas: any; setStages: any; setRiskAssessments: any; setApiTargets: any; addAuditLog: any; setExperiments: any; setAnalysis: any; setOptimum: any; setBayes: any; setFinal: any; enableBayesianOpt: any; setLoading: any; reset: any }> = {
   currentProject:  null,
   currentStep:     'welcome',
   activeStageId:   null,
@@ -215,6 +221,8 @@ const INITIAL: Omit<Store, keyof { setProject: any; setStep: any; setActiveStage
   bayesResult:     null,
   finalResult:     null,
   isBayesianEnabled: false,
+  stepStatuses:    {},
+  unlockedStep:    null,
   loading:         false,
 }
 
@@ -284,12 +292,16 @@ export const useStore = create<Store>()(
           bayesResult: null,
           finalResult: null,
           isBayesianEnabled: bayesianEnabled,
+          stepStatuses: p?.step_statuses || {},
+          unlockedStep: p?.unlocked_step || null,
         }
       }),
       setStep:         s  => set(st => ({
         currentStep: s,
         currentProject: st.currentProject ? { ...st.currentProject, current_step: s } : null
       })),
+      setStepStatuses: (statuses) => set({ stepStatuses: statuses }),
+      setUnlockedStep: (stepId) => set({ unlockedStep: stepId }),
       setActiveStageId: stId => set({ activeStageId: stId }),
       setRpnThreshold: v => set({ rpnThreshold: v }),
       setQtpp:         items => set(st => ({

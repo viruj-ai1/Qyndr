@@ -88,6 +88,20 @@ export const Projects = {
   suggestStages: (d: any)                      => api.post('/projects/suggest-stages', d).then(r => r.data),
 }
 
+/* ── Workflow Navigation & Locking ────────────────────────── */
+export const WorkflowApi = {
+  getStatuses: (projectId: number) =>
+    api.get(`/projects/${projectId}/workflow/statuses`).then(r => r.data),
+  complete: (projectId: number, step_key: string, step_data?: any) =>
+    api.post(`/projects/${projectId}/workflow/complete`, { step_key, step_data }).then(r => r.data),
+  unlock: (projectId: number, step_key: string) =>
+    api.post(`/projects/${projectId}/workflow/unlock`, { step_key }).then(r => r.data),
+  cancelEdit: (projectId: number, step_key: string) =>
+    api.post(`/projects/${projectId}/workflow/cancel-edit`, { step_key }).then(r => r.data),
+  realign: (projectId: number, step_key: string, updated_step_data?: any) =>
+    api.post(`/projects/${projectId}/workflow/realign`, { step_key, updated_step_data }).then(r => r.data),
+}
+
 /* ── DOE ──────────────────────────────────────────────────── */
 export const DOE = {
   recommend: (project_id: number, phase: string, has_htc_factors: boolean = false, constraints: any[] = []) =>

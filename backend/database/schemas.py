@@ -143,6 +143,8 @@ class ProjectBase(BaseModel):
     description: str = ""
     current_step: Optional[str] = "qtpp"
     api_targets: List[Any] = []
+    step_statuses: Optional[Dict[str, str]] = Field(default_factory=dict)
+    unlocked_step: Optional[str] = None
 
 class ProjectCreate(ProjectBase): pass
 
@@ -158,6 +160,33 @@ class ProjectUpdate(BaseModel):
     cqas_data: Optional[List[dict]] = None
     stages_data: Optional[List[dict]] = None
     risk_assessment_data: Optional[dict] = None
+    audit_logs: Optional[List[dict]] = None
+    locked_campaigns: Optional[List[str]] = None
+    api_targets: Optional[List[Any]] = None
+    step_statuses: Optional[Dict[str, str]] = None
+    unlocked_step: Optional[str] = None
+
+# ── Step Workflow Locking Schemas ────────────────────────────
+class StepCompleteRequest(BaseModel):
+    step_key: str
+    step_data: Optional[Dict[str, Any]] = None
+
+class StepUnlockRequest(BaseModel):
+    step_key: str
+
+class StepCancelEditRequest(BaseModel):
+    step_key: str
+
+class StepRealignRequest(BaseModel):
+    step_key: str
+    updated_step_data: Optional[Dict[str, Any]] = None
+
+class StepRealignResponse(BaseModel):
+    ok: bool
+    step_key: str
+    changes_detected: bool
+    summary: Dict[str, Any]
+    step_statuses: Dict[str, str]
     audit_logs: Optional[List[dict]] = None
     locked_campaigns: Optional[List[str]] = None
     api_targets: Optional[List[Any]] = None
@@ -191,6 +220,8 @@ class ProjectOut(ProjectBase):
     audit_logs: List[Any] = []
     locked_campaigns: List[str] = []
     api_targets: List[Any] = []
+    step_statuses: Dict[str, str] = Field(default_factory=dict)
+    unlocked_step: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     factors: List[FactorOut] = []

@@ -30,12 +30,12 @@ export default function WorkflowStepper() {
   const [realignSummary, setRealignSummary] = useState<any | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
-  if (!currentProject || !currentProject.id) {
-    return null
-  }
-
   // Derive status of each step
   const getStatus = (stepId: Step): StepStatus => {
+    // If no project is saved yet (new project creation), Step 1 is current, all others are locked
+    if (!currentProject?.id) {
+      return stepId === 'create-project' ? 'current' : 'locked'
+    }
     if (unlockedStep === stepId) return 'editing'
     if (stepStatuses && stepStatuses[stepId]) return stepStatuses[stepId]
     if (currentStep === stepId) return 'current'
@@ -123,7 +123,7 @@ export default function WorkflowStepper() {
           Workflow Stepper
         </div>
         <div style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {currentProject.name || 'Active Project'}
+          {currentProject?.name || 'New Project'}
         </div>
       </div>
 

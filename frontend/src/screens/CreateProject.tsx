@@ -121,7 +121,16 @@ export default function CreateProject() {
 
       let proj
       if (currentProject?.id) {
-        proj = await Projects.update(currentProject.id, payload)
+        try {
+          proj = await Projects.update(currentProject.id, payload)
+        } catch (updateErr: any) {
+          // If project was deleted or not found on server, seamlessly create fresh project
+          if (updateErr?.response?.status === 404) {
+            proj = await Projects.create(payload)
+          } else {
+            throw updateErr
+          }
+        }
       } else {
         proj = await Projects.create(payload)
       }

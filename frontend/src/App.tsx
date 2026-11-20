@@ -6,10 +6,7 @@ import RouteGuard from './components/WorkflowStepper/RouteGuard'
 import ErrorBoundary from './components/ErrorBoundary'
 
 // Phase 0 Screens
-import QTPPDefinition       from './screens/Phase0/QTPPDefinition'
-import CQADerivation        from './screens/Phase0/CQADerivation'
-import RouteMapping         from './screens/Phase0/RouteMapping'
-import ReverseRiskAssessment from './screens/Phase0/ReverseRiskAssessment'
+import CQARiskAssessment   from './screens/Phase0/CQARiskAssessment'
 import StageCampaignMatrix  from './screens/StageCampaignMatrix'
 
 // Existing Screens
@@ -34,10 +31,11 @@ const SCREEN_MAP: Record<string, React.FC> = {
   'welcome':               Welcome,
   'login':                 Login,
   'create-project':        CreateProject,
-  'qtpp':                  QTPPDefinition,
-  'cqa':                   CQADerivation,
-  'route-mapping':         RouteMapping,
-  'risk-assessment':       ReverseRiskAssessment,
+  'qtpp':                  CreateProject,
+  'cqa-risk':              CQARiskAssessment,
+  'cqa':                   CQARiskAssessment,
+  'route-mapping':         CQARiskAssessment,
+  'risk-assessment':       CQARiskAssessment,
   'stage-campaign-matrix': StageCampaignMatrix,
   'stage-overview':        StageCampaignMatrix,
   'phase0-summary':        StageCampaignMatrix,

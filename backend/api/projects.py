@@ -21,6 +21,14 @@ def create_project(data: schemas.ProjectCreate, db: Session = Depends(get_db)):
     return crud.create_project(db, data)
 
 
+@router.post("/with-qtpp", response_model=schemas.ProjectOut, status_code=201)
+def create_project_with_qtpp(data: schemas.ProjectWithQTPPCreate, db: Session = Depends(get_db)):
+    try:
+        return crud.create_project_with_qtpp(db, data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/suggest-stages")
 def suggest_stages_endpoint(body: dict):
     from services.llm_service import suggest_stages_llm

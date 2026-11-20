@@ -19,6 +19,74 @@ def create_project(db: Session, data: schemas.ProjectCreate) -> models.Project:
     db.add(proj); db.commit(); db.refresh(proj)
     return proj
 
+import re
+
+def derive_single_stage(name: str, unit_op: str = "Reaction", compound: str = "") -> dict:
+    unit_op = unit_op or "Reaction"
+    # Match stage number from project name (e.g., "Stage -1", "Stage 1", "Stage-2")
+    m = re.search(r'stage\s*[-_]?\s*(\d+)', name, re.IGNORECASE)
+    stage_num = int(m.group(1)) if m else None
+    
+    stage_name = f"Stage {stage_num} – {unit_op}" if stage_num else unit_op
+    stage_id = f"stage-{stage_num}" if stage_num else "stage-1"
+
+    return {
+        "id": stage_id,
+        "order": stage_num if stage_num else 1,
+        "name": stage_name,
+        "unitOpType": unit_op,
+        "unit_operation_type": unit_op,
+        "description": f"Single stage unit operation for {compound or 'API'}",
+        "intermediateProduced": f"{compound or 'API'} {unit_op} Product",
+        "inputs": [],
+        "outputs": [],
+        "candidate_cpps": [],
+        "linked_cqas": [],
+        "source": "user_edited",
+        "confidence": "high"
+    }
+
+def create_project_with_qtpp(db: Session, data: schemas.ProjectWithQTPPCreate) -> models.Project:
+    payload = data.model_dump()
+    qtpp_data = payload.pop("qtpp_data", [])
+    unit_op = payload.pop("unit_op_type", None) or "Reaction"
+    payload.pop("stage_number", None)
+    
+    # Derive single stage from project name and unit op
+    single_stage = derive_single_stage(payload.get("name", ""), unit_op, payload.get("compound", ""))
+    
+    # Initialize step statuses for 13-step workflow: create-project completed, cqa-risk current, rest locked
+    step_statuses = {
+        "create-project": "completed",
+        "cqa-risk": "current",
+        "stage-campaign-matrix": "locked",
+        "define-factors": "locked",
+        "recommend-doe": "locked",
+        "generate-doe": "locked",
+        "initial-optimization": "locked",
+        "enough-data": "locked",
+        "gp-model": "locked",
+        "bayesian-opt": "locked",
+        "new-experiment": "locked",
+        "final-optimum": "locked",
+        "report": "locked"
+    }
+    
+    payload["current_step"] = "cqa-risk"
+    payload["step_statuses"] = step_statuses
+    payload["qtpp_data"] = qtpp_data
+    payload["stages_data"] = [single_stage]
+    
+    try:
+        proj = models.Project(**payload)
+        db.add(proj)
+        db.commit()
+        db.refresh(proj)
+        return proj
+    except Exception as e:
+        db.rollback()
+        raise e
+
 def update_project(db: Session, project_id: int, data: schemas.ProjectUpdate) -> Optional[models.Project]:
     proj = get_project(db, project_id)
     if not proj: return None

@@ -12,103 +12,56 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
   'create-project': {
     id: 'create-project',
     step: 1,
-    title: 'Create Project',
-    purpose: 'Set up the project foundation with API/compound details and overarching development goals.',
+    title: 'Project Setup & QTPP',
+    purpose: 'Set up the project foundation, compound details, unit operation type, and define the Quality Target Product Profile.',
     youDo: [
-      'Enter the project name, compound/molecule name, and dosage/process type.',
-      'Specify the project objective and context notes.'
+      'Enter the project name, compound/molecule name, and select the Unit Operation Type.',
+      'Specify the project objective and context notes.',
+      'Define target clinical specifications, stability, and release criteria in the QTPP table.'
     ],
     systemDoes: [
-      'Initializes a persistent QbD project repository.',
-      'Configures data tracking across all subsequent development phases.'
+      'Initializes a persistent single-stage QbD project repository.',
+      'Structures product quality criteria aligned with ICH Q8(R2) guidelines.'
     ],
-    output: 'A centralized project record that all later stages and DOE matrices attach to.'
+    output: 'A centralized project record and QTPP specification table serving as the baseline to derive Critical Quality Attributes.'
   },
 
-  'qtpp': {
-    id: 'qtpp',
+  'cqa-risk': {
+    id: 'cqa-risk',
     step: 2,
-    title: 'QTPP Definition',
-    purpose: 'Define the Quality Target Product Profile stating target therapeutic & manufacturing requirements.',
+    title: 'CQA & Risk Assessment',
+    purpose: 'Derive Critical Quality Attributes from QTPP and perform reverse risk assessment across process parameters.',
     youDo: [
-      'Define dosage form, route of administration, and strength.',
-      'Establish target clinical specifications, stability, and release criteria.'
+      'Review and assess CQAs (assay, purity, impurities, physical properties) with severity and uncertainty scores.',
+      'Evaluate process parameters and raw material attributes for the active unit operation.',
+      'Link candidate process parameters to CQAs and score Severity, Occurrence, and Detectability.'
     ],
     systemDoes: [
-      'Structures product quality criteria aligned with ICH Q8(R2) guidelines.',
-      'Pre-populates candidate targets using AI/QbD reference templates.'
+      'Calculates CQA Criticality scores and Risk Priority Numbers (RPN = S × O × D).',
+      'Flags high-risk parameters (RPN ≥ threshold) as candidate Critical Process Parameters (CPPs).'
     ],
-    output: 'QTPP specification table serving as the baseline to derive Critical Quality Attributes.'
-  },
-
-  'cqa': {
-    id: 'cqa',
-    step: 3,
-    title: 'CQA Derivation',
-    purpose: 'Identify and prioritize Critical Quality Attributes that directly impact patient safety and efficacy.',
-    youDo: [
-      'Review prospective CQAs (assay, purity, dissolution, related substances, etc.).',
-      'Assign criticality rankings, acceptance limits, and target thresholds.'
-    ],
-    systemDoes: [
-      'Maps each CQA back to corresponding QTPP clinical elements.',
-      'Calculates severity impact scores and identifies release testing boundaries.'
-    ],
-    output: 'Prioritized CQA registry with validated specification limits.'
-  },
-
-  'route-mapping': {
-    id: 'route-mapping',
-    step: 4,
-    title: 'Route Mapping',
-    purpose: 'Map synthetic chemistry routes, unit operations, input materials, and process conditions.',
-    youDo: [
-      'Define process stages (e.g., Coupling, Crystallization, Filtration).',
-      'Specify input raw materials, reagents, solvents, and target intermediate outputs.'
-    ],
-    systemDoes: [
-      'Generates an interactive process flow architecture.',
-      'Binds material inputs (CMAs) and process parameters (CPPs) to specific operational stages.'
-    ],
-    output: 'Detailed process map linking chemistry unit operations to potential risk factors.'
-  },
-
-  'risk-assessment': {
-    id: 'risk-assessment',
-    step: 5,
-    title: 'Risk Assessment',
-    purpose: 'Perform reverse FMEA risk analysis to evaluate which parameters could potentially deviate CQAs.',
-    youDo: [
-      'Evaluate process parameters and raw material attributes across all unit ops.',
-      'Score Severity (S), Occurrence (O), and Detectability (D) on standard 1–5 scales.',
-      'Adjust the RPN Critical Cutoff threshold if needed.'
-    ],
-    systemDoes: [
-      'Computes Risk Priority Numbers (RPN = S × O × D) per parameter.',
-      'Automatically sorts parameters and flags critical CPP/CMA candidates.'
-    ],
-    output: 'Ranked FMEA risk matrix isolating high-risk parameters requiring empirical DOE study.'
+    output: 'Prioritized CQA registry and ranked FMEA risk matrix isolating high-risk parameters for DoE.'
   },
 
   'stage-campaign-matrix': {
     id: 'stage-campaign-matrix',
-    step: 6,
+    step: 3,
     title: 'Stage Campaign Matrix',
-    purpose: 'Select and activate the specific manufacturing unit operation to optimize in this DOE campaign.',
+    purpose: 'Review prioritized CPPs and lock the single-stage campaign scope for experimental design.',
     youDo: [
-      'Review process stages with their critical parameter counts and risk statuses.',
-      'Select the active stage/campaign to progress into experimental design.'
+      'Review prioritized parameters and critical parameter counts for the unit operation.',
+      'Lock the campaign parameters entering DoE experimentation.'
     ],
     systemDoes: [
-      'Filters CPP candidates and responses specific to the selected unit operation.',
-      'Carries forward stage-specific parameters into DOE factor definition.'
+      'Validates parameter completeness and boundary definitions.',
+      'Transitions locked parameters directly into the factor definition workspace.'
     ],
-    output: 'Active campaign context configured for experimental study.'
+    output: 'Scoped, validated parameter set ready for experimental factor formulation.'
   },
 
   'define-factors': {
     id: 'define-factors',
-    step: 7,
+    step: 4,
     title: 'Define Factors & Responses',
     purpose: 'Establish operational ranges for process factors and quantitative metrics for response variables.',
     youDo: [
@@ -124,7 +77,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'recommend-doe': {
     id: 'recommend-doe',
-    step: 8,
+    step: 5,
     title: 'Recommend DOE',
     purpose: 'Evaluate factor space geometry and recommend the optimal experimental design strategy.',
     youDo: [
@@ -140,7 +93,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'generate-doe': {
     id: 'generate-doe',
-    step: 9,
+    step: 6,
     title: 'DOE Matrix & Results',
     purpose: 'Generate randomized experimental run matrix, execute laboratory trials, and record response data.',
     youDo: [
@@ -156,7 +109,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'initial-optimization': {
     id: 'initial-optimization',
-    step: 10,
+    step: 7,
     title: 'Initial Optimum',
     purpose: 'Fit response surface regression models to uncover factor effects and identify initial sweet spot.',
     youDo: [
@@ -172,7 +125,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'enough-data': {
     id: 'enough-data',
-    step: 11,
+    step: 8,
     title: 'Enough Data?',
     purpose: 'Assess model predictive certainty and determine whether to proceed directly or run Bayesian iterations.',
     youDo: [
@@ -188,7 +141,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'gp-model': {
     id: 'gp-model',
-    step: 12,
+    step: 9,
     title: 'GP Model',
     purpose: 'Fit non-parametric Gaussian Process regression surrogate to model complex response behaviors.',
     youDo: [
@@ -204,7 +157,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'bayesian-opt': {
     id: 'bayesian-opt',
-    step: 13,
+    step: 10,
     title: 'Bayesian Optimization',
     purpose: 'Leverage acquisition functions to balance exploration and exploitation for the next experiment.',
     youDo: [
@@ -220,7 +173,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'new-experiment': {
     id: 'new-experiment',
-    step: 14,
+    step: 11,
     title: 'New Experiment',
     purpose: 'Execute the Bayesian-recommended experiment in the laboratory and record observed responses.',
     youDo: [
@@ -236,7 +189,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'final-optimum': {
     id: 'final-optimum',
-    step: 15,
+    step: 12,
     title: 'Final Optimum',
     purpose: 'Synthesize all empirical runs to establish the global Pareto optimum and Proven Acceptable Ranges.',
     youDo: [
@@ -253,7 +206,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'report': {
     id: 'report',
-    step: 16,
+    step: 13,
     title: 'Generate Report',
     purpose: 'Compile comprehensive QbD regulatory summary documenting the complete development lifecycle.',
     youDo: [
@@ -267,4 +220,3 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
     output: 'Comprehensive QbD regulatory report package ready for tech transfer or filing.'
   }
 };
-

@@ -94,6 +94,44 @@ def init_db():
         except Exception as e:
             print("Auto-migration check notice:", e)
 
+        # 6. Legacy Risk Parameters Data Migration:
+        # Preserve finished/scored rows as 'confirmed', collapse doubled words in names (e.g. "Reaction Reaction Temperature")
+        try:
+            import json, re
+            db_proj_rows = conn.execute(text("SELECT id, risk_assessment_data FROM projects WHERE risk_assessment_data IS NOT NULL")).fetchall()
+            for p_id, raw_risk in db_proj_rows:
+                if not raw_risk or raw_risk == "{}":
+                    continue
+                try:
+                    risk_dict = json.loads(raw_risk) if isinstance(raw_risk, str) else raw_risk
+                    modified = False
+                    for stage_id, stage_val in risk_dict.items():
+                        params = stage_val.get("parameters", []) if isinstance(stage_val, dict) else []
+                        for param in params:
+                            old_name = param.get("name", "")
+                            # Collapse duplicate consecutive words (e.g. "Reaction Reaction ...")
+                            new_name = re.sub(r'\b(\w+)\s+\1\b', r'\1', old_name, flags=re.IGNORECASE)
+                            if new_name != old_name:
+                                param["name"] = new_name
+                                modified = True
+                            # Set status: if already scored, mark 'confirmed', else 'suggested'
+                            if "status" not in param:
+                                if param.get("severity") is not None and param.get("occurrence") is not None and param.get("detectability") is not None:
+                                    param["status"] = "confirmed"
+                                else:
+                                    param["status"] = "suggested"
+                                modified = True
+                    if modified:
+                        conn.execute(
+                            text("UPDATE projects SET risk_assessment_data = :data WHERE id = :pid"),
+                            {"data": json.dumps(risk_dict), "pid": p_id}
+                        )
+                except Exception:
+                    pass
+            conn.commit()
+        except Exception as mig_err:
+            print("Risk parameter legacy migration notice:", mig_err)
+
     # Admin Bootstrap / Sync from .env or default credentials
     admin_user = (os.getenv("ADMIN_USERNAME", "").strip() or "R&D_Lab_Head")
     admin_pass = (os.getenv("ADMIN_PASSWORD", "").strip() or "R&D_Lab_Head@VG.in")

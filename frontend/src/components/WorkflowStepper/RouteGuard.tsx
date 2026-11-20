@@ -29,7 +29,7 @@ export default function RouteGuard({ children }: RouteGuardProps) {
         return st === 'current' || st === 'editing' || !st
       })
 
-      const fallback = firstActiveStep ? firstActiveStep.id : 'qtpp'
+      const fallback: Step = firstActiveStep ? firstActiveStep.id : 'create-project'
       toast(`Step is locked. Redirecting to active step.`, { icon: '🔒' })
       setStep(fallback)
     }

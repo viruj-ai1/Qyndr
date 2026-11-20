@@ -3,8 +3,8 @@ import { persist } from 'zustand/middleware'
 import { simplifyResponseName } from '../utils/targetParser'
 
 export type Step =
-  | 'welcome' | 'create-project' | 'qtpp' | 'cqa' | 'route-mapping'
-  | 'risk-assessment' | 'stage-campaign-matrix' | 'stage-overview' | 'phase0-summary' | 'campaign-dashboard'
+  | 'welcome' | 'create-project' | 'cqa-risk'
+  | 'stage-campaign-matrix' | 'stage-overview' | 'phase0-summary' | 'campaign-dashboard'
   | 'understand-process' | 'define-factors'
   | 'recommend-doe' | 'generate-doe' | 'lab-experiments' | 'upload-results'
   | 'initial-optimization' | 'enough-data'
@@ -84,18 +84,22 @@ export interface StageItem {
   confidence?: 'high' | 'medium' | 'low'
 }
 
+export type RiskRowStatus = 'suggested' | 'confirmed' | 'custom'
+
 export interface RiskParameter {
   id: string
   name: string
   type: 'CPP-candidate' | 'CMA-candidate'
   linkedCqaIds: string[]
-  severity: number
-  occurrence: number
-  detectability: number
-  rpn: number
+  severity: number | null
+  occurrence: number | null
+  detectability: number | null
+  rpn: number | null
   rationale: string
   criticalFlag: boolean
   overrideReason?: string
+  status?: RiskRowStatus
+  notImpacting?: boolean
 }
 
 export interface ApiTarget {
@@ -227,7 +231,9 @@ const INITIAL: Omit<Store, keyof { setProject: any; setStep: any; setStepStatuse
 }
 
 export function normalizeStep(s?: string | null): Step {
-  if (!s) return 'qtpp'
+  if (!s) return 'create-project'
+  if (s === 'qtpp') return 'create-project'
+  if (s === 'cqa' || s === 'risk-assessment' || s === 'route-mapping') return 'cqa-risk'
   if (s === 'phase0-summary' || s === 'campaign-dashboard' || s === 'stage-overview') return 'stage-campaign-matrix'
   if (s === 'statistical-analysis') return 'initial-optimization'
   if (s === 'lab-experiments' || s === 'upload-results') return 'generate-doe'

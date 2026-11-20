@@ -5,15 +5,13 @@ step unlocking, and atomic downstream dependency re-alignment.
 """
 from typing import Dict, List, Optional, Any, Tuple
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from database import models
 import copy
 
 WORKFLOW_STEPS: List[str] = [
     "create-project",
-    "qtpp",
-    "cqa",
-    "route-mapping",
-    "risk-assessment",
+    "cqa-risk",
     "stage-campaign-matrix",
     "define-factors",
     "recommend-doe",
@@ -28,11 +26,8 @@ WORKFLOW_STEPS: List[str] = [
 ]
 
 STEP_DEPENDENCIES: Dict[str, List[str]] = {
-    "create-project": ["qtpp", "cqa", "route-mapping", "risk-assessment", "stage-campaign-matrix", "define-factors"],
-    "qtpp": ["cqa", "risk-assessment", "stage-campaign-matrix", "define-factors"],
-    "cqa": ["risk-assessment", "stage-campaign-matrix", "define-factors", "recommend-doe", "generate-doe", "initial-optimization", "new-experiment", "final-optimum", "report"],
-    "route-mapping": ["risk-assessment", "stage-campaign-matrix", "define-factors"],
-    "risk-assessment": ["stage-campaign-matrix", "define-factors", "recommend-doe"],
+    "create-project": ["cqa-risk", "stage-campaign-matrix", "define-factors"],
+    "cqa-risk": ["stage-campaign-matrix", "define-factors", "recommend-doe", "generate-doe", "initial-optimization", "new-experiment", "final-optimum", "report"],
     "stage-campaign-matrix": ["define-factors", "recommend-doe"],
     "define-factors": ["recommend-doe", "generate-doe", "initial-optimization", "enough-data", "gp-model", "bayesian-opt", "new-experiment", "final-optimum", "report"],
     "recommend-doe": ["generate-doe", "initial-optimization", "enough-data"],
@@ -58,15 +53,13 @@ def compute_inferred_statuses(project: models.Project) -> Dict[str, str]:
     
     def check_done(step_key: str) -> bool:
         if step_key == "create-project":
-            return bool(project.name and project.name.trim() if hasattr(project.name, 'trim') else project.name)
-        elif step_key == "qtpp":
-            return bool(project.qtpp_data and len(project.qtpp_data) > 0)
-        elif step_key == "cqa":
-            return bool(project.cqas_data and len(project.cqas_data) > 0)
-        elif step_key == "route-mapping":
-            return bool(project.stages_data and len(project.stages_data) > 0)
-        elif step_key == "risk-assessment":
-            return bool(project.risk_assessment_data and len(project.risk_assessment_data) > 0)
+            has_name = bool(project.name and project.name.trim() if hasattr(project.name, 'trim') else project.name)
+            has_qtpp = bool(project.qtpp_data and len(project.qtpp_data) > 0)
+            return bool(has_name and has_qtpp)
+        elif step_key == "cqa-risk":
+            has_cqas = bool(project.cqas_data and len(project.cqas_data) > 0)
+            has_risk = bool(project.risk_assessment_data and len(project.risk_assessment_data) > 0)
+            return bool(has_cqas and has_risk)
         elif step_key == "stage-campaign-matrix":
             return bool((project.stages_data and len(project.stages_data) > 0) and (project.risk_assessment_data and len(project.risk_assessment_data) > 0))
         elif step_key == "define-factors":
@@ -110,6 +103,52 @@ def compute_inferred_statuses(project: models.Project) -> Dict[str, str]:
 
 def get_effective_statuses(project: models.Project) -> Dict[str, str]:
     stored = project.step_statuses or {}
+    
+    # MIGRATION: Map legacy step keys if present
+    if "cqa" in stored or "risk-assessment" in stored or "route-mapping" in stored:
+        migrated: Dict[str, str] = {}
+        old_cqa = stored.get("cqa")
+        old_risk = stored.get("risk-assessment")
+        
+        # Merge cqa and risk-assessment statuses
+        if old_cqa == "completed" and old_risk == "completed":
+            migrated["cqa-risk"] = "completed"
+        elif old_cqa == "completed" or old_risk == "completed":
+            migrated["cqa-risk"] = "needs-review"
+        elif old_cqa in ("current", "editing") or old_risk in ("current", "editing"):
+            migrated["cqa-risk"] = "current"
+        else:
+            migrated["cqa-risk"] = "locked"
+
+        for k, v in stored.items():
+            if k not in ("cqa", "risk-assessment", "route-mapping", "qtpp"):
+                migrated[k] = v
+        if "create-project" not in migrated:
+            migrated["create-project"] = stored.get("create-project", "completed")
+
+        stored = migrated
+        project.step_statuses = stored
+
+    # Handle multi-stage projects migration to single stage:
+    if project.stages_data and len(project.stages_data) > 1:
+        # Determine active stage matching stage_number if present, else first stage
+        import re
+        m = re.search(r'stage\s*[-_]?\s*(\d+)', project.name or '', re.IGNORECASE)
+        target_num = int(m.group(1)) if m else None
+        
+        kept_stage = None
+        if target_num:
+            for st in project.stages_data:
+                if isinstance(st, dict) and (st.get("order") == target_num or f"stage-{target_num}" == st.get("id")):
+                    kept_stage = st
+                    break
+        if not kept_stage:
+            kept_stage = project.stages_data[0]
+            
+        # Flag cqa-risk as needs-review so user verifies
+        stored["cqa-risk"] = "needs-review"
+        project.step_statuses = stored
+
     if not stored or not any(s in stored for s in WORKFLOW_STEPS):
         stored = compute_inferred_statuses(project)
         project.step_statuses = stored
@@ -253,10 +292,14 @@ def realign_downstream_data(db: Session, project: models.Project, edited_step: s
     has_changes = False
     if updated_step_data:
         for k, v in updated_step_data.items():
-            curr = getattr(project, k, None)
-            if curr != v:
+            if hasattr(project, k):
+                curr = getattr(project, k, None)
+                if curr != v:
+                    has_changes = True
+                    setattr(project, k, copy.deepcopy(v))
+            else:
+                # Custom payload keys like 'unit_op_type'
                 has_changes = True
-                setattr(project, k, copy.deepcopy(v))
     else:
         # Default assume changes if explicit realign triggered
         has_changes = True
@@ -279,28 +322,47 @@ def realign_downstream_data(db: Session, project: models.Project, edited_step: s
     # 2. Re-alignment logic per step dependency
     downstream_targets = STEP_DEPENDENCIES.get(edited_step, [])
 
-    # Case A: QTPP / CQA changes
-    if edited_step in ("create-project", "qtpp", "cqa"):
+    # Case A: Step 1 (create-project) changes -> Unit Op or Compound changed
+    if edited_step == "create-project":
+        # Check if unit op changed and update single stage name
+        unit_op = updated_step_data.get("unit_op_type") if updated_step_data else None
+        if unit_op and project.stages_data and len(project.stages_data) > 0:
+            stage = project.stages_data[0]
+            old_unit_op = stage.get("unitOpType")
+            if old_unit_op != unit_op:
+                from database.crud import derive_single_stage
+                new_stage = derive_single_stage(project.name, unit_op, project.compound)
+                project.stages_data = [new_stage]
+                summary["affected_steps"].append("cqa-risk")
+                summary["details"]["cqa-risk"] = f"Updated stage unit operation to {unit_op}"
+
+                # Re-align risk matrix: replace ONLY untouched 'suggested' rows with new unit op parameters
+                # Keep every row that was confirmed, custom, or has scores entered by chemist
+                if project.risk_assessment_data:
+                    stage_id = stage.get("id", "stage-1")
+                    stage_risk = project.risk_assessment_data.get(stage_id, {})
+                    existing_params = stage_risk.get("parameters", [])
+                    preserved_params = [
+                        p for p in existing_params
+                        if p.get("status") in ("confirmed", "custom")
+                        or p.get("severity") is not None
+                        or p.get("occurrence") is not None
+                        or p.get("detectability") is not None
+                        or (p.get("linkedCqaIds") and len(p.get("linkedCqaIds")) > 0)
+                    ]
+                    # Retain preserved params, frontend will hydrate fresh suggestions for the new unit op
+                    stage_risk["parameters"] = preserved_params
+                    updated_risk = copy.deepcopy(project.risk_assessment_data)
+                    updated_risk[stage_id] = stage_risk
+                    project.risk_assessment_data = updated_risk
+                    flag_modified(project, "risk_assessment_data")
+                    flag_modified(project, "stages_data")
+
+    # Case B: CQA & Risk Assessment changes
+    if edited_step in ("create-project", "cqa-risk"):
         valid_cqa_ids = set()
         if project.cqas_data:
             valid_cqa_ids = {c.get("id") for c in project.cqas_data if isinstance(c, dict) and c.get("id")}
-
-        # Prune orphan CQA references from Risk Assessment
-        if "risk-assessment" in downstream_targets and project.risk_assessment_data:
-            pruned_count = 0
-            updated_risk = copy.deepcopy(project.risk_assessment_data)
-            for stage_id, stage_data in updated_risk.items():
-                params = stage_data.get("parameters", [])
-                for p in params:
-                    linked = p.get("linkedCqaIds", [])
-                    new_linked = [cid for cid in linked if cid in valid_cqa_ids]
-                    if len(new_linked) != len(linked):
-                        pruned_count += (len(linked) - len(new_linked))
-                        p["linkedCqaIds"] = new_linked
-            if pruned_count > 0:
-                project.risk_assessment_data = updated_risk
-                summary["affected_steps"].append("risk-assessment")
-                summary["details"]["risk-assessment"] = f"Removed {pruned_count} orphaned CQA linkages from risk assessment parameters"
 
         # Prune orphan CQA responses from Responses
         if "define-factors" in downstream_targets and project.responses:
@@ -310,25 +372,6 @@ def realign_downstream_data(db: Session, project: models.Project, edited_step: s
                     db.delete(r)
                 summary["affected_steps"].append("define-factors")
                 summary["details"]["define-factors"] = f"Removed {len(orphaned_responses)} responses referencing deleted CQAs"
-
-    # Case B: Route Mapping / Stages changes
-    if edited_step in ("create-project", "route-mapping"):
-        valid_stage_ids = set()
-        if project.stages_data:
-            valid_stage_ids = {s.get("id") for s in project.stages_data if isinstance(s, dict) and s.get("id")}
-
-        # Prune risk assessment stages that no longer exist
-        if project.risk_assessment_data:
-            existing_stage_keys = list(project.risk_assessment_data.keys())
-            removed_stages = [sid for sid in existing_stage_keys if sid not in valid_stage_ids]
-            if removed_stages:
-                updated_risk = copy.deepcopy(project.risk_assessment_data)
-                for sid in removed_stages:
-                    updated_risk.pop(sid, None)
-                project.risk_assessment_data = updated_risk
-                if "risk-assessment" not in summary["affected_steps"]:
-                    summary["affected_steps"].append("risk-assessment")
-                summary["details"]["risk-assessment"] = f"Pruned risk assessments for {len(removed_stages)} deleted stage(s)"
 
     # Update statuses: edited step is now completed; immediately next step is current; remaining are needs-review & locked
     statuses[edited_step] = "completed"

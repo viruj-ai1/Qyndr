@@ -31,6 +31,32 @@ def complete_step_endpoint(project_id: int, body: schemas.StepCompleteRequest, d
     if not project:
         raise HTTPException(404, "Project not found")
 
+    # If completing cqa-risk, validate completion criteria
+    if body.step_key == "cqa-risk" and body.step_data:
+        cqas = body.step_data.get("cqas_data") or project.cqas_data or []
+        risk_data = body.step_data.get("risk_assessment_data") or project.risk_assessment_data or {}
+        
+        if not cqas or len(cqas) == 0:
+            raise HTTPException(400, "At least one Critical Quality Attribute must be assessed.")
+            
+        stage_params = []
+        for s_id, s_data in risk_data.items():
+            stage_params.extend(s_data.get("parameters", []))
+            
+        for p in stage_params:
+            # Chemist must confirm suggested rows and score all parameters
+            if p.get("status") == "suggested":
+                raise HTTPException(400, f"Parameter '{p.get('name')}' is still unreviewed. Please confirm, score, or delete it.")
+            if p.get("severity") is None or p.get("occurrence") is None or p.get("detectability") is None:
+                raise HTTPException(400, f"Parameter '{p.get('name')}' requires valid Severity, Occurrence, and Detectability scores.")
+            if not p.get("linkedCqaIds") and not p.get("notImpacting"):
+                raise HTTPException(400, f"Parameter '{p.get('name')}' must be linked to at least one CQA or marked as not impacting.")
+
+        # Atomically save cqa and risk data
+        project.cqas_data = cqas
+        project.risk_assessment_data = risk_data
+        db.add(project)
+
     ok, msg, statuses = workflow_lock_service.complete_step(db, project, body.step_key, body.step_data)
     if not ok:
         raise HTTPException(400, msg)

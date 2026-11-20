@@ -70,6 +70,7 @@ export const Auth = {
 export const Projects = {
   list:    ()              => api.get('/projects').then(r => r.data),
   create:  (d: any)       => api.post('/projects', d).then(r => r.data),
+  createWithQTPP: (d: any) => api.post('/projects/with-qtpp', d).then(r => r.data),
   get:     (id: number)   => api.get(`/projects/${id}`).then(r => r.data),
   update:  (id: number, d: any) => api.put(`/projects/${id}`, d).then(r => r.data),
   delete:  (id: number)   => api.delete(`/projects/${id}`).then(r => r.data),
@@ -178,20 +179,6 @@ export const CQAApi = {
     api.get(`/projects/${projectId}/cqa/audit`, { params: cqaId ? { cqa_id: cqaId } : {} }).then(r => r.data),
   recordAudit: (projectId: number, payload: { cqa_id: string; action: string; old_value?: any; new_value?: any }) =>
     api.post(`/projects/${projectId}/cqa/audit`, payload).then(r => r.data),
-}
-
-/* ── Route Mapping Service ────────────────────────────────── */
-export const RouteApi = {
-  generate: (projectId: number) =>
-    api.post(`/projects/${projectId}/route/generate`).then(r => r.data),
-  regenerateStage: (projectId: number, stageId: string) =>
-    api.post(`/projects/${projectId}/route/stages/${stageId}/regenerate`).then(r => r.data),
-  get: (projectId: number) =>
-    api.get(`/projects/${projectId}/route`).then(r => r.data),
-  save: (projectId: number, stages: any[]) =>
-    api.put(`/projects/${projectId}/route`, stages).then(r => r.data),
-  validate: (projectId: number) =>
-    api.get(`/projects/${projectId}/route/validate`).then(r => r.data),
 }
 
 /* ── Project Input Template Auto-Alignment ─────────────────── */

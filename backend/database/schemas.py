@@ -66,13 +66,15 @@ class RiskParameter(BaseModel):
     name: str
     type: str           # CPP-candidate / CMA-candidate
     linkedCqaIds: List[str] = []
-    severity: int = 1
-    occurrence: int = 1
-    detectability: int = 1
-    rpn: int = 1
+    severity: Optional[int] = None
+    occurrence: Optional[int] = None
+    detectability: Optional[int] = None
+    rpn: Optional[int] = None
     rationale: str = ""
     criticalFlag: bool = False
     overrideReason: str = ""
+    status: str = "suggested"   # suggested / confirmed / custom
+    notImpacting: Optional[bool] = False
 
 class StageRiskAssessment(BaseModel):
     stageId: str
@@ -141,18 +143,25 @@ class ProjectBase(BaseModel):
     compound: str = ""
     objective: str = ""
     description: str = ""
-    current_step: Optional[str] = "qtpp"
+    unit_op_type: Optional[str] = "Reaction"
+    stage_number: Optional[int] = 1
+    current_step: Optional[str] = "cqa-risk"
     api_targets: List[Any] = []
     step_statuses: Optional[Dict[str, str]] = Field(default_factory=dict)
     unlocked_step: Optional[str] = None
 
 class ProjectCreate(ProjectBase): pass
 
+class ProjectWithQTPPCreate(ProjectCreate):
+    qtpp_data: List[Dict[str, Any]] = []
+
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
     compound: Optional[str] = None
     objective: Optional[str] = None
     description: Optional[str] = None
+    unit_op_type: Optional[str] = None
+    stage_number: Optional[int] = None
     current_step: Optional[str] = None
     doe_type: Optional[str] = None
     bayes_iter: Optional[int] = None

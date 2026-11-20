@@ -216,10 +216,10 @@ export default function StageCampaignMatrix() {
                       No Synthesis Stages Defined
                     </div>
                     <p style={{ fontSize: '0.85rem', margin: '0 auto 1.25rem', maxWidth: '400px' }}>
-                      Please define your process synthesis route in Step 04 Route Mapping to establish the stage campaign matrix.
+                      Please define your project and risk assessment to establish the stage campaign matrix.
                     </p>
-                    <button className="btn btn-primary btn-sm" onClick={() => setStep('route-mapping')}>
-                      Map Synthesis Stages →
+                    <button className="btn btn-primary btn-sm" onClick={() => setStep('cqa-risk')}>
+                      Go to CQA & Risk Assessment →
                     </button>
                   </td>
                 </tr>
@@ -345,9 +345,9 @@ export default function StageCampaignMatrix() {
       <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '1.5rem' }}>
         <button
           className="btn btn-secondary"
-          onClick={() => setStep('risk-assessment')}
+          onClick={() => setStep('cqa-risk')}
         >
-          ← Back to Risk Assessment
+          ← Back to CQA & Risk Assessment
         </button>
       </div>
     </div>

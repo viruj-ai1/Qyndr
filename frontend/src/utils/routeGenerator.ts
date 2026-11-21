@@ -35,6 +35,7 @@ export function parseStagesFromDescription(description: string, compound: string
       continue
     }
 
+
     const matchNumbered = line.match(numberedRegex)
     if (matchNumbered) {
       const content = matchNumbered[2].trim()

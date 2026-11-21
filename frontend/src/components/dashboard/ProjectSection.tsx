@@ -4,12 +4,14 @@ import { ProjectStage, STAGE_META } from '../../utils/projectUtils';
 export interface ProjectSectionProps {
   id?: string;
   title: string;
-  status: ProjectStage | string;
+  status?: ProjectStage | string;
   count: number;
   filteredCount?: number;
   subtitle: string;
   accentColor?: string;
   badgeText?: string;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
   defaultCollapsed?: boolean;
   searchActive?: boolean;
   searchQuery?: string;
@@ -21,34 +23,61 @@ export interface ProjectSectionProps {
 export const ProjectSection: React.FC<ProjectSectionProps> = ({
   id,
   title,
-  status,
+  status = 'ongoing',
   count,
   filteredCount,
   subtitle,
   accentColor,
   badgeText,
-  defaultCollapsed = true,
+  isCollapsed: controlledIsCollapsed,
+  onToggleCollapse,
+  defaultCollapsed = false,
   searchActive = false,
   searchQuery = '',
   emptyStateMessage,
   onClearSearch,
   children
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+  const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed);
+
+  const isCollapsed = controlledIsCollapsed !== undefined ? controlledIsCollapsed : internalCollapsed;
+
+  const handleToggle = () => {
+    if (onToggleCollapse) {
+      onToggleCollapse();
+    } else {
+      setInternalCollapsed(!isCollapsed);
+    }
+  };
 
   // When search is active with a query, auto-expand so matching results can be seen
   React.useEffect(() => {
     if (searchActive && searchQuery && searchQuery.trim()) {
-      setIsCollapsed(false);
+      if (controlledIsCollapsed === undefined) {
+        setInternalCollapsed(false);
+      }
     }
-  }, [searchActive, searchQuery]);
+  }, [searchActive, searchQuery, controlledIsCollapsed]);
 
   const isSearchActive = Boolean(searchActive && searchQuery && searchQuery.trim().length > 0);
   const effectiveCollapsed = isSearchActive ? false : isCollapsed;
 
   // Normalize status to lowercase stage key if possible
-  const normStatus = status.toLowerCase().replace(/[^a-z]/g, '') as ProjectStage;
-  const stageMeta = STAGE_META[normStatus] || STAGE_META.planning;
+  const normStatus = (status || '').toLowerCase().replace(/[^a-z]/g, '') as ProjectStage;
+  const stageMeta = STAGE_META[normStatus] || {
+    key: 'ongoing' as ProjectStage,
+    title: 'Product',
+    statusLabel: 'PRODUCT',
+    stepRange: '',
+    subtitle: '',
+    includedSteps: '',
+    badgeClasses: '',
+    icon: '💊',
+    accentColor: '#005baa',
+    bgLight: '#eff6ff',
+    borderColor: '#bfdbfe',
+    textColor: '#1e40af'
+  };
 
   const color = accentColor || stageMeta.accentColor;
   const badgeLabel = badgeText || stageMeta.statusLabel;
@@ -132,7 +161,7 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
           <button
             type="button"
             className="section-collapse-btn"
-            onClick={() => setIsCollapsed(!effectiveCollapsed)}
+            onClick={handleToggle}
             aria-label={effectiveCollapsed ? `Expand ${title}` : `Collapse ${title}`}
             title={effectiveCollapsed ? 'Expand section' : 'Collapse section'}
             style={{ fontSize: '0.75rem' }}

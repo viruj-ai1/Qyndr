@@ -604,9 +604,31 @@ export default function CQARiskAssessment() {
           </div>
 
           {/* Right Column: Assessed CQAs Cards */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <strong style={{ fontSize: '0.9rem' }}>Assessed Quality Attributes ({cqaItems.length})</strong>
+          <div style={{
+            background: '#f8fafc',
+            border: '1px solid var(--border-color)',
+            borderRadius: '10px',
+            padding: '1.15rem',
+            minHeight: '100%',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1rem',
+              paddingBottom: '0.75rem',
+              borderBottom: '1px solid #e2e8f0'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)' }}>
+                  Assessed Quality Attributes
+                </strong>
+                <span className="badge badge-primary" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                  {cqaItems.length} active
+                </span>
+              </div>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
@@ -639,56 +661,82 @@ export default function CQARiskAssessment() {
             </div>
 
             {cqaItems.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '3rem 1.5rem', background: '#f8fafc', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
+              <div style={{
+                textAlign: 'center',
+                padding: '3rem 1.5rem',
+                background: '#ffffff',
+                borderRadius: '8px',
+                border: '1px dashed #cbd5e1'
+              }}>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0 }}>
                   No CQAs assessed yet. Toggle ON QTPP attributes on the left to derive CQAs for <strong>{currentStage.name}</strong>.
                 </p>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '1rem' }}>
                 {cqaItems.map(cqa => (
                   <div
                     key={cqa.id}
                     style={{
-                      border: '1px solid var(--border-color)',
+                      border: cqa.is_critical ? '1.5px solid #fecaca' : '1px solid #e2e8f0',
+                      borderTop: cqa.is_critical ? '3px solid #ef4444' : '3px solid #005baa',
                       borderRadius: '8px',
                       padding: '1rem',
                       background: '#ffffff',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                      boxShadow: '0 2px 5px rgba(0,0,0,0.03)',
                       display: 'flex',
                       flexDirection: 'column',
-                      justifyContent: 'space-between'
+                      justifyContent: 'space-between',
+                      transition: 'box-shadow 0.2s, transform 0.15s'
                     }}
                   >
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                        <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)' }}>{cqa.name}</strong>
-                        <span className={`badge ${cqa.is_critical ? 'badge-danger' : 'badge-secondary'}`} style={{ fontSize: '0.72rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.6rem', gap: '0.5rem' }}>
+                        <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)', lineHeight: 1.3 }}>{cqa.name}</strong>
+                        <span className={`badge ${cqa.is_critical ? 'badge-danger' : 'badge-secondary'}`} style={{ fontSize: '0.72rem', whiteSpace: 'nowrap' }}>
                           {cqa.is_critical ? 'CRITICAL CQA' : 'Non-Critical'}
                         </span>
                       </div>
 
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                        <div><strong>Target:</strong> {cqa.range || 'Defined'}</div>
+                      <div style={{
+                        fontSize: '0.78rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.75rem',
+                        background: '#f8fafc',
+                        padding: '0.5rem 0.65rem',
+                        borderRadius: '6px',
+                        border: '1px solid #f1f5f9'
+                      }}>
+                        <div style={{ marginBottom: '0.2rem' }}><strong>Target:</strong> {cqa.range || 'Defined'}</div>
                         <div><strong>Method:</strong> {cqa.method || 'Standard HPLC'}</div>
                       </div>
 
                       <div style={{
-                        background: '#f8fafc',
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
                         padding: '0.5rem 0.65rem',
                         borderRadius: '6px',
-                        fontSize: '0.75rem',
+                        fontSize: '0.74rem',
                         display: 'flex',
                         justifyContent: 'space-between',
+                        alignItems: 'center',
                         marginBottom: '0.75rem'
                       }}>
-                        <span>Severity of Harm: <strong>{cqa.impact_score}/5</strong></span>
+                        <span>Severity: <strong>{cqa.impact_score}/5</strong></span>
+                        <span style={{ color: '#cbd5e1' }}>|</span>
                         <span>Uncertainty: <strong>{cqa.uncertainty_score}/5</strong></span>
+                        <span style={{ color: '#cbd5e1' }}>|</span>
                         <span>Score: <strong>{cqa.criticality_score}</strong></span>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      paddingTop: '0.6rem',
+                      borderTop: '1px solid #f1f5f9'
+                    }}>
                       <button
                         type="button"
                         className="btn btn-secondary btn-sm"
@@ -696,14 +744,21 @@ export default function CQARiskAssessment() {
                           setEditingCqa(cqa)
                           setDrawerOpen(true)
                         }}
-                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}
                       >
                         Edit Assessment
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteCQA(cqa.id, cqa.name)}
-                        style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.78rem', cursor: 'pointer' }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#ef4444',
+                          fontSize: '0.78rem',
+                          cursor: 'pointer',
+                          fontWeight: 500
+                        }}
                       >
                         Delete
                       </button>

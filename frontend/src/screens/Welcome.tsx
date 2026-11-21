@@ -19,6 +19,25 @@ import {
   PlatformWorkflowGuideSection
 } from '../components/dashboard'
 
+// LocalStorage key for storing user expanded/collapsed product sections
+const PRODUCT_SECTIONS_STORAGE_KEY = 'doe_product_sections_collapsed'
+
+/**
+ * Normalizes an API / Compound name for grouping.
+ * Trims whitespace, takes text before the first '(', and uses lowercase for keying.
+ */
+function normalizeProductGroup(compound?: string | null): { key: string; displayName: string } {
+  if (!compound || !compound.trim()) {
+    return { key: '__unassigned__', displayName: 'Other / Unassigned' }
+  }
+  const trimmed = compound.trim()
+  const base = trimmed.split('(')[0].trim()
+  if (!base) {
+    return { key: '__unassigned__', displayName: 'Other / Unassigned' }
+  }
+  return { key: base.toLowerCase(), displayName: base }
+}
+
 export default function Welcome() {
   const { setProject, setStep } = useStore()
   const { user, logout } = useAuth()
@@ -112,6 +131,37 @@ export default function Welcome() {
     }
   }
 
+  // Collapsed state map keyed by product group key
+  const [collapsedProducts, setCollapsedProducts] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem(PRODUCT_SECTIONS_STORAGE_KEY)
+      return saved ? JSON.parse(saved) : {}
+    } catch {
+      return {}
+    }
+  })
+
+  const toggleProductCollapse = (groupKey: string) => {
+    setCollapsedProducts(prev => {
+      const next = { ...prev, [groupKey]: !prev[groupKey] }
+      try {
+        localStorage.setItem(PRODUCT_SECTIONS_STORAGE_KEY, JSON.stringify(next))
+      } catch {}
+      return next
+    })
+  }
+
+  const setAllCollapsed = (collapsed: boolean) => {
+    const nextState: Record<string, boolean> = {}
+    productGroups.forEach(g => {
+      nextState[g.key] = collapsed
+    })
+    setCollapsedProducts(nextState)
+    try {
+      localStorage.setItem(PRODUCT_SECTIONS_STORAGE_KEY, JSON.stringify(nextState))
+    } catch {}
+  }
+
   // Enrich projects with step and stage
   const enrichedProjects = useMemo(() => {
     return projects.map(p => {
@@ -133,23 +183,93 @@ export default function Welcome() {
     return enrichedProjects.find(p => p.id === selectedDeleteId) || null
   }, [enrichedProjects, selectedDeleteId])
 
-  // Categorize projects into Planning, On-going, and Completed
-  const categorized = useMemo(() => {
-    const planning: any[] = []
-    const ongoing: any[] = []
-    const completed: any[] = []
+  // Helper for sorting cards inside each product:
+  // Stage (Planning -> On-going -> Completed), then updated_at (newest first)
+  const stageSortOrder: Record<ProjectStage, number> = {
+    planning: 1,
+    ongoing: 2,
+    completed: 3
+  }
+
+  const sortCardsWithinProduct = (cards: any[]) => {
+    return [...cards].sort((a, b) => {
+      const stageA = stageSortOrder[a._stage as ProjectStage] || 99
+      const stageB = stageSortOrder[b._stage as ProjectStage] || 99
+      if (stageA !== stageB) return stageA - stageB
+
+      const timeA = new Date(a.updated_at || a.created_at || 0).getTime()
+      const timeB = new Date(b.updated_at || b.created_at || 0).getTime()
+      return timeB - timeA
+    })
+  }
+
+  // Group enriched projects by product (API / Compound)
+  const productGroups = useMemo(() => {
+    const groupsMap = new Map<string, {
+      key: string;
+      displayName: string;
+      allProjects: any[];
+      latestUpdated: number;
+    }>()
 
     enrichedProjects.forEach(p => {
-      if (p._stage === 'planning') planning.push(p)
-      else if (p._stage === 'ongoing') ongoing.push(p)
-      else completed.push(p)
+      const { key, displayName } = normalizeProductGroup(p.compound)
+      if (!groupsMap.has(key)) {
+        groupsMap.set(key, {
+          key,
+          displayName,
+          allProjects: [],
+          latestUpdated: 0
+        })
+      }
+      const grp = groupsMap.get(key)!
+      grp.allProjects.push(p)
+
+      const pTime = new Date(p.updated_at || p.created_at || 0).getTime()
+      if (pTime > grp.latestUpdated) {
+        grp.latestUpdated = pTime
+      }
     })
 
-    return { planning, ongoing, completed }
+    // Sort products by most recently updated project, newest first.
+    // "__unassigned__" (Other / Unassigned) always lands at the bottom.
+    const sortedGroups = Array.from(groupsMap.values()).sort((a, b) => {
+      if (a.key === '__unassigned__') return 1
+      if (b.key === '__unassigned__') return -1
+      return b.latestUpdated - a.latestUpdated
+    })
+
+    return sortedGroups.map(grp => {
+      const sortedProjects = sortCardsWithinProduct(grp.allProjects)
+
+      // Count stages for subtitle summary
+      let planningCount = 0
+      let ongoingCount = 0
+      let completedCount = 0
+      sortedProjects.forEach(p => {
+        if (p._stage === 'planning') planningCount++
+        else if (p._stage === 'ongoing') ongoingCount++
+        else if (p._stage === 'completed') completedCount++
+      })
+
+      const stageParts: string[] = []
+      if (planningCount > 0) stageParts.push(`${planningCount} Planning`)
+      if (ongoingCount > 0) stageParts.push(`${ongoingCount} On-going`)
+      if (completedCount > 0) stageParts.push(`${completedCount} Completed`)
+
+      const totalCount = sortedProjects.length
+      const subtitle = `${totalCount} ${totalCount === 1 ? 'project' : 'projects'}${stageParts.length > 0 ? ` · ${stageParts.join(' · ')}` : ''}`
+
+      return {
+        ...grp,
+        projects: sortedProjects,
+        subtitle
+      }
+    })
   }, [enrichedProjects])
 
-  // Search filter applied in real-time across all sections
-  const filterList = (list: any[]) => {
+  // Search filter applied in real-time across cards
+  const filterCards = (list: any[]) => {
     if (!searchQuery.trim()) return list
     const q = searchQuery.toLowerCase().trim()
     return list.filter(p =>
@@ -160,11 +280,30 @@ export default function Welcome() {
     )
   }
 
-  const filteredPlanning = useMemo(() => filterList(categorized.planning), [categorized.planning, searchQuery])
-  const filteredOngoing = useMemo(() => filterList(categorized.ongoing), [categorized.ongoing, searchQuery])
-  const filteredCompleted = useMemo(() => filterList(categorized.completed), [categorized.completed, searchQuery])
+  // Filtered product groups: hides sections with 0 matching cards during active search
+  const filteredProductGroups = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return productGroups.map(g => ({
+        ...g,
+        filteredProjects: g.projects
+      }))
+    }
 
-  const totalMatches = filteredPlanning.length + filteredOngoing.length + filteredCompleted.length
+    return productGroups
+      .map(g => {
+        const matching = filterCards(g.projects)
+        return {
+          ...g,
+          filteredProjects: matching
+        }
+      })
+      .filter(g => g.filteredProjects.length > 0)
+  }, [productGroups, searchQuery])
+
+  const totalMatches = useMemo(() => {
+    return filteredProductGroups.reduce((acc, g) => acc + g.filteredProjects.length, 0)
+  }, [filteredProductGroups])
+
   const searchActive = Boolean(searchQuery.trim())
 
   return (
@@ -312,6 +451,44 @@ export default function Welcome() {
                   ✕
                 </button>
               )}
+            </div>
+
+            {/* Expand all / Collapse all Toggle Buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setAllCollapsed(false)}
+                title="Expand all product sections"
+                style={{
+                  fontSize: '0.78rem',
+                  padding: '0.45rem 0.65rem',
+                  height: '38px',
+                  borderRadius: '999px',
+                  borderColor: '#cbd5e1',
+                  color: '#475569',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Expand all
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setAllCollapsed(true)}
+                title="Collapse all product sections"
+                style={{
+                  fontSize: '0.78rem',
+                  padding: '0.45rem 0.65rem',
+                  height: '38px',
+                  borderRadius: '999px',
+                  borderColor: '#cbd5e1',
+                  color: '#475569',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Collapse all
+              </button>
             </div>
 
             {/* Delete Project Action Toggle */}
@@ -548,83 +725,35 @@ export default function Welcome() {
             </div>
           ) : (
             <>
-              {/* ── Section 1: Planning Stage Projects (Steps 1–7) ── */}
-              <ProjectSection
-                id="section-planning"
-                title="Planning Stage Projects"
-                status="planning"
-                count={categorized.planning.length}
-                filteredCount={filteredPlanning.length}
-                subtitle="QbD Foundation & Scoping · Steps 1–7"
-                accentColor="#F59E0B"
-                badgeText="PLANNING"
-                searchActive={searchActive}
-                searchQuery={searchQuery}
-                onClearSearch={() => setSearchQuery('')}
-                emptyStateMessage="No planning stage projects currently."
-              >
-                {filteredPlanning.map(p => (
-                  <ProjectCard
-                    key={p.id}
-                    project={p}
-                    onOpen={openProject}
-                    deleteEnabled={deleteMode}
-                    onDelete={(_e, id) => openDeleteModal(id)}
-                  />
-                ))}
-              </ProjectSection>
-
-              {/* ── Section 2: On-going Projects (Steps 8–15) ── */}
-              <ProjectSection
-                id="section-ongoing"
-                title="On-going Projects"
-                status="ongoing"
-                count={categorized.ongoing.length}
-                filteredCount={filteredOngoing.length}
-                subtitle="DoE Runs & Bayesian Loop · Steps 8–15"
-                accentColor="#2563EB"
-                badgeText="ON-GOING"
-                searchActive={searchActive}
-                searchQuery={searchQuery}
-                onClearSearch={() => setSearchQuery('')}
-                emptyStateMessage="No on-going projects currently."
-              >
-                {filteredOngoing.map(p => (
-                  <ProjectCard
-                    key={p.id}
-                    project={p}
-                    onOpen={openProject}
-                    deleteEnabled={deleteMode}
-                    onDelete={(_e, id) => openDeleteModal(id)}
-                  />
-                ))}
-              </ProjectSection>
-
-              {/* ── Section 3: Completed Projects (Steps 16–17) ── */}
-              <ProjectSection
-                id="section-completed"
-                title="Completed Projects"
-                status="completed"
-                count={categorized.completed.length}
-                filteredCount={filteredCompleted.length}
-                subtitle="Optimum & Final Reports · Steps 16–17"
-                accentColor="#10B981"
-                badgeText="COMPLETED"
-                searchActive={searchActive}
-                searchQuery={searchQuery}
-                onClearSearch={() => setSearchQuery('')}
-                emptyStateMessage="No completed projects yet. Ongoing projects will appear here once finalized."
-              >
-                {filteredCompleted.map(p => (
-                  <ProjectCard
-                    key={p.id}
-                    project={p}
-                    onOpen={openProject}
-                    deleteEnabled={deleteMode}
-                    onDelete={(_e, id) => openDeleteModal(id)}
-                  />
-                ))}
-              </ProjectSection>
+              {/* ── Product Sections (Grouped by API / Compound) ── */}
+              {filteredProductGroups.map(group => (
+                <ProjectSection
+                  key={group.key}
+                  id={`section-product-${group.key}`}
+                  title={group.displayName}
+                  count={group.projects.length}
+                  filteredCount={group.filteredProjects.length}
+                  subtitle={group.subtitle}
+                  accentColor="#005baa"
+                  badgeText="PRODUCT"
+                  isCollapsed={collapsedProducts[group.key] ?? false}
+                  onToggleCollapse={() => toggleProductCollapse(group.key)}
+                  searchActive={searchActive}
+                  searchQuery={searchQuery}
+                  onClearSearch={() => setSearchQuery('')}
+                  emptyStateMessage={`No projects under ${group.displayName} currently.`}
+                >
+                  {group.filteredProjects.map(p => (
+                    <ProjectCard
+                      key={p.id}
+                      project={p}
+                      onOpen={openProject}
+                      deleteEnabled={deleteMode}
+                      onDelete={(_e, id) => openDeleteModal(id)}
+                    />
+                  ))}
+                </ProjectSection>
+              ))}
             </>
           )}
 

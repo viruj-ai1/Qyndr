@@ -1,6 +1,6 @@
 // src/screens/CreateProject.tsx – Step 01: Project Setup & QTPP
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { Info, AlertTriangle, Trash2, Plus, Edit } from 'lucide-react'
+import { Info, AlertTriangle, Trash2, Plus, Edit, Lock } from 'lucide-react'
 import { useStore, QTPPItem, AcceptanceCriterion } from '../store/useStore'
 import { Projects, WorkflowApi } from '../services/api'
 import { extractTargetsFromDescription } from '../utils/targetParser'
@@ -12,6 +12,7 @@ import {
   getDefaultCriterionForAttribute
 } from '../utils/criterionUtils'
 import { generateContextAwareQTPP } from '../utils/routeGenerator'
+import { normalizeProductGroup } from '../utils/projectUtils'
 import toast from 'react-hot-toast'
 import ProjectTemplateModal, { TabKey } from '../components/ProjectTemplateModal'
 import {
@@ -88,7 +89,7 @@ function detectUnitOp(text: string): string {
 }
 
 export default function CreateProject() {
-  const { currentProject, setProject, setStep, setApiTargets, setQtpp, setStages, unlockedStep, setUnlockedStep } = useStore()
+  const { currentProject, setProject, setStep, setApiTargets, setQtpp, setStages, unlockedStep, setUnlockedStep, creationProductContext, setCreationProductContext, setEditMode } = useStore()
 
   const initialUnitOp = (currentProject?.stages_data && currentProject.stages_data[0]?.unitOpType) || 'Reaction'
   const [unitOpType, setUnitOpType] = useState<string>(initialUnitOp)
@@ -96,10 +97,31 @@ export default function CreateProject() {
 
   const [form, setForm] = useState({
     name:        currentProject?.name        || '',
-    compound:    currentProject?.compound    || '',
+    compound:    currentProject?.compound    || creationProductContext?.fullCompound || '',
     objective:   currentProject?.objective   || '',
     description: currentProject?.description || '',
   })
+
+  // Known existing products list for duplicate prevention in "New Product" flow
+  const [existingProjects, setExistingProjects] = useState<any[]>([])
+
+  useEffect(() => {
+    Projects.list().then(res => {
+      setExistingProjects(Array.isArray(res) ? res : [])
+    }).catch(err => {
+      console.warn('Could not load existing projects for product validation:', err)
+    })
+  }, [])
+
+  // If creationProductContext changes and we are creating a project under that product, prefill compound
+  useEffect(() => {
+    if (!currentProject && creationProductContext?.fullCompound) {
+      setForm(prev => ({
+        ...prev,
+        compound: creationProductContext.fullCompound
+      }))
+    }
+  }, [creationProductContext, currentProject])
 
   // QTPP State: Do not auto-feed QTPPs for new projects; chemist adds them manually.
   const getInitialQTPP = (): ExtendedQTPPItem[] => {
@@ -311,10 +333,42 @@ export default function CreateProject() {
     toast('Cleared all QTPP specifications.')
   }
 
+  // Check if current flow is locked to a specific product
+  const isProductLocked = Boolean(creationProductContext?.isLocked)
+
+  // Map existing projects into product groups for duplicate detection
+  const existingProductsMap = useMemo(() => {
+    const map = new Map<string, { key: string; displayName: string; fullCompound: string }>()
+    existingProjects.forEach(p => {
+      const { key, displayName } = normalizeProductGroup(p.compound)
+      if (key !== '__unassigned__' && !map.has(key)) {
+        map.set(key, { key, displayName, fullCompound: p.compound || displayName })
+      }
+    })
+    return map
+  }, [existingProjects])
+
+  // Check for duplicate product when in "New Product" flow (not locked and not editing existing project)
+  const duplicateProductMatch = useMemo(() => {
+    if (isEditingExisting || isProductLocked) return null
+    if (!form.compound.trim()) return null
+    const { key } = normalizeProductGroup(form.compound)
+    if (key === '__unassigned__') return null
+    return existingProductsMap.get(key) || null
+  }, [isEditingExisting, isProductLocked, form.compound, existingProductsMap])
+
   // Validation
-  const validateForm = (): { valid: boolean; message?: string; focusTarget?: 'name' | 'qtpp' } => {
+  const validateForm = (): { valid: boolean; message?: string; focusTarget?: 'name' | 'compound' | 'qtpp' } => {
     if (!form.name.trim()) {
       return { valid: false, message: 'Project Name is required.', focusTarget: 'name' }
+    }
+    // Validation on blank compound in New Product flow
+    if (!isEditingExisting && !isProductLocked && !form.compound.trim()) {
+      return { valid: false, message: 'Please enter an API / Compound name for the new product.', focusTarget: 'compound' }
+    }
+    // Block creation if product already exists
+    if (duplicateProductMatch) {
+      return { valid: false, message: 'This product already exists. Add a project to it instead.', focusTarget: 'compound' }
     }
     if (items.length === 0) {
       return { valid: false, message: 'Please define at least one Quality Target Product Profile attribute.', focusTarget: 'qtpp' }
@@ -353,7 +407,7 @@ export default function CreateProject() {
 
   const isFormValid = useMemo(() => {
     return validateForm().valid
-  }, [form.name, items])
+  }, [form.name, form.compound, duplicateProductMatch, items, isEditingExisting, isProductLocked])
 
   // Single submit action: "Create Project" or "Save Changes"
   async function handleSubmit() {
@@ -362,6 +416,8 @@ export default function CreateProject() {
       toast.error(val.message || 'Please correct errors before proceeding.')
       if (val.focusTarget === 'name') {
         nameInputRef.current?.focus()
+      } else if (val.focusTarget === 'compound') {
+        compoundInputRef.current?.focus()
       } else if (val.focusTarget === 'qtpp') {
         qtppSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
       }
@@ -430,6 +486,8 @@ export default function CreateProject() {
       if (proj.stages_data) {
         setStages(proj.stages_data)
       }
+      // Safety behavior: Turn Edit mode OFF automatically after product or project creation
+      setEditMode(false)
       toast.success('Project created!')
       setStep('cqa-risk')
     } catch (e: any) {
@@ -445,8 +503,20 @@ export default function CreateProject() {
       {/* Page Header with Reference Guide */}
       <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
         <div>
-          <h1 className="page-title">Project Setup & QTPP</h1>
-          <p className="page-desc">Enter the project, API and goal details, then define the quality attributes the final API should have.</p>
+          <h1 className="page-title">
+            {isEditingExisting
+              ? 'Project Setup & QTPP'
+              : isProductLocked
+                ? `New Project in ${creationProductContext?.productName || form.compound}`
+                : 'New Product'}
+          </h1>
+          <p className="page-desc">
+            {isEditingExisting
+              ? 'Enter the project, API and goal details, then define the quality attributes the final API should have.'
+              : isProductLocked
+                ? `Create a new QbD campaign under ${creationProductContext?.productName || form.compound}.`
+                : 'Initialize a new product portfolio and configure its first QbD design campaign.'}
+          </p>
         </div>
 
         <button
@@ -514,14 +584,119 @@ export default function CreateProject() {
           {/* Compound / API and Primary Objective */}
           <div className="grid-2">
             <div className="form-group">
-              <label className="form-label">Compound / API</label>
-              <input
-                ref={compoundInputRef}
-                className="form-input"
-                placeholder="e.g. Propofol or LXP-001"
-                value={form.compound}
-                onChange={e => set('compound', e.target.value)}
-              />
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>
+                  Compound / API {!isEditingExisting && !isProductLocked ? '*' : ''}
+                </span>
+                {isProductLocked && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      fontSize: '0.72rem',
+                      color: '#005baa',
+                      background: '#eff6ff',
+                      padding: '0.1rem 0.45rem',
+                      borderRadius: '4px',
+                      fontWeight: 600
+                    }}
+                    title="Locked to this product section"
+                  >
+                    <Lock size={11} /> Locked
+                  </span>
+                )}
+              </label>
+
+              <div style={{ position: 'relative' }}>
+                <input
+                  ref={compoundInputRef}
+                  className="form-input"
+                  placeholder="e.g. Propofol or LXP-001"
+                  value={form.compound}
+                  readOnly={isProductLocked}
+                  disabled={isProductLocked}
+                  onChange={e => set('compound', e.target.value)}
+                  style={{
+                    backgroundColor: isProductLocked ? '#f8fafc' : 'white',
+                    color: isProductLocked ? '#334155' : 'inherit',
+                    cursor: isProductLocked ? 'not-allowed' : 'text',
+                    borderColor: duplicateProductMatch ? '#ef4444' : undefined,
+                    paddingRight: isProductLocked ? '2rem' : undefined
+                  }}
+                />
+                {isProductLocked && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      right: '0.75rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: '#64748b',
+                      pointerEvents: 'none'
+                    }}
+                  >
+                    <Lock size={14} />
+                  </span>
+                )}
+              </div>
+
+              {/* Helper text for New Product flow */}
+              {!isEditingExisting && !isProductLocked && !duplicateProductMatch && (
+                <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', color: '#64748b' }}>
+                  This creates a new product with its first project.
+                </p>
+              )}
+
+              {/* Duplicate product warning banner */}
+              {duplicateProductMatch && (
+                <div
+                  style={{
+                    marginTop: '0.45rem',
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '6px',
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    fontSize: '0.78rem',
+                    color: '#991b1b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '0.5rem',
+                    flexWrap: 'wrap'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <AlertTriangle size={14} color="#dc2626" />
+                    <span>This product already exists. Add a project to it instead.</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{
+                      fontSize: '0.74rem',
+                      padding: '0.2rem 0.55rem',
+                      color: '#005baa',
+                      borderColor: '#93c5fd',
+                      background: '#ffffff',
+                      fontWeight: 600
+                    }}
+                    onClick={() => {
+                      setCreationProductContext({
+                        productName: duplicateProductMatch.displayName,
+                        fullCompound: duplicateProductMatch.fullCompound,
+                        isLocked: true
+                      })
+                      setForm(prev => ({
+                        ...prev,
+                        compound: duplicateProductMatch.fullCompound
+                      }))
+                    }}
+                  >
+                    Switch to {duplicateProductMatch.displayName} →
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="form-group">

@@ -11,35 +11,19 @@ import {
   getStepNumber,
   getStepLabel,
   STAGE_META,
-  formatDateDMY
+  formatDateDMY,
+  normalizeProductGroup
 } from '../utils/projectUtils'
 import {
   ProjectSection,
-  ProjectCard,
-  PlatformWorkflowGuideSection
+  ProjectCard
 } from '../components/dashboard'
 
 // LocalStorage key for storing user expanded/collapsed product sections
 const PRODUCT_SECTIONS_STORAGE_KEY = 'doe_product_sections_collapsed'
 
-/**
- * Normalizes an API / Compound name for grouping.
- * Trims whitespace, takes text before the first '(', and uses lowercase for keying.
- */
-function normalizeProductGroup(compound?: string | null): { key: string; displayName: string } {
-  if (!compound || !compound.trim()) {
-    return { key: '__unassigned__', displayName: 'Other / Unassigned' }
-  }
-  const trimmed = compound.trim()
-  const base = trimmed.split('(')[0].trim()
-  if (!base) {
-    return { key: '__unassigned__', displayName: 'Other / Unassigned' }
-  }
-  return { key: base.toLowerCase(), displayName: base }
-}
-
 export default function Welcome() {
-  const { setProject, setStep } = useStore()
+  const { setProject, setStep, setCreationProductContext, isEditMode, setEditMode } = useStore()
   const { user, logout } = useAuth()
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,24 +33,32 @@ export default function Welcome() {
   const [selectedDeleteId, setSelectedDeleteId] = useState<number | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteSearchQuery, setDeleteSearchQuery] = useState('')
-  const [guideExpanded, setGuideExpanded] = useState(false)
 
-  const handleOpenGuideShortcut = () => {
-    setGuideExpanded(true)
-    setTimeout(() => {
-      const guideEl = document.getElementById('platform-workflow-guide')
-      if (guideEl) {
-        guideEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        // Briefly highlight the row border for ~1.2s
-        guideEl.style.borderColor = '#0d9488'
-        guideEl.style.boxShadow = '0 0 0 3px rgba(13, 148, 136, 0.35)'
-        setTimeout(() => {
-          guideEl.style.borderColor = 'var(--border)'
-          guideEl.style.boxShadow = 'var(--shadow-sm)'
-        }, 1200)
+  // Edit Product Name Modal State
+  const [editProductModalOpen, setEditProductModalOpen] = useState(false)
+  const [editingProductGroup, setEditingProductGroup] = useState<{ key: string; displayName: string; projects: any[] } | null>(null)
+  const [editProductNameValue, setEditProductNameValue] = useState('')
+  const [isUpdatingProductName, setIsUpdatingProductName] = useState(false)
+
+  // Safety: Edit mode always defaults to OFF on page load
+  useEffect(() => {
+    setEditMode(false)
+  }, [setEditMode])
+
+  // Safety: If Edit mode turns OFF while delete flow or modal is active, cancel it immediately
+  useEffect(() => {
+    if (!isEditMode) {
+      if (deleteMode) setDeleteMode(false)
+      if (deleteModalOpen) setDeleteModalOpen(false)
+      if (selectedDeleteId) setSelectedDeleteId(null)
+      if (deleteSearchQuery) setDeleteSearchQuery('')
+      if (editProductModalOpen) {
+        setEditProductModalOpen(false)
+        setEditingProductGroup(null)
+        setEditProductNameValue('')
       }
-    }, 50)
-  }
+    }
+  }, [isEditMode, deleteMode, deleteModalOpen, selectedDeleteId, deleteSearchQuery, editProductModalOpen])
 
   useEffect(() => {
     let retries = 3
@@ -131,6 +123,57 @@ export default function Welcome() {
     }
   }
 
+  function openEditProductModal(group: { key: string; displayName: string; projects: any[] }) {
+    setEditingProductGroup(group)
+    setEditProductNameValue(group.displayName)
+    setEditProductModalOpen(true)
+  }
+
+  async function handleConfirmRenameProduct() {
+    if (!editingProductGroup || !editProductNameValue.trim()) return
+    const newName = editProductNameValue.trim()
+    if (newName === editingProductGroup.displayName) {
+      setEditProductModalOpen(false)
+      setEditingProductGroup(null)
+      return
+    }
+
+    try {
+      setIsUpdatingProductName(true)
+      // Update each project's compound field in this product group
+      const updatePromises = editingProductGroup.projects.map(p =>
+        Projects.update(p.id, { compound: newName })
+      )
+      await Promise.all(updatePromises)
+
+      // Update local projects list
+      setProjects(prev =>
+        prev.map(p => {
+          if (editingProductGroup.projects.some(gp => gp.id === p.id)) {
+            return { ...p, compound: newName }
+          }
+          return p
+        })
+      )
+
+      // Update currentProject in store if currently loaded
+      const current = useStore.getState().currentProject
+      if (current && editingProductGroup.projects.some(gp => gp.id === current.id)) {
+        setProject({ ...current, compound: newName })
+      }
+
+      toast.success(`Product renamed to "${newName}" across ${editingProductGroup.projects.length} project${editingProductGroup.projects.length === 1 ? '' : 's'}`)
+      setEditProductModalOpen(false)
+      setEditingProductGroup(null)
+      setEditProductNameValue('')
+    } catch (err: any) {
+      console.error('Failed to rename product:', err)
+      toast.error(err?.response?.data?.detail || 'Failed to rename product')
+    } finally {
+      setIsUpdatingProductName(false)
+    }
+  }
+
   // Collapsed state map keyed by product group key
   const [collapsedProducts, setCollapsedProducts] = useState<Record<string, boolean>>(() => {
     try {
@@ -149,17 +192,6 @@ export default function Welcome() {
       } catch {}
       return next
     })
-  }
-
-  const setAllCollapsed = (collapsed: boolean) => {
-    const nextState: Record<string, boolean> = {}
-    productGroups.forEach(g => {
-      nextState[g.key] = collapsed
-    })
-    setCollapsedProducts(nextState)
-    try {
-      localStorage.setItem(PRODUCT_SECTIONS_STORAGE_KEY, JSON.stringify(nextState))
-    } catch {}
   }
 
   // Enrich projects with step and stage
@@ -358,46 +390,6 @@ export default function Welcome() {
 
           {/* Top-Right: Actions & Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-            {/* Header Shortcut: Workflow Guide */}
-            <button
-              type="button"
-              onClick={handleOpenGuideShortcut}
-              className="btn btn-secondary"
-              aria-label="Workflow Guide"
-              title="Open Platform Workflow Guide (overview & step-by-step walkthrough)"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                padding: '0.45rem 0.85rem',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                color: '#0f766e',
-                background: 'rgba(13, 148, 136, 0.08)',
-                border: '1px solid rgba(13, 148, 136, 0.25)',
-                borderRadius: '999px',
-                height: '38px',
-                boxSizing: 'border-box',
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(13, 148, 136, 0.15)'
-                e.currentTarget.style.borderColor = 'rgba(13, 148, 136, 0.45)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(13, 148, 136, 0.08)'
-                e.currentTarget.style.borderColor = 'rgba(13, 148, 136, 0.25)'
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-              </svg>
-              <span className="hidden sm:inline">Workflow Guide</span>
-            </button>
-
             {/* Search Input in Top Header */}
             <div style={{ position: 'relative', width: '280px' }}>
               <input
@@ -453,140 +445,155 @@ export default function Welcome() {
               )}
             </div>
 
-            {/* Expand all / Collapse all Toggle Buttons */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            {/* Delete Project Action Toggle (Only visible when Edit mode is ON) */}
+            {isEditMode && (
               <button
                 type="button"
-                className="btn btn-secondary"
-                onClick={() => setAllCollapsed(false)}
-                title="Expand all product sections"
+                id="delete-project-btn"
+                onClick={() => {
+                  const nextState = !deleteMode;
+                  setDeleteMode(nextState);
+                  if (nextState) {
+                    toast('Delete option enabled. Click the 🗑️ icon on any project card to delete.', {
+                      icon: '🗑️',
+                      duration: 3500
+                    });
+                  }
+                }}
+                title={deleteMode ? "Click to disable delete mode" : "Enable delete option to remove projects"}
                 style={{
-                  fontSize: '0.78rem',
-                  padding: '0.45rem 0.65rem',
-                  height: '38px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.5rem 0.95rem',
+                  background: deleteMode ? '#dc2626' : '#ffffff',
                   borderRadius: '999px',
-                  borderColor: '#cbd5e1',
-                  color: '#475569',
-                  whiteSpace: 'nowrap'
+                  border: deleteMode ? '1px solid #b91c1c' : '1px solid #fca5a5',
+                  fontSize: '0.84rem',
+                  fontWeight: 600,
+                  color: deleteMode ? '#ffffff' : '#dc2626',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  height: '38px',
+                  boxSizing: 'border-box',
+                  whiteSpace: 'nowrap',
+                  boxShadow: deleteMode ? '0 2px 8px rgba(220, 38, 38, 0.35)' : 'none',
+                  animation: 'fadeIn 0.15s ease'
+                }}
+                onMouseEnter={e => {
+                  if (!deleteMode) {
+                    e.currentTarget.style.background = '#fef2f2';
+                    e.currentTarget.style.borderColor = '#ef4444';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(239, 68, 68, 0.15)';
+                  } else {
+                    e.currentTarget.style.background = '#b91c1c';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!deleteMode) {
+                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.borderColor = '#fca5a5';
+                    e.currentTarget.style.transform = 'none';
+                    e.currentTarget.style.boxShadow = 'none';
+                  } else {
+                    e.currentTarget.style.background = '#dc2626';
+                  }
                 }}
               >
-                Expand all
+                {deleteMode ? (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                    <span>Exit Delete Mode</span>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      width="15"
+                      height="15"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      viewBox="0 0 24 24"
+                    >
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <line x1="10" y1="11" x2="10" y2="17" />
+                      <line x1="14" y1="11" x2="14" y2="17" />
+                    </svg>
+                    <span>Delete Project</span>
+                  </>
+                )}
               </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setAllCollapsed(true)}
-                title="Collapse all product sections"
-                style={{
-                  fontSize: '0.78rem',
-                  padding: '0.45rem 0.65rem',
-                  height: '38px',
-                  borderRadius: '999px',
-                  borderColor: '#cbd5e1',
-                  color: '#475569',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                Collapse all
-              </button>
-            </div>
+            )}
 
-            {/* Delete Project Action Toggle */}
+            {/* Edit Mode Toggle Button */}
             <button
               type="button"
-              id="delete-project-btn"
-              onClick={() => {
-                const nextState = !deleteMode;
-                setDeleteMode(nextState);
-                if (nextState) {
-                  toast('Delete option enabled. Click the 🗑️ icon on any project card to delete.', {
-                    icon: '🗑️',
-                    duration: 3500
-                  });
-                }
-              }}
-              title={deleteMode ? "Click to disable delete mode" : "Enable delete option to remove projects"}
+              className={`btn ${isEditMode ? 'btn-primary' : 'btn-secondary'}`}
+              aria-pressed={isEditMode}
+              aria-label={isEditMode ? 'Exit Edit Mode' : 'Enable Edit Mode'}
+              title={isEditMode ? 'Turn off Edit mode' : 'Turn on Edit mode to add products and projects'}
+              onClick={() => setEditMode(!isEditMode)}
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                padding: '0.5rem 0.95rem',
-                background: deleteMode ? '#dc2626' : '#ffffff',
-                borderRadius: '999px',
-                border: deleteMode ? '1px solid #b91c1c' : '1px solid #fca5a5',
-                fontSize: '0.84rem',
+                padding: '0.6rem 1rem',
+                fontSize: '0.85rem',
                 fontWeight: 600,
-                color: deleteMode ? '#ffffff' : '#dc2626',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                height: '38px',
-                boxSizing: 'border-box',
-                whiteSpace: 'nowrap',
-                boxShadow: deleteMode ? '0 2px 8px rgba(220, 38, 38, 0.35)' : 'none'
-              }}
-              onMouseEnter={e => {
-                if (!deleteMode) {
-                  e.currentTarget.style.background = '#fef2f2';
-                  e.currentTarget.style.borderColor = '#ef4444';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 2px 6px rgba(239, 68, 68, 0.15)';
-                } else {
-                  e.currentTarget.style.background = '#b91c1c';
-                }
-              }}
-              onMouseLeave={e => {
-                if (!deleteMode) {
-                  e.currentTarget.style.background = '#ffffff';
-                  e.currentTarget.style.borderColor = '#fca5a5';
-                  e.currentTarget.style.transform = 'none';
-                  e.currentTarget.style.boxShadow = 'none';
-                } else {
-                  e.currentTarget.style.background = '#dc2626';
-                }
+                gap: '0.45rem',
+                backgroundColor: isEditMode ? 'var(--primary)' : '#ffffff',
+                borderColor: isEditMode ? 'var(--primary)' : 'var(--border)',
+                color: isEditMode ? '#ffffff' : 'var(--text-secondary)',
+                boxShadow: isEditMode ? '0 2px 8px rgba(0, 91, 170, 0.25)' : 'none',
+                transition: 'all 0.15s ease'
               }}
             >
-              {deleteMode ? (
+              {isEditMode ? (
                 <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  <span>Exit Delete Mode</span>
+                  <span>Editing</span>
                 </>
               ) : (
                 <>
-                  <svg
-                    width="15"
-                    height="15"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    viewBox="0 0 24 24"
-                  >
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    <line x1="10" y1="11" x2="10" y2="17" />
-                    <line x1="14" y1="11" x2="14" y2="17" />
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                   </svg>
-                  <span>Delete Project</span>
+                  <span>Edit</span>
                 </>
               )}
             </button>
 
-            {/* Primary Action Button */}
-            <button
-              className="btn btn-primary"
-              style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', gap: '0.45rem', fontWeight: 700 }}
-              onClick={() => { setProject(null); setStep('create-project'); }}
-            >
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              New Project
-            </button>
+            {/* Primary Action Button: New Product (Only visible when Edit mode is ON) */}
+            {isEditMode && (
+              <button
+                className="btn btn-primary"
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  fontSize: '0.9rem',
+                  gap: '0.45rem',
+                  fontWeight: 700,
+                  animation: 'fadeIn 0.15s ease'
+                }}
+                onClick={() => {
+                  setCreationProductContext(null)
+                  setProject(null)
+                  setStep('create-project')
+                }}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                New Product
+              </button>
+            )}
 
             {/* Logout Button */}
             <button
@@ -617,6 +624,45 @@ export default function Welcome() {
 
       {/* ── Main Landing Body ── */}
       <main style={{ flex: 1, width: '100%', padding: '1.5rem 2.5rem 2.5rem 2.5rem' }}>
+        {/* Edit Mode Active Banner / Indicator */}
+        {isEditMode && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.65rem 1.25rem',
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: '1.25rem',
+              fontSize: '0.84rem',
+              color: '#1e40af',
+              animation: 'fadeIn 0.15s ease'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1rem' }}>✏️</span>
+              <span>
+                <strong>Edit Mode Active:</strong> You can add new products via the top bar or add new projects directly inside any product section.
+              </span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              style={{
+                fontSize: '0.75rem',
+                padding: '0.2rem 0.65rem',
+                borderColor: '#93c5fd',
+                color: '#005baa',
+                background: '#ffffff'
+              }}
+              onClick={() => setEditMode(false)}
+            >
+              Done Editing ✕
+            </button>
+          </div>
+        )}
 
 
         {/* Global Search Status Banner */}
@@ -718,51 +764,85 @@ export default function Welcome() {
                 Launch a new QbD design of experiments campaign to begin the workflow.
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button className="btn btn-primary" onClick={() => { setProject(null); setStep('create-project'); }}>
-                  + Start New Project
-                </button>
+                {isEditMode ? (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setCreationProductContext(null)
+                      setProject(null)
+                      setStep('create-project')
+                    }}
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    New Product
+                  </button>
+                ) : (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => setEditMode(true)}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                    </svg>
+                    Enable Edit Mode to Add Product
+                  </button>
+                )}
               </div>
             </div>
           ) : (
             <>
               {/* ── Product Sections (Grouped by API / Compound) ── */}
-              {filteredProductGroups.map(group => (
-                <ProjectSection
-                  key={group.key}
-                  id={`section-product-${group.key}`}
-                  title={group.displayName}
-                  count={group.projects.length}
-                  filteredCount={group.filteredProjects.length}
-                  subtitle={group.subtitle}
-                  accentColor="#005baa"
-                  badgeText="PRODUCT"
-                  isCollapsed={collapsedProducts[group.key] ?? false}
-                  onToggleCollapse={() => toggleProductCollapse(group.key)}
-                  searchActive={searchActive}
-                  searchQuery={searchQuery}
-                  onClearSearch={() => setSearchQuery('')}
-                  emptyStateMessage={`No projects under ${group.displayName} currently.`}
-                >
-                  {group.filteredProjects.map(p => (
-                    <ProjectCard
-                      key={p.id}
-                      project={p}
-                      onOpen={openProject}
-                      deleteEnabled={deleteMode}
-                      onDelete={(_e, id) => openDeleteModal(id)}
-                    />
-                  ))}
-                </ProjectSection>
-              ))}
+              {filteredProductGroups.map(group => {
+                // Find canonical full compound string from projects or group name
+                const fullCompound = group.projects.find(p => p.compound && p.compound.trim())?.compound || (group.key === '__unassigned__' ? '' : group.displayName)
+                const isUnassigned = group.key === '__unassigned__'
+
+                return (
+                  <ProjectSection
+                    key={group.key}
+                    id={`section-product-${group.key}`}
+                    title={group.displayName}
+                    count={group.projects.length}
+                    filteredCount={group.filteredProjects.length}
+                    subtitle={group.subtitle}
+                    accentColor="#005baa"
+                    badgeText="PRODUCT"
+                    isCollapsed={collapsedProducts[group.key] ?? false}
+                    onToggleCollapse={() => toggleProductCollapse(group.key)}
+                    searchActive={searchActive}
+                    searchQuery={searchQuery}
+                    onClearSearch={() => setSearchQuery('')}
+                    emptyStateMessage={`No projects under ${group.displayName} currently.`}
+                    isEditMode={isEditMode}
+                    onEditProductName={isUnassigned ? undefined : () => openEditProductModal(group)}
+                    onNewProject={() => {
+                      setCreationProductContext({
+                        productName: isUnassigned ? '' : group.displayName,
+                        fullCompound: isUnassigned ? '' : fullCompound,
+                        isLocked: !isUnassigned
+                      })
+                      setProject(null)
+                      setStep('create-project')
+                    }}
+                  >
+                    {group.filteredProjects.map(p => (
+                      <ProjectCard
+                        key={p.id}
+                        project={p}
+                        onOpen={openProject}
+                        deleteEnabled={deleteMode}
+                        onDelete={(_e, id) => openDeleteModal(id)}
+                      />
+                    ))}
+                  </ProjectSection>
+                )
+              })}
             </>
           )}
-
-          {/* ── Section 4: Platform Workflow Guide (Always available, collapsed by default) ── */}
-          <PlatformWorkflowGuideSection
-            id="platform-workflow-guide"
-            isExpanded={guideExpanded}
-            onToggleExpand={() => setGuideExpanded(!guideExpanded)}
-          />
         </div>
       </main>
 
@@ -1159,6 +1239,168 @@ export default function Welcome() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Product Name Modal ── */}
+      {editProductModalOpen && editingProductGroup && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(6px)',
+            zIndex: 1100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.5rem'
+          }}
+          onClick={e => {
+            if (e.target === e.currentTarget && !isUpdatingProductName) {
+              setEditProductModalOpen(false)
+              setEditingProductGroup(null)
+            }
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              width: '100%',
+              maxWidth: '480px',
+              padding: '1.75rem',
+              background: '#ffffff',
+              borderRadius: '16px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              position: 'relative'
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: '1.25rem',
+                borderBottom: '1px solid #f1f5f9',
+                paddingBottom: '1rem'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '10px',
+                    background: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#005baa'
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', margin: 0, lineHeight: 1.2 }}>
+                    Edit Product Name
+                  </h2>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                    Updating will rename the compound across all {editingProductGroup.projects.length} linked project{editingProductGroup.projects.length === 1 ? '' : 's'}.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  if (!isUpdatingProductName) {
+                    setEditProductModalOpen(false)
+                    setEditingProductGroup(null)
+                  }
+                }}
+                disabled={isUpdatingProductName}
+                style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form
+              onSubmit={e => {
+                e.preventDefault()
+                handleConfirmRenameProduct()
+              }}
+            >
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '0.45rem' }}>
+                  Product (API / Compound) Name *
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={editProductNameValue}
+                  onChange={e => setEditProductNameValue(e.target.value)}
+                  placeholder="e.g. Propofol, Loxoprofen, BXP-001"
+                  autoFocus
+                  disabled={isUpdatingProductName}
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', fontSize: '0.9rem' }}
+                />
+                <p style={{ margin: '0.4rem 0 0', fontSize: '0.74rem', color: '#64748b' }}>
+                  Current: <strong>{editingProductGroup.displayName}</strong>
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    if (!isUpdatingProductName) {
+                      setEditProductModalOpen(false)
+                      setEditingProductGroup(null)
+                    }
+                  }}
+                  disabled={isUpdatingProductName}
+                  style={{ padding: '0.55rem 1.1rem', fontSize: '0.85rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={!editProductNameValue.trim() || isUpdatingProductName}
+                  style={{
+                    padding: '0.55rem 1.25rem',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem'
+                  }}
+                >
+                  {isUpdatingProductName ? (
+                    <>
+                      <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px' }} />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>Save Changes</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

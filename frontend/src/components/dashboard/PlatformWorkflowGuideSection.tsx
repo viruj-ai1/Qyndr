@@ -190,24 +190,28 @@ export const PlatformWorkflowGuideSection: React.FC<PlatformWorkflowGuideSection
             </div>
           </div>
 
-          {/* Right: Expand / Collapse Button */}
+          {/* Right: Visual Chevron Indicator */}
           <div className="project-section-header-right">
-            <button
-              type="button"
-              className="section-collapse-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleToggle();
+            <span
+              className="section-chevron-icon"
+              style={{
+                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
               }}
-              aria-label={isExpanded ? 'Collapse Platform Workflow Guide' : 'Expand Platform Workflow Guide'}
-              title={isExpanded ? 'Collapse guide' : 'Expand guide'}
-              style={{ fontSize: '0.75rem' }}
+              aria-hidden="true"
             >
-              <span>{isExpanded ? 'Collapse' : 'Expand'}</span>
-              <span style={{ fontSize: '0.72rem', display: 'inline-block' }}>
-                {isExpanded ? '▼' : '▶'}
-              </span>
-            </button>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </span>
           </div>
         </div>
 

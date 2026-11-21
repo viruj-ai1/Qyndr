@@ -12,6 +12,9 @@ export interface ProjectSectionProps {
   badgeText?: string;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  onNewProject?: () => void;
+  onEditProductName?: () => void;
+  isEditMode?: boolean;
   defaultCollapsed?: boolean;
   searchActive?: boolean;
   searchQuery?: string;
@@ -31,6 +34,9 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
   badgeText,
   isCollapsed: controlledIsCollapsed,
   onToggleCollapse,
+  onNewProject,
+  onEditProductName,
+  isEditMode = false,
   defaultCollapsed = false,
   searchActive = false,
   searchQuery = '',
@@ -86,11 +92,32 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
   const effectiveFilteredCount = filteredCount !== undefined ? filteredCount : count;
   const hasNoMatches = searchActive && count > 0 && effectiveFilteredCount === 0;
   const isSectionEmpty = count === 0;
+  const bodyId = id ? `${id}-body` : `section-${title.toLowerCase().replace(/[^a-z0-9]/g, '-')}-body`;
 
   return (
     <section id={id} className="project-section">
-      {/* ── Section Header ── */}
-      <div className="project-section-header">
+      {/* ── Section Header (Whole row clickable toggle) ── */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={!effectiveCollapsed}
+        aria-controls={bodyId}
+        onClick={handleToggle}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleToggle();
+          } else if (e.key === ' ') {
+            e.preventDefault();
+            handleToggle();
+          }
+        }}
+        className="project-section-header"
+        style={{
+          backgroundColor: isEditMode ? 'rgba(0, 91, 170, 0.025)' : undefined,
+          transition: 'background-color 0.15s ease'
+        }}
+      >
         <div className="project-section-header-left">
           {/* Stage Accent Pill / Bar */}
           <div
@@ -101,9 +128,54 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               {/* Section Title */}
-              <h3 className="project-section-title">
+              <h3 className="project-section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                 {stageMeta.icon && <span>{stageMeta.icon}</span>}
                 <span>{title}</span>
+                {isEditMode && onEditProductName && (
+                  <button
+                    type="button"
+                    aria-label={`Edit product name for ${title}`}
+                    title={`Rename product "${title}"`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditProductName();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.stopPropagation();
+                        if (e.key === ' ') e.preventDefault();
+                        onEditProductName();
+                      }
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: '2px 4px',
+                      cursor: 'pointer',
+                      color: '#005baa',
+                      borderRadius: '4px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginLeft: '0.2rem',
+                      opacity: 0.85,
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.opacity = '1';
+                      e.currentTarget.style.backgroundColor = '#eff6ff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.opacity = '0.85';
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                    </svg>
+                  </button>
+                )}
               </h3>
 
               {/* Stage Accent Badge */}
@@ -150,33 +222,90 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
           </div>
         </div>
 
-        {/* ── Header Right: Search Status & Collapsible Swimlane Button ── */}
-        <div className="project-section-header-right">
+        {/* ── Header Right: Search Status, + New Project Button & Visual Chevron Indicator ── */}
+        <div className="project-section-header-right" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {searchActive && searchQuery && (
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               {effectiveFilteredCount === 0 ? 'No matches' : `Matching "${searchQuery}"`}
             </span>
           )}
 
-          <button
-            type="button"
-            className="section-collapse-btn"
-            onClick={handleToggle}
-            aria-label={effectiveCollapsed ? `Expand ${title}` : `Collapse ${title}`}
-            title={effectiveCollapsed ? 'Expand section' : 'Collapse section'}
-            style={{ fontSize: '0.75rem' }}
+          {isEditMode && onNewProject && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm section-new-project-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onNewProject();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.stopPropagation();
+                  if (e.key === ' ') e.preventDefault();
+                  onNewProject();
+                }
+              }}
+              aria-label={`Create new project in ${title}`}
+              title={`Create new project in ${title}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: '#005baa',
+                background: '#ffffff',
+                border: '1px solid #93c5fd',
+                borderRadius: '6px',
+                padding: '0.25rem 0.65rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                animation: 'fadeIn 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#eff6ff';
+                e.currentTarget.style.borderColor = '#005baa';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#ffffff';
+                e.currentTarget.style.borderColor = '#93c5fd';
+              }}
+            >
+              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>New Project</span>
+            </button>
+          )}
+
+          {/* Smooth-rotating chevron indicator */}
+          <span
+            className="section-chevron-icon"
+            style={{
+              transform: effectiveCollapsed ? 'rotate(0deg)' : 'rotate(90deg)'
+            }}
+            aria-hidden="true"
           >
-            <span>{effectiveCollapsed ? 'Expand' : 'Collapse'}</span>
-            <span style={{ fontSize: '0.72rem', display: 'inline-block' }}>
-              {effectiveCollapsed ? '▶' : '▼'}
-            </span>
-          </button>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </span>
         </div>
       </div>
 
       {/* ── Section Content Body ── */}
       {!effectiveCollapsed ? (
-        <div className="project-section-body">
+        <div id={bodyId} className="project-section-body">
           {isSectionEmpty ? (
             /* Clean, subtle empty placeholder when 0 projects are in this stage */
             <div className="project-section-empty" style={{ padding: '2.5rem 1.5rem' }}>

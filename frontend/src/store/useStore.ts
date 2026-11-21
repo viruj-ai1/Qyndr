@@ -182,10 +182,18 @@ interface Store {
   isBayesianEnabled: boolean
   stepStatuses:    Record<string, 'completed' | 'current' | 'locked' | 'editing' | 'needs-review'>
   unlockedStep:    string | null
+  isEditMode:      boolean
+  creationProductContext?: {
+    productName: string
+    fullCompound: string
+    isLocked: boolean
+  } | null
   loading:         boolean
 
   // Actions
   setProject:      (p: Project | null) => void
+  setEditMode:     (v: boolean) => void
+  setCreationProductContext: (ctx: { productName: string; fullCompound: string; isLocked: boolean } | null) => void
   setStep:         (s: Step) => void
   setStepStatuses: (statuses: Record<string, 'completed' | 'current' | 'locked' | 'editing' | 'needs-review'>) => void
   setUnlockedStep: (stepId: string | null) => void
@@ -207,7 +215,7 @@ interface Store {
   reset:           () => void
 }
 
-const INITIAL: Omit<Store, keyof { setProject: any; setStep: any; setStepStatuses: any; setUnlockedStep: any; setActiveStageId: any; setRpnThreshold: any; setQtpp: any; setCqas: any; setStages: any; setRiskAssessments: any; setApiTargets: any; addAuditLog: any; setExperiments: any; setAnalysis: any; setOptimum: any; setBayes: any; setFinal: any; enableBayesianOpt: any; setLoading: any; reset: any }> = {
+const INITIAL: Omit<Store, keyof { setProject: any; setEditMode: any; setCreationProductContext: any; setStep: any; setStepStatuses: any; setUnlockedStep: any; setActiveStageId: any; setRpnThreshold: any; setQtpp: any; setCqas: any; setStages: any; setRiskAssessments: any; setApiTargets: any; addAuditLog: any; setExperiments: any; setAnalysis: any; setOptimum: any; setBayes: any; setFinal: any; enableBayesianOpt: any; setLoading: any; reset: any }> = {
   currentProject:  null,
   currentStep:     'welcome',
   activeStageId:   null,
@@ -227,6 +235,8 @@ const INITIAL: Omit<Store, keyof { setProject: any; setStep: any; setStepStatuse
   isBayesianEnabled: false,
   stepStatuses:    {},
   unlockedStep:    null,
+  creationProductContext: null,
+  isEditMode:      false,
   loading:         false,
 }
 
@@ -345,6 +355,8 @@ export const useStore = create<Store>()(
       setBayes:        d  => set({ bayesResult: d }),
       setFinal:        d  => set({ finalResult: d }),
       enableBayesianOpt: v => set({ isBayesianEnabled: v }),
+      setEditMode:     v => set({ isEditMode: v }),
+      setCreationProductContext: ctx => set({ creationProductContext: ctx }),
       setLoading:      v  => set({ loading: v }),
       reset:          () => set({ ...INITIAL }),
     }),

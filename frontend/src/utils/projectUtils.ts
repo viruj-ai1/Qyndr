@@ -21,6 +21,22 @@ export function getProjectStage(
   return currentStep >= 15 ? 'completed' : currentStep >= 7 ? 'ongoing' : 'planning';
 }
 
+/**
+ * Normalizes an API / Compound name for grouping.
+ * Trims whitespace, takes text before the first '(', and uses lowercase for keying.
+ */
+export function normalizeProductGroup(compound?: string | null): { key: string; displayName: string } {
+  if (!compound || !compound.trim()) {
+    return { key: '__unassigned__', displayName: 'Other / Unassigned' };
+  }
+  const trimmed = compound.trim();
+  const base = trimmed.split('(')[0].trim();
+  if (!base) {
+    return { key: '__unassigned__', displayName: 'Other / Unassigned' };
+  }
+  return { key: base.toLowerCase(), displayName: base };
+}
+
 export const STEP_KEY_TO_NUMBER: Record<string, number> = {
   'welcome': 1,
   'create-project': 1,

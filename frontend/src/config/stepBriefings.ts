@@ -43,32 +43,18 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
     output: 'Prioritized CQA registry and ranked FMEA risk matrix isolating high-risk parameters for DoE.'
   },
 
-  'stage-campaign-matrix': {
-    id: 'stage-campaign-matrix',
-    step: 3,
-    title: 'Stage Campaign Matrix',
-    purpose: 'Review prioritized CPPs and lock the single-stage campaign scope for experimental design.',
-    youDo: [
-      'Review prioritized parameters and critical parameter counts for the unit operation.',
-      'Lock the campaign parameters entering DoE experimentation.'
-    ],
-    systemDoes: [
-      'Validates parameter completeness and boundary definitions.',
-      'Transitions locked parameters directly into the factor definition workspace.'
-    ],
-    output: 'Scoped, validated parameter set ready for experimental factor formulation.'
-  },
-
   'define-factors': {
     id: 'define-factors',
-    step: 4,
+    step: 3,
     title: 'Define Factors & Responses',
     purpose: 'Establish operational ranges for process factors and quantitative metrics for response variables.',
     youDo: [
+      'Select active synthesis stage (for multi-stage projects) and manage campaign status.',
       'Set low, high, and baseline operating levels and engineering units for each factor.',
       'Confirm response variables (CQAs), measurement units, and goals (Maximize, Minimize, or Target).'
     ],
     systemDoes: [
+      'Pre-populates high-risk CPPs from CQA risk assessment into the active stage.',
       'Validates factor numeric ranges, degrees of freedom, and constraints.',
       'Prepares mathematical design space bounds for DOE algorithmic generation.'
     ],
@@ -77,7 +63,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'recommend-doe': {
     id: 'recommend-doe',
-    step: 5,
+    step: 4,
     title: 'Recommend DOE',
     purpose: 'Evaluate factor space geometry and recommend the optimal experimental design strategy.',
     youDo: [
@@ -93,7 +79,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'generate-doe': {
     id: 'generate-doe',
-    step: 6,
+    step: 5,
     title: 'DOE Matrix & Results',
     purpose: 'Generate randomized experimental run matrix, execute laboratory trials, and record response data.',
     youDo: [
@@ -109,7 +95,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'initial-optimization': {
     id: 'initial-optimization',
-    step: 7,
+    step: 6,
     title: 'Initial Optimum',
     purpose: 'Fit response surface regression models to uncover factor effects and identify initial sweet spot.',
     youDo: [
@@ -125,7 +111,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'enough-data': {
     id: 'enough-data',
-    step: 8,
+    step: 7,
     title: 'Enough Data?',
     purpose: 'Assess model predictive certainty and determine whether to proceed directly or run Bayesian iterations.',
     youDo: [
@@ -141,7 +127,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'gp-model': {
     id: 'gp-model',
-    step: 9,
+    step: 8,
     title: 'GP Model',
     purpose: 'Fit non-parametric Gaussian Process regression surrogate to model complex response behaviors.',
     youDo: [
@@ -157,7 +143,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'bayesian-opt': {
     id: 'bayesian-opt',
-    step: 10,
+    step: 9,
     title: 'Bayesian Optimization',
     purpose: 'Leverage acquisition functions to balance exploration and exploitation for the next experiment.',
     youDo: [
@@ -173,7 +159,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'new-experiment': {
     id: 'new-experiment',
-    step: 11,
+    step: 10,
     title: 'New Experiment',
     purpose: 'Execute the Bayesian-recommended experiment in the laboratory and record observed responses.',
     youDo: [
@@ -189,7 +175,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'final-optimum': {
     id: 'final-optimum',
-    step: 12,
+    step: 11,
     title: 'Final Optimum',
     purpose: 'Synthesize all empirical runs to establish the global Pareto optimum and Proven Acceptable Ranges.',
     youDo: [
@@ -206,7 +192,7 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
 
   'report': {
     id: 'report',
-    step: 13,
+    step: 12,
     title: 'Generate Report',
     purpose: 'Compile comprehensive QbD regulatory summary documenting the complete development lifecycle.',
     youDo: [

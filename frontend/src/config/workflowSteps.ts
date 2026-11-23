@@ -33,26 +33,17 @@ export const WORKFLOW_STEPS: WorkflowStepConfig[] = [
     description: 'Critical Quality Attributes and parameter risk walk (RPN/CPPs)'
   },
   {
-    id: 'stage-campaign-matrix',
-    number: 3,
-    label: 'Stage Campaign Matrix',
-    phase: 'Phase 0 · Campaign Lock',
-    route: 'stage-campaign-matrix',
-    dependencies: ['cqa-risk'],
-    description: 'Prioritized CPPs and DoE campaign initialization'
-  },
-  {
     id: 'define-factors',
-    number: 4,
+    number: 3,
     label: 'Define Factors & Responses',
     phase: 'Phase 1 · DoE Formulation',
     route: 'define-factors',
-    dependencies: ['stage-campaign-matrix'],
+    dependencies: ['cqa-risk'],
     description: 'Experimental ranges, units, and target responses'
   },
   {
     id: 'recommend-doe',
-    number: 5,
+    number: 4,
     label: 'Recommend DOE',
     phase: 'Phase 1 · Design Selection',
     route: 'recommend-doe',
@@ -61,7 +52,7 @@ export const WORKFLOW_STEPS: WorkflowStepConfig[] = [
   },
   {
     id: 'generate-doe',
-    number: 6,
+    number: 5,
     label: 'DOE Matrix & Results',
     phase: 'Phase 1 · Execution & Trials',
     route: 'generate-doe',
@@ -70,7 +61,7 @@ export const WORKFLOW_STEPS: WorkflowStepConfig[] = [
   },
   {
     id: 'initial-optimization',
-    number: 7,
+    number: 6,
     label: 'Initial Optimum',
     phase: 'Phase 2 · Empirical Modeling',
     route: 'initial-optimization',
@@ -79,7 +70,7 @@ export const WORKFLOW_STEPS: WorkflowStepConfig[] = [
   },
   {
     id: 'enough-data',
-    number: 8,
+    number: 7,
     label: 'Enough Data?',
     phase: 'Phase 2 · Decision Gate',
     route: 'enough-data',
@@ -88,7 +79,7 @@ export const WORKFLOW_STEPS: WorkflowStepConfig[] = [
   },
   {
     id: 'gp-model',
-    number: 9,
+    number: 8,
     label: 'GP Model',
     phase: 'Phase 2 · Active Learning',
     route: 'gp-model',
@@ -97,7 +88,7 @@ export const WORKFLOW_STEPS: WorkflowStepConfig[] = [
   },
   {
     id: 'bayesian-opt',
-    number: 10,
+    number: 9,
     label: 'Bayesian Optimization',
     phase: 'Phase 2 · Smart Acquisition',
     route: 'bayesian-opt',
@@ -106,7 +97,7 @@ export const WORKFLOW_STEPS: WorkflowStepConfig[] = [
   },
   {
     id: 'new-experiment',
-    number: 11,
+    number: 10,
     label: 'New Experiment',
     phase: 'Phase 2 · Iterative Trials',
     route: 'new-experiment',
@@ -115,7 +106,7 @@ export const WORKFLOW_STEPS: WorkflowStepConfig[] = [
   },
   {
     id: 'final-optimum',
-    number: 12,
+    number: 11,
     label: 'Final Optimum',
     phase: 'Phase 3 · Control Space',
     route: 'final-optimum',
@@ -124,7 +115,7 @@ export const WORKFLOW_STEPS: WorkflowStepConfig[] = [
   },
   {
     id: 'report',
-    number: 13,
+    number: 12,
     label: 'Generate Report',
     phase: 'Phase 3 · Audit Dossier',
     route: 'report',

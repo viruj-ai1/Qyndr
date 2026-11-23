@@ -5,7 +5,8 @@ import {
   getStepNumber,
   getStepLabel,
   getProjectStage,
-  formatDateDMY
+  formatDateDMY,
+  TOTAL_WORKFLOW_STEPS
 } from '../../utils/projectUtils';
 
 export interface ProjectCardProps {
@@ -27,8 +28,10 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   const stageKey: ProjectStage = project._stage ?? getProjectStage(stepNum, isFinished, project.status);
   const stageMeta = STAGE_META[stageKey] || STAGE_META.planning;
 
-  const progressPct = Math.round((stepNum / 17) * 100);
+  const totalSteps = TOTAL_WORKFLOW_STEPS || 16;
+  const progressPct = Math.min(100, Math.round((stepNum / totalSteps) * 100));
   const runsCount = (Array.isArray(project.experiments) ? project.experiments.length : project.experiment_count) || 0;
+  const stageCount = Array.isArray(project.stages_data) ? project.stages_data.length : 0;
 
   return (
     <div
@@ -186,7 +189,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               {stepLabel}
             </span>
             <span style={{ color: 'var(--text-muted)' }}>
-              Step {stepNum} of 17 ({progressPct}%)
+              Step {stepNum} of {totalSteps} ({progressPct}%)
             </span>
           </div>
           <div className="stage-progress-bar">
@@ -201,7 +204,23 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         </div>
 
         {/* Footer Metadata: Runs count, DoE methodology tag, Iteration tag */}
-        <div className="project-card-meta" style={{ minHeight: '22px', fontSize: '0.75rem', fontWeight: 500 }}>
+        <div className="project-card-meta" style={{ minHeight: '22px', fontSize: '0.75rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+          {stageCount >= 2 && (
+            <span
+              className="badge"
+              style={{
+                fontSize: '0.7rem',
+                padding: '0.1rem 0.4rem',
+                backgroundColor: '#eff6ff',
+                color: '#1d4ed8',
+                border: '1px solid #bfdbfe',
+                fontWeight: 600
+              }}
+              title={`Multi-stage project: ${stageCount} synthesis stages`}
+            >
+              {stageCount} Stages
+            </span>
+          )}
           <span>📊 {runsCount} runs</span>
           {project.doe_type && <span>🧪 {project.doe_type}</span>}
           {project.bayes_iter > 0 && (

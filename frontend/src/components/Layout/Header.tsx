@@ -45,10 +45,28 @@ export default function Header() {
                 </span>
               )}
 
-              {activeStage && (
-                <span className="badge badge-primary" style={{ marginLeft: '0.5rem', fontSize: '0.75rem', padding: '0.15rem 0.5rem' }}>
+              {stages.length >= 2 && activeStage && (
+                <button
+                  type="button"
+                  className="badge badge-primary"
+                  onClick={() => {
+                    setStep('define-factors')
+                    setTimeout(() => {
+                      const el = document.getElementById('stage-switcher-section')
+                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }, 50)
+                  }}
+                  title="Click to jump to Stage section in Define Factors"
+                  style={{
+                    marginLeft: '0.5rem',
+                    fontSize: '0.75rem',
+                    padding: '0.15rem 0.5rem',
+                    cursor: 'pointer',
+                    border: 'none'
+                  }}
+                >
                   Active Stage: {activeStage.name}
-                </span>
+                </button>
               )}
             </div>
           ) : (

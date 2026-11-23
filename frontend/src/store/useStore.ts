@@ -244,7 +244,7 @@ export function normalizeStep(s?: string | null): Step {
   if (!s) return 'create-project'
   if (s === 'qtpp') return 'create-project'
   if (s === 'cqa' || s === 'risk-assessment' || s === 'route-mapping') return 'cqa-risk'
-  if (s === 'phase0-summary' || s === 'campaign-dashboard' || s === 'stage-overview') return 'stage-campaign-matrix'
+  if (s === 'phase0-summary' || s === 'campaign-dashboard' || s === 'stage-overview' || s === 'stage-campaign-matrix' || s === 'understand-process') return 'define-factors'
   if (s === 'statistical-analysis') return 'initial-optimization'
   if (s === 'lab-experiments' || s === 'upload-results') return 'generate-doe'
   if (s === 'lab-new') return 'new-experiment'

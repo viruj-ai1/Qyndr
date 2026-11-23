@@ -436,7 +436,7 @@ export default function CQARiskAssessment() {
         })
         addAuditLog('CQA_RISK_COMPLETE', `Completed CQA & Risk Assessment with ${cqaItems.length} CQAs and ${currentParams.length} parameters.`)
         toast.success('CQA & Risk Assessment confirmed!')
-        setStep('stage-campaign-matrix')
+        setStep('define-factors')
       }
     } catch (e: any) {
       console.error('Failed to complete CQA & Risk Assessment:', e)
@@ -488,7 +488,7 @@ export default function CQARiskAssessment() {
             disabled={saving || !canComplete}
             style={{ fontWeight: 600 }}
           >
-            {saving ? 'Completing…' : 'Confirm & Continue to Stage Campaign Matrix →'}
+            {saving ? 'Completing…' : 'Confirm & Continue to Define Factors →'}
           </button>
         </div>
       </div>

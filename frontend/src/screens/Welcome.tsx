@@ -12,7 +12,8 @@ import {
   getStepLabel,
   STAGE_META,
   formatDateDMY,
-  normalizeProductGroup
+  normalizeProductGroup,
+  TOTAL_WORKFLOW_STEPS
 } from '../utils/projectUtils'
 import {
   ProjectSection,
@@ -1055,7 +1056,7 @@ export default function Welcome() {
                     >
                       <div>
                         <div style={{ fontWeight: 600, color: '#334155' }}>Workflow Step</div>
-                        <div>Step {selectedProjectDetails._stepNum} of 17</div>
+                        <div>Step {selectedProjectDetails._stepNum} of {TOTAL_WORKFLOW_STEPS}</div>
                       </div>
                       <div>
                         <div style={{ fontWeight: 600, color: '#334155' }}>Experiments</div>
@@ -1149,7 +1150,7 @@ export default function Welcome() {
                                 {p.name}
                               </div>
                               <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                {p.compound ? `API: ${p.compound}` : 'Standard QbD'} · Step {p._stepNum} of 17
+                                {p.compound ? `API: ${p.compound}` : 'Standard QbD'} · Step {p._stepNum} of {TOTAL_WORKFLOW_STEPS}
                               </div>
                             </div>
                             <button

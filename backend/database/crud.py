@@ -55,11 +55,10 @@ def create_project_with_qtpp(db: Session, data: schemas.ProjectWithQTPPCreate) -
     # Derive single stage from project name and unit op
     single_stage = derive_single_stage(payload.get("name", ""), unit_op, payload.get("compound", ""))
     
-    # Initialize step statuses for 13-step workflow: create-project completed, cqa-risk current, rest locked
+    # Initialize step statuses for workflow: create-project completed, cqa-risk current, rest locked
     step_statuses = {
         "create-project": "completed",
         "cqa-risk": "current",
-        "stage-campaign-matrix": "locked",
         "define-factors": "locked",
         "recommend-doe": "locked",
         "generate-doe": "locked",

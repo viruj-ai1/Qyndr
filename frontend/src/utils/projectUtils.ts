@@ -3,10 +3,12 @@
 
 export type ProjectStage = 'planning' | 'ongoing' | 'completed';
 
+export const TOTAL_WORKFLOW_STEPS = 16;
+
 /**
  * Classifies a project into one of the three workflow stages:
- * - Planning: Steps 1 – 6 or status === 'PLANNING'
- * - On-going: Steps 7 – 14 or status === 'ON-GOING' / 'ONGOING'
+ * - Planning: Steps 1 – 5 or status === 'PLANNING'
+ * - On-going: Steps 6 – 14 or status === 'ON-GOING' / 'ONGOING'
  * - Completed: Steps 15 – 16 or status === 'COMPLETED' or isFinished
  */
 export function getProjectStage(
@@ -16,9 +18,9 @@ export function getProjectStage(
 ): ProjectStage {
   const normStatus = (status || '').trim().toUpperCase();
   if (normStatus === 'COMPLETED' || isFinished || currentStep >= 15) return 'completed';
-  if (normStatus === 'ON-GOING' || normStatus === 'ONGOING' || (currentStep >= 7 && currentStep <= 14)) return 'ongoing';
-  if (normStatus === 'PLANNING' || currentStep <= 6) return 'planning';
-  return currentStep >= 15 ? 'completed' : currentStep >= 7 ? 'ongoing' : 'planning';
+  if (normStatus === 'ON-GOING' || normStatus === 'ONGOING' || (currentStep >= 6 && currentStep <= 14)) return 'ongoing';
+  if (normStatus === 'PLANNING' || currentStep <= 5) return 'planning';
+  return currentStep >= 15 ? 'completed' : currentStep >= 6 ? 'ongoing' : 'planning';
 }
 
 /**
@@ -44,27 +46,28 @@ export const STEP_KEY_TO_NUMBER: Record<string, number> = {
   'cqa': 3,
   'route-mapping': 4,
   'risk-assessment': 5,
+  'cqa-risk': 5,
   'stage-campaign-matrix': 6,
   'phase0-summary': 6,
   'stage-overview': 6,
   'campaign-dashboard': 6,
-  'understand-process': 7,
-  'define-factors': 7,
-  'recommend-doe': 8,
-  'generate-doe': 9,
-  'lab-experiments': 9,
-  'upload-results': 9,
-  'initial-optimization': 10,
-  'statistical-analysis': 10,
-  'enough-data': 11,
-  'more-improvement': 11,
-  'gp-model': 12,
-  'update-model': 12,
-  'bayesian-opt': 13,
-  'new-experiment': 14,
-  'lab-new': 14,
-  'final-optimum': 15,
-  'report': 16,
+  'understand-process': 6,
+  'define-factors': 6,
+  'recommend-doe': 7,
+  'generate-doe': 8,
+  'lab-experiments': 8,
+  'upload-results': 8,
+  'initial-optimization': 9,
+  'statistical-analysis': 9,
+  'enough-data': 10,
+  'more-improvement': 10,
+  'gp-model': 11,
+  'update-model': 11,
+  'bayesian-opt': 12,
+  'new-experiment': 13,
+  'lab-new': 13,
+  'final-optimum': 14,
+  'report': 15,
 };
 
 export const STEP_NUMBER_TO_LABEL: Record<number, string> = {
@@ -73,17 +76,17 @@ export const STEP_NUMBER_TO_LABEL: Record<number, string> = {
   3: '03. CQA Derivation',
   4: '04. Route Mapping',
   5: '05. Risk Assessment',
-  6: '06. Stage Campaign Matrix',
-  7: '07. Define Factors & Responses',
-  8: '08. Recommend DOE',
-  9: '09. DOE Matrix & Results',
-  10: '10. Initial Optimum',
-  11: '11. Enough Data?',
-  12: '12. GP Model',
-  13: '13. Bayesian Optimization',
-  14: '14. New Experiment',
-  15: '15. Final Optimum',
-  16: '16. Generate Report',
+  6: '06. Define Factors & Responses',
+  7: '07. Recommend DOE',
+  8: '08. DOE Matrix & Results',
+  9: '09. Initial Optimum',
+  10: '10. Enough Data?',
+  11: '11. GP Model',
+  12: '12. Bayesian Optimization',
+  13: '13. New Experiment',
+  14: '14. Final Optimum',
+  15: '15. Generate Report',
+  16: '16. Complete',
 };
 
 /**
@@ -91,7 +94,9 @@ export const STEP_NUMBER_TO_LABEL: Record<number, string> = {
  */
 export function getStepNumber(currentStep: string | number | undefined): number {
   if (typeof currentStep === 'number') {
-    return Math.max(1, Math.min(16, currentStep));
+    // If legacy step number was passed (e.g. 1..17)
+    if (currentStep >= 7) return Math.min(TOTAL_WORKFLOW_STEPS, currentStep - 1);
+    return Math.max(1, Math.min(TOTAL_WORKFLOW_STEPS, currentStep));
   }
   if (!currentStep) return 1;
   return STEP_KEY_TO_NUMBER[currentStep] || 1;
@@ -125,9 +130,9 @@ export const STAGE_META: Record<ProjectStage, StageMeta> = {
     key: 'planning',
     title: 'Planning',
     statusLabel: 'PLANNING',
-    stepRange: 'Steps 1 – 6',
-    subtitle: 'QbD Foundation & Scoping · Steps 1–6',
-    includedSteps: 'Step 01 (Create Project) through Step 06 (Stage Campaign Matrix)',
+    stepRange: 'Steps 1 – 5',
+    subtitle: 'QbD Foundation & Scoping · Steps 1–5',
+    includedSteps: 'Step 01 (Create Project) through Step 05 (CQA & Risk Assessment)',
     badgeClasses: 'bg-amber-50 text-amber-700 border-amber-200',
     icon: '📋',
     accentColor: '#F59E0B',
@@ -139,9 +144,9 @@ export const STAGE_META: Record<ProjectStage, StageMeta> = {
     key: 'ongoing',
     title: 'On-going',
     statusLabel: 'ON-GOING',
-    stepRange: 'Steps 7 – 14',
-    subtitle: 'DoE Runs & Bayesian Loop · Steps 7–14',
-    includedSteps: 'Step 07 (Define Factors & Responses) through Step 14 (New Experiment / Bayesian Iterations)',
+    stepRange: 'Steps 6 – 14',
+    subtitle: 'DoE Runs & Bayesian Loop · Steps 6–14',
+    includedSteps: 'Step 06 (Define Factors & Responses) through Step 14 (New Experiment / Bayesian Iterations)',
     badgeClasses: 'bg-blue-50 text-blue-700 border-blue-200',
     icon: '🧪',
     accentColor: '#2563EB',

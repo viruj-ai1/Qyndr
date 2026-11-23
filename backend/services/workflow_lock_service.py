@@ -12,7 +12,6 @@ import copy
 WORKFLOW_STEPS: List[str] = [
     "create-project",
     "cqa-risk",
-    "stage-campaign-matrix",
     "define-factors",
     "recommend-doe",
     "generate-doe",
@@ -26,8 +25,8 @@ WORKFLOW_STEPS: List[str] = [
 ]
 
 STEP_DEPENDENCIES: Dict[str, List[str]] = {
-    "create-project": ["cqa-risk", "stage-campaign-matrix", "define-factors"],
-    "cqa-risk": ["stage-campaign-matrix", "define-factors", "recommend-doe", "generate-doe", "initial-optimization", "new-experiment", "final-optimum", "report"],
+    "create-project": ["cqa-risk", "define-factors"],
+    "cqa-risk": ["define-factors", "recommend-doe", "generate-doe", "initial-optimization", "new-experiment", "final-optimum", "report"],
     "stage-campaign-matrix": ["define-factors", "recommend-doe"],
     "define-factors": ["recommend-doe", "generate-doe", "initial-optimization", "enough-data", "gp-model", "bayesian-opt", "new-experiment", "final-optimum", "report"],
     "recommend-doe": ["generate-doe", "initial-optimization", "enough-data"],

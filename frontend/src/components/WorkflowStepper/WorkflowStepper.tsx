@@ -13,6 +13,7 @@ import { useStore, Step } from '../../store/useStore'
 import { WorkflowApi } from '../../services/api'
 import UnlockConfirmModal from './UnlockConfirmModal'
 import RealignSummaryModal from './RealignSummaryModal'
+import CreateProject from '../../screens/CreateProject'
 import toast from 'react-hot-toast'
 
 export default function WorkflowStepper() {
@@ -29,12 +30,13 @@ export default function WorkflowStepper() {
   const [confirmUnlockStep, setConfirmUnlockStep] = useState<WorkflowStepConfig | null>(null)
   const [realignSummary, setRealignSummary] = useState<any | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+  const [isProjectSetupModalOpen, setIsProjectSetupModalOpen] = useState(false)
 
   // Derive status of each step
   const getStatus = (stepId: Step): StepStatus => {
-    // If no project is saved yet (new project creation), Step 1 is current, all others are locked
+    // If no project is saved yet, Step 1 (cqa-risk) is current, all others are locked
     if (!currentProject?.id) {
-      return stepId === 'create-project' ? 'current' : 'locked'
+      return stepId === 'cqa-risk' ? 'current' : 'locked'
     }
     if (unlockedStep === stepId) return 'editing'
     if (stepStatuses && stepStatuses[stepId]) return stepStatuses[stepId]
@@ -325,6 +327,17 @@ export default function WorkflowStepper() {
           isOpen={Boolean(realignSummary)}
           summary={realignSummary}
           onClose={() => setRealignSummary(null)}
+        />
+      )}
+
+      {/* Project Setup & QTPP Modal Popup */}
+      {isProjectSetupModalOpen && (
+        <CreateProject
+          isModal={true}
+          onClose={() => setIsProjectSetupModalOpen(false)}
+          onProjectCreated={() => {
+            setIsProjectSetupModalOpen(false)
+          }}
         />
       )}
     </aside>

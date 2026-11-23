@@ -5,13 +5,13 @@ import { EXPERIMENT_SETUP_TITLE } from '../config/workflowSteps';
 
 export type ProjectStage = 'planning' | 'ongoing' | 'completed';
 
-export const TOTAL_WORKFLOW_STEPS = 16;
+export const TOTAL_WORKFLOW_STEPS = 11;
 
 /**
  * Classifies a project into one of the three workflow stages:
- * - Planning: Steps 1 – 5 or status === 'PLANNING'
- * - On-going: Steps 6 – 14 or status === 'ON-GOING' / 'ONGOING'
- * - Completed: Steps 15 – 16 or status === 'COMPLETED' or isFinished
+ * - Planning: Steps 1 – 4 (CQA/Risk, Experiment Setup, Recommend DOE, DOE Matrix)
+ * - On-going: Steps 5 – 10 (Initial Optimum, Bayesian Opt, etc.)
+ * - Completed: Step 11 (Report) or isFinished
  */
 export function getProjectStage(
   currentStep: number,
@@ -19,10 +19,10 @@ export function getProjectStage(
   status?: string
 ): ProjectStage {
   const normStatus = (status || '').trim().toUpperCase();
-  if (normStatus === 'COMPLETED' || isFinished || currentStep >= 15) return 'completed';
-  if (normStatus === 'ON-GOING' || normStatus === 'ONGOING' || (currentStep >= 6 && currentStep <= 14)) return 'ongoing';
-  if (normStatus === 'PLANNING' || currentStep <= 5) return 'planning';
-  return currentStep >= 15 ? 'completed' : currentStep >= 6 ? 'ongoing' : 'planning';
+  if (normStatus === 'COMPLETED' || isFinished || currentStep >= 11) return 'completed';
+  if (normStatus === 'ON-GOING' || normStatus === 'ONGOING' || (currentStep >= 5 && currentStep <= 10)) return 'ongoing';
+  if (normStatus === 'PLANNING' || currentStep <= 4) return 'planning';
+  return currentStep >= 11 ? 'completed' : currentStep >= 5 ? 'ongoing' : 'planning';
 }
 
 /**
@@ -43,52 +43,46 @@ export function normalizeProductGroup(compound?: string | null): { key: string; 
 
 export const STEP_KEY_TO_NUMBER: Record<string, number> = {
   'welcome': 1,
-  'create-project': 1,
-  'qtpp': 2,
-  'cqa': 3,
-  'route-mapping': 4,
-  'risk-assessment': 5,
-  'cqa-risk': 5,
-  'stage-campaign-matrix': 6,
-  'phase0-summary': 6,
-  'stage-overview': 6,
-  'campaign-dashboard': 6,
-  'understand-process': 6,
-  'define-factors': 6,
-  'recommend-doe': 7,
-  'generate-doe': 8,
-  'lab-experiments': 8,
-  'upload-results': 8,
-  'initial-optimization': 9,
-  'statistical-analysis': 9,
-  'enough-data': 10,
-  'more-improvement': 10,
-  'gp-model': 11,
-  'update-model': 11,
-  'bayesian-opt': 12,
-  'new-experiment': 13,
-  'lab-new': 13,
-  'final-optimum': 14,
-  'report': 15,
+  'cqa-risk': 1,
+  'cqa': 1,
+  'route-mapping': 1,
+  'risk-assessment': 1,
+  'define-factors': 2,
+  'understand-process': 2,
+  'stage-campaign-matrix': 2,
+  'phase0-summary': 2,
+  'stage-overview': 2,
+  'campaign-dashboard': 2,
+  'recommend-doe': 3,
+  'generate-doe': 4,
+  'lab-experiments': 4,
+  'upload-results': 4,
+  'initial-optimization': 5,
+  'statistical-analysis': 5,
+  'initial-optimum': 5,
+  'enough-data': 6,
+  'more-improvement': 6,
+  'gp-model': 7,
+  'update-model': 7,
+  'bayesian-opt': 8,
+  'new-experiment': 9,
+  'lab-new': 9,
+  'final-optimum': 10,
+  'report': 11,
 };
 
 export const STEP_NUMBER_TO_LABEL: Record<number, string> = {
-  1: '01. Create Project',
-  2: '02. QTPP Definition',
-  3: `03. ${EXPERIMENT_SETUP_TITLE}`,
-  4: '04. Route Mapping',
-  5: '05. Risk Assessment',
-  6: `06. ${EXPERIMENT_SETUP_TITLE}`,
-  7: '07. Recommend DOE',
-  8: '08. DOE Matrix & Results',
-  9: '09. Initial Optimum',
-  10: '10. Enough Data?',
-  11: '11. GP Model',
-  12: '12. Bayesian Optimization',
-  13: '13. New Experiment',
-  14: '14. Final Optimum',
-  15: '15. Generate Report',
-  16: '16. Complete',
+  1: '01. CQA & Risk Assessment',
+  2: `02. ${EXPERIMENT_SETUP_TITLE}`,
+  3: '03. Recommend DOE',
+  4: '04. DOE Matrix & Results',
+  5: '05. Initial Optimum',
+  6: '06. Enough Data?',
+  7: '07. GP Model',
+  8: '08. Bayesian Optimization',
+  9: '09. New Experiment',
+  10: '10. Final Optimum',
+  11: '11. Generate Report',
 };
 
 /**

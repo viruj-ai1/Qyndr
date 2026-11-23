@@ -19,6 +19,7 @@ import {
   ProjectSection,
   ProjectCard
 } from '../components/dashboard'
+import CreateProject from './CreateProject'
 
 // LocalStorage key for storing user expanded/collapsed product sections
 const PRODUCT_SECTIONS_STORAGE_KEY = 'doe_product_sections_collapsed'
@@ -35,11 +36,19 @@ export default function Welcome() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteSearchQuery, setDeleteSearchQuery] = useState('')
 
+  // Create Project Modal Popup State
+  const [createProjectModalOpen, setCreateProjectModalOpen] = useState(false)
+
   // Edit Product Name Modal State
   const [editProductModalOpen, setEditProductModalOpen] = useState(false)
   const [editingProductGroup, setEditingProductGroup] = useState<{ key: string; displayName: string; projects: any[] } | null>(null)
   const [editProductNameValue, setEditProductNameValue] = useState('')
   const [isUpdatingProductName, setIsUpdatingProductName] = useState(false)
+
+  // Add New Product Modal State
+  const [addProductModalOpen, setAddProductModalOpen] = useState(false)
+  const [newProductNameValue, setNewProductNameValue] = useState('')
+  const [isCreatingProduct, setIsCreatingProduct] = useState(false)
 
   // Safety: Edit mode always defaults to OFF on page load
   useEffect(() => {
@@ -58,19 +67,34 @@ export default function Welcome() {
         setEditingProductGroup(null)
         setEditProductNameValue('')
       }
+      if (addProductModalOpen) {
+        setAddProductModalOpen(false)
+        setNewProductNameValue('')
+      }
     }
-  }, [isEditMode, deleteMode, deleteModalOpen, selectedDeleteId, deleteSearchQuery, editProductModalOpen])
+  }, [isEditMode, deleteMode, deleteModalOpen, selectedDeleteId, deleteSearchQuery, editProductModalOpen, addProductModalOpen])
+
+  async function loadProjects() {
+    try {
+      const data = await Projects.list()
+      setProjects(data)
+    } catch (err) {
+      toast.error('Could not connect to backend')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     let retries = 3
-    async function loadProjects() {
+    async function initLoad() {
       try {
         const data = await Projects.list()
         setProjects(data)
       } catch (err) {
         if (retries > 0) {
           retries--
-          setTimeout(loadProjects, 1000)
+          setTimeout(initLoad, 1000)
         } else {
           toast.error('Could not connect to backend')
         }
@@ -78,17 +102,23 @@ export default function Welcome() {
         setLoading(false)
       }
     }
-    loadProjects()
+    initLoad()
   }, [])
 
   async function openProject(p: any) {
     try {
       const fullProj = await Projects.get(p.id)
       setProject(fullProj)
-      setStep(fullProj.current_step || 'create-project')
+      const targetStep = fullProj.current_step === 'create-project' || !fullProj.current_step
+        ? 'cqa-risk'
+        : fullProj.current_step
+      setStep(targetStep)
     } catch {
       setProject(p)
-      setStep(p.current_step || 'create-project')
+      const targetStep = p.current_step === 'create-project' || !p.current_step
+        ? 'cqa-risk'
+        : p.current_step
+      setStep(targetStep)
     }
   }
 
@@ -391,60 +421,100 @@ export default function Welcome() {
 
           {/* Top-Right: Actions & Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-            {/* Search Input in Top Header */}
-            <div style={{ position: 'relative', width: '280px' }}>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Search projects..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                style={{
-                  padding: '0.45rem 2rem 0.45rem 2.1rem',
-                  fontSize: '0.875rem',
-                  height: '38px',
-                  borderRadius: '999px',
-                  background: '#f8fafc',
-                  border: '1px solid #cbd5e1',
-                  width: '100%',
-                  boxSizing: 'border-box'
-                }}
-              />
-              <span
-                style={{
-                  position: 'absolute',
-                  left: '0.75rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  opacity: 0.5,
-                  fontSize: '0.82rem',
-                  pointerEvents: 'none'
-                }}
-              >
-                🔍
-              </span>
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  title="Clear search"
+            {/* Search Input in Top Header (Only visible when Edit mode is OFF) */}
+            {!isEditMode && (
+              <div style={{ position: 'relative', width: '280px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search projects..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  style={{
+                    padding: '0.45rem 2rem 0.45rem 2.1rem',
+                    fontSize: '0.875rem',
+                    height: '38px',
+                    borderRadius: '999px',
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <span
                   style={{
                     position: 'absolute',
-                    right: '0.65rem',
+                    left: '0.75rem',
                     top: '50%',
                     transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
+                    opacity: 0.5,
                     fontSize: '0.82rem',
-                    padding: '2px'
+                    pointerEvents: 'none'
                   }}
                 >
-                  ✕
-                </button>
+                  🔍
+                </span>
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    title="Clear search"
+                    style={{
+                      position: 'absolute',
+                      right: '0.65rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      fontSize: '0.82rem',
+                      padding: '2px'
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Edit Mode Toggle Button */}
+            <button
+              type="button"
+              className={`btn ${isEditMode ? 'btn-primary' : 'btn-secondary'}`}
+              aria-pressed={isEditMode}
+              aria-label={isEditMode ? 'Exit Edit Mode' : 'Enable Edit Mode'}
+              title={isEditMode ? 'Turn off Edit mode' : 'Turn on Edit mode to manage products'}
+              onClick={() => setEditMode(!isEditMode)}
+              style={{
+                padding: '0.6rem 1rem',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                gap: '0.45rem',
+                backgroundColor: isEditMode ? 'var(--primary)' : '#ffffff',
+                borderColor: isEditMode ? 'var(--primary)' : 'var(--border)',
+                color: isEditMode ? '#ffffff' : 'var(--text-secondary)',
+                boxShadow: isEditMode ? '0 2px 8px rgba(0, 91, 170, 0.25)' : 'none',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {isEditMode ? (
+                <>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>Turn off edit mode</span>
+                </>
+              ) : (
+                <>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                  <span>Edit</span>
+                </>
               )}
-            </div>
+            </button>
 
             {/* Delete Project Action Toggle (Only visible when Edit mode is ON) */}
             {isEditMode && (
@@ -533,44 +603,6 @@ export default function Welcome() {
               </button>
             )}
 
-            {/* Edit Mode Toggle Button */}
-            <button
-              type="button"
-              className={`btn ${isEditMode ? 'btn-primary' : 'btn-secondary'}`}
-              aria-pressed={isEditMode}
-              aria-label={isEditMode ? 'Exit Edit Mode' : 'Enable Edit Mode'}
-              title={isEditMode ? 'Turn off Edit mode' : 'Turn on Edit mode to add products and projects'}
-              onClick={() => setEditMode(!isEditMode)}
-              style={{
-                padding: '0.6rem 1rem',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                gap: '0.45rem',
-                backgroundColor: isEditMode ? 'var(--primary)' : '#ffffff',
-                borderColor: isEditMode ? 'var(--primary)' : 'var(--border)',
-                color: isEditMode ? '#ffffff' : 'var(--text-secondary)',
-                boxShadow: isEditMode ? '0 2px 8px rgba(0, 91, 170, 0.25)' : 'none',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              {isEditMode ? (
-                <>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  <span>Editing</span>
-                </>
-              ) : (
-                <>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                  </svg>
-                  <span>Edit</span>
-                </>
-              )}
-            </button>
-
             {/* Primary Action Button: New Product (Only visible when Edit mode is ON) */}
             {isEditMode && (
               <button
@@ -583,9 +615,8 @@ export default function Welcome() {
                   animation: 'fadeIn 0.15s ease'
                 }}
                 onClick={() => {
-                  setCreationProductContext(null)
-                  setProject(null)
-                  setStep('create-project')
+                  setNewProductNameValue('')
+                  setAddProductModalOpen(true)
                 }}
               >
                 <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -769,9 +800,8 @@ export default function Welcome() {
                   <button
                     className="btn btn-primary"
                     onClick={() => {
-                      setCreationProductContext(null)
-                      setProject(null)
-                      setStep('create-project')
+                      setNewProductNameValue('')
+                      setAddProductModalOpen(true)
                     }}
                   >
                     <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -827,7 +857,7 @@ export default function Welcome() {
                         isLocked: !isUnassigned
                       })
                       setProject(null)
-                      setStep('create-project')
+                      setCreateProjectModalOpen(true)
                     }}
                   >
                     {group.filteredProjects.map(p => (
@@ -1404,6 +1434,168 @@ export default function Welcome() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* ── Add New Product Modal ── */}
+      {addProductModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem'
+          }}
+          onClick={() => {
+            if (!isCreatingProduct) {
+              setAddProductModalOpen(false)
+              setNewProductNameValue('')
+            }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '12px',
+              padding: '1.75rem',
+              width: '100%',
+              maxWidth: '480px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              border: '1px solid var(--border)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
+                  backgroundColor: '#eff6ff',
+                  color: '#2563eb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
+                    New Product
+                  </h3>
+                  <p style={{ margin: '0.15rem 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                    Create a new product division (Compound / API)
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  if (!isCreatingProduct) {
+                    setAddProductModalOpen(false)
+                    setNewProductNameValue('')
+                  }
+                }}
+                disabled={isCreatingProduct}
+                style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form
+              onSubmit={e => {
+                e.preventDefault()
+                const prodName = newProductNameValue.trim()
+                if (!prodName) return
+                setAddProductModalOpen(false)
+                setCreationProductContext({
+                  productName: prodName,
+                  fullCompound: prodName,
+                  isLocked: true
+                })
+                setProject(null)
+                setCreateProjectModalOpen(true)
+              }}
+            >
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '0.45rem' }}>
+                  Product Name (API / Compound) *
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={newProductNameValue}
+                  onChange={e => setNewProductNameValue(e.target.value)}
+                  placeholder="e.g. Propofol, Brexpiprazole, BXP-001"
+                  autoFocus
+                  disabled={isCreatingProduct}
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', fontSize: '0.9rem' }}
+                />
+                <p style={{ margin: '0.4rem 0 0', fontSize: '0.74rem', color: '#64748b' }}>
+                  Projects created under this product will share this compound context.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    if (!isCreatingProduct) {
+                      setAddProductModalOpen(false)
+                      setNewProductNameValue('')
+                    }
+                  }}
+                  disabled={isCreatingProduct}
+                  style={{ padding: '0.55rem 1.1rem', fontSize: '0.85rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={!newProductNameValue.trim() || isCreatingProduct}
+                  style={{
+                    padding: '0.55rem 1.25rem',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem'
+                  }}
+                >
+                  <span>Continue to Project Details →</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Project Setup & QTPP Modal Popup ── */}
+      {createProjectModalOpen && (
+        <CreateProject
+          isModal={true}
+          onClose={() => setCreateProjectModalOpen(false)}
+          onProjectCreated={async () => {
+            setCreateProjectModalOpen(false)
+            await loadProjects()
+            setStep('welcome')
+          }}
+        />
       )}
     </div>
   )

@@ -241,8 +241,8 @@ const INITIAL: Omit<Store, keyof { setProject: any; setEditMode: any; setCreatio
 }
 
 export function normalizeStep(s?: string | null): Step {
-  if (!s) return 'create-project'
-  if (s === 'qtpp') return 'create-project'
+  if (!s) return 'cqa-risk'
+  if (s === 'create-project' || s === 'qtpp') return 'cqa-risk'
   if (s === 'cqa' || s === 'risk-assessment' || s === 'route-mapping') return 'cqa-risk'
   if (s === 'phase0-summary' || s === 'campaign-dashboard' || s === 'stage-overview' || s === 'stage-campaign-matrix' || s === 'understand-process') return 'define-factors'
   if (s === 'statistical-analysis') return 'initial-optimization'
@@ -258,7 +258,7 @@ export const useStore = create<Store>()(
     (set, get) => ({
       ...INITIAL,
       setProject: p => set(state => {
-        const step = p ? normalizeStep(p.current_step) : 'create-project'
+        const step = p ? normalizeStep(p.current_step) : state.currentStep
 
         // Sanitize existing project responses and targets to simple terms
         const sanitizedResponses = p?.responses?.map(r => ({

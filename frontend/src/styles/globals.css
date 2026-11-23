@@ -51,6 +51,38 @@
   --shadow-lg:     0 20px 50px rgba(0, 91, 170, 0.08);
 }
 
+/* ── Toast Notifications Top-Level Stacking ───────────────────*/
+div[data-toaster],
+div:has(> [data-toaster]),
+[data-hot-toast],
+.react-hot-toast,
+#_toast-container,
+div[style*="pointer-events: none"][style*="z-index"] {
+  z-index: 2147483647 !important;
+}
+
+/* ── Visible and Distinct Scrollbars for Modal & Tables ────────*/
+.modal-scroll-body {
+  scrollbar-width: thin;
+  scrollbar-color: #005baa #f1f5f9;
+}
+.modal-scroll-body::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.modal-scroll-body::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+.modal-scroll-body::-webkit-scrollbar-thumb {
+  background: #005baa;
+  border-radius: 6px;
+  border: 2px solid #f1f5f9;
+}
+.modal-scroll-body::-webkit-scrollbar-thumb:hover {
+  background: #003d73;
+}
+
 /* ── Reset ──────────────────────────────────────────────────*/
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { height: 100%; }

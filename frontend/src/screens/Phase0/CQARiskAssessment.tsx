@@ -2,6 +2,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useStore, CQAMapping, QTPPItem, RiskParameter } from '../../store/useStore'
 import { Projects, CQAApi, WorkflowApi } from '../../services/api'
+import CreateProject from '../CreateProject'
 import {
   generateContextAwareRiskParameters,
   isDummyRiskParams,
@@ -9,7 +10,7 @@ import {
 } from '../../utils/routeGenerator'
 import { isParamLikelyRelevant, sanitizeParamName } from '../../config/unitOpRiskParameters'
 import { RPN_DIMENSIONS, RPN_GUIDE_CONTENT } from '../../utils/rpnExplanationData'
-import { Info, X, SlidersHorizontal, AlertTriangle, CheckCircle2, Check, Sparkles } from 'lucide-react'
+import { Info, X, SlidersHorizontal, AlertTriangle, CheckCircle2, Check, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface AttributeSuggestion {
@@ -55,6 +56,11 @@ export default function CQARiskAssessment() {
     unlockedStep,
     setUnlockedStep
   } = useStore()
+
+  // ── WIZARD STEP STATE ─────────────────────────────────────────
+  // 1 = Derive CQAs, 2 = Process Parameter Risk Matrix
+  const [wizardStep, setWizardStep] = useState<1 | 2>(1)
+  const [isProjectSetupModalOpen, setIsProjectSetupModalOpen] = useState(false)
 
   // ── SINGLE STAGE CONTEXT ─────────────────────────────────────
   const currentStage = useMemo(() => {
@@ -393,7 +399,7 @@ export default function CQARiskAssessment() {
   const validationIssues = useMemo(() => {
     const issues: string[] = []
     if (cqaItems.length === 0) {
-      issues.push('Assess at least one Critical Quality Attribute (CQA) in Part A.')
+      issues.push('Assess at least one Critical Quality Attribute (CQA).')
     }
     if (currentParams.length === 0) {
       issues.push('Add at least one process parameter in the Risk Matrix.')
@@ -448,57 +454,107 @@ export default function CQARiskAssessment() {
 
   return (
     <div className="screen-container">
-      {/* Sticky Mini Progress Header */}
-      <div style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 20,
-        background: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(8px)',
-        borderBottom: '1px solid var(--border-color)',
-        padding: '0.65rem 1.25rem',
-        marginBottom: '1.25rem',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.85rem' }}>
-          <div>
-            <strong>Active Stage:</strong> <span className="badge badge-primary">{currentStage.name}</span>
-          </div>
-          <div style={{ color: 'var(--text-muted)' }}>|</div>
-          <div>
-            <strong>Part A:</strong> {cqaItems.length} CQAs Assessed
-          </div>
-          <div style={{ color: 'var(--text-muted)' }}>|</div>
-          <div>
-            <strong>Part B:</strong> {currentParams.filter(p => p.criticalFlag).length} Critical CPPs of {currentParams.filter(p => p.severity !== null && p.occurrence !== null && p.detectability !== null).length} scored ({currentParams.filter(p => p.severity === null || p.occurrence === null || p.detectability === null).length} unscored)
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button className="btn btn-secondary btn-sm" onClick={() => setStep('create-project')}>
-            ← Back to Setup
-          </button>
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={handleCompleteStep}
-            disabled={saving || !canComplete}
-            style={{ fontWeight: 600 }}
-          >
-            {saving ? 'Completing…' : 'Confirm & Continue to Experiment Setup →'}
-          </button>
-        </div>
-      </div>
-
       {/* Main Page Title */}
-      <div className="page-header" style={{ marginBottom: '1.5rem' }}>
+      <div className="page-header" style={{ marginBottom: '1.25rem' }}>
         <h1 style={{ fontSize: '1.45rem', fontWeight: 700, margin: 0 }}>CQA & Risk Assessment</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.35rem' }}>
-          Define the Critical Quality Attributes, then work backwards through the process to find the parameters that can affect them (ICH Q8(R2) / Q9).
+          {wizardStep === 1
+            ? 'Step 1 of 2: Derive Critical Quality Attributes (CQAs) from QTPP targets (ICH Q8(R2)).'
+            : `Step 2 of 2: Process Parameter Risk Matrix for ${currentStage.name}.`}
         </p>
+      </div>
+
+      {/* Wizard Progress Stepper Tabs */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        <button
+          type="button"
+          onClick={() => setWizardStep(1)}
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.6rem',
+            padding: '0.75rem 1rem',
+            borderRadius: '8px',
+            border: wizardStep === 1 ? '2px solid #2563eb' : '1px solid var(--border)',
+            background: wizardStep === 1 ? '#eff6ff' : '#ffffff',
+            cursor: 'pointer',
+            textAlign: 'left',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <div style={{
+            width: '26px',
+            height: '26px',
+            borderRadius: '50%',
+            background: wizardStep === 1 ? '#2563eb' : cqaItems.length > 0 ? '#10b981' : '#e2e8f0',
+            color: wizardStep === 1 || cqaItems.length > 0 ? '#ffffff' : '#64748b',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '0.8rem',
+            fontWeight: 700
+          }}>
+            {cqaItems.length > 0 && wizardStep !== 1 ? '✓' : '1'}
+          </div>
+          <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: wizardStep === 1 ? '#1d4ed8' : 'var(--text-main)' }}>
+              1. Derive CQAs
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              {cqaItems.length} Quality Attributes Assessed
+            </div>
+          </div>
+        </button>
+
+        <div style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>→</div>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (cqaItems.length > 0) {
+              setWizardStep(2)
+            } else {
+              toast.error('Please assess at least one CQA before proceeding.')
+            }
+          }}
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.6rem',
+            padding: '0.75rem 1rem',
+            borderRadius: '8px',
+            border: wizardStep === 2 ? '2px solid #2563eb' : '1px solid var(--border)',
+            background: wizardStep === 2 ? '#eff6ff' : '#ffffff',
+            cursor: 'pointer',
+            textAlign: 'left',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <div style={{
+            width: '26px',
+            height: '26px',
+            borderRadius: '50%',
+            background: wizardStep === 2 ? '#2563eb' : currentParams.filter(p => p.criticalFlag).length > 0 ? '#10b981' : '#e2e8f0',
+            color: wizardStep === 2 || currentParams.filter(p => p.criticalFlag).length > 0 ? '#ffffff' : '#64748b',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '0.8rem',
+            fontWeight: 700
+          }}>
+            {currentParams.filter(p => p.criticalFlag).length > 0 && wizardStep !== 2 ? '✓' : '2'}
+          </div>
+          <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: wizardStep === 2 ? '#1d4ed8' : 'var(--text-main)' }}>
+              2. Parameter Risk Matrix
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              {currentParams.length} Parameters · {currentParams.filter(p => p.criticalFlag).length} Critical CPPs
+            </div>
+          </div>
+        </button>
       </div>
 
       {/* Inline Pruning Notification */}
@@ -521,29 +577,31 @@ export default function CQARiskAssessment() {
       )}
 
       {/* ════════════════════════════════════════════════════════════
-          PART A: DERIVE CQAs
+          DERIVE CQAs (STEP 1)
           ════════════════════════════════════════════════════════════ */}
-      <div className="card" style={{ marginBottom: '2rem', padding: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-          <div>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
-              Part A · Derive Critical Quality Attributes (CQAs)
-            </h2>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
-              Assess each target attribute against severity of harm (Impact) and state of knowledge (Uncertainty).
-            </p>
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => setGuidelinesModalOpen(true)}
-            style={{ fontSize: '0.78rem' }}
-          >
-            📖 Regulatory Guidelines
-          </button>
-        </div>
+      {wizardStep === 1 && (
+        <>
+          <div className="card" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+                  Derive Critical Quality Attributes (CQAs)
+                </h2>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
+                  Assess each target attribute against severity of harm (Impact) and state of knowledge (Uncertainty).
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setGuidelinesModalOpen(true)}
+                style={{ fontSize: '0.78rem' }}
+              >
+                📖 Regulatory Guidelines
+              </button>
+            </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '1.5rem', alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '1.5rem', alignItems: 'start' }}>
           {/* Left Column: QTPP Toggles */}
           <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
@@ -771,21 +829,52 @@ export default function CQARiskAssessment() {
         </div>
       </div>
 
-      {/* ════════════════════════════════════════════════════════════
-          PART B: REVERSE RISK WALK
-          ════════════════════════════════════════════════════════════ */}
-      <div className="card" style={{ marginBottom: '2rem', padding: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-          <div>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
-              Part B · Reverse Risk Walk: Process Parameter Risk Matrix
-            </h2>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
-              Evaluate whether parameter fluctuations in <strong>{currentStage.name}</strong> can compromise your assessed CQAs.
-            </p>
-          </div>
+      {/* Step 1 Navigation Action Bar */}
+      <div className="card" style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setIsProjectSetupModalOpen(true)}
+        >
+          ← Review Project Setup & QTPP
+        </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => {
+            if (cqaItems.length === 0) {
+              toast.error('Please assess at least one CQA from QTPP target attributes or add a custom CQA before proceeding to the Risk Matrix.')
+              return
+            }
+            setWizardStep(2)
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
+          style={{ minWidth: '220px', fontWeight: 600 }}
+        >
+          Continue to Risk Matrix →
+        </button>
+      </div>
+    </>
+  )}
+
+      {/* ════════════════════════════════════════════════════════════
+          PARAMETER RISK MATRIX (STEP 2)
+          ════════════════════════════════════════════════════════════ */}
+      {wizardStep === 2 && (
+        <>
+          <div className="card" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+                  Process Parameter Risk Matrix
+                </h2>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
+                  Evaluate whether parameter fluctuations in <strong>{currentStage.name}</strong> can compromise your assessed CQAs.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.82rem' }}>
               <label><strong>RPN Cutoff:</strong></label>
               <input
@@ -833,7 +922,7 @@ export default function CQARiskAssessment() {
           </strong>
           {cqaItems.length === 0 ? (
             <span style={{ fontSize: '0.8rem', color: '#b91c1c' }}>
-              ⚠️ No CQAs assessed. Please assess at least one CQA in Part A above.
+              ⚠️ No CQAs assessed. Please assess at least one CQA in Step 1 (Derive CQAs).
             </span>
           ) : (
             <div style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '0.4rem', verticalAlign: 'middle' }}>
@@ -1157,32 +1246,17 @@ export default function CQARiskAssessment() {
         </div>
       </div>
 
-      {/* Validation Checklist if Blocked */}
-      {validationIssues.length > 0 && (
-        <div style={{
-          background: '#fffbeb',
-          border: '1px solid #fef3c7',
-          borderRadius: '8px',
-          padding: '1rem 1.25rem',
-          marginBottom: '1.5rem',
-          color: '#92400e'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, marginBottom: '0.4rem' }}>
-            <AlertTriangle size={18} color="#d97706" />
-            <span>Criteria required to complete CQA & Risk Assessment:</span>
-          </div>
-          <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.82rem' }}>
-            {validationIssues.map((issue, idx) => (
-              <li key={idx} style={{ marginTop: '0.2rem' }}>{issue}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Bottom Sticky Action Bar */}
+      {/* Step 2 Action Bar */}
       <div className="card" style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <button type="button" className="btn btn-secondary" onClick={() => setStep('create-project')}>
-          ← Back to Project Setup & QTPP
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => {
+            setWizardStep(1)
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
+        >
+          ← Back to Derive CQAs
         </button>
 
         <button
@@ -1199,6 +1273,8 @@ export default function CQARiskAssessment() {
           )}
         </button>
       </div>
+    </>
+  )}
 
       {/* CQA Drawer / Modal */}
       {drawerOpen && editingCqa && (
@@ -1301,6 +1377,17 @@ export default function CQARiskAssessment() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Review Project Setup & QTPP Modal */}
+      {isProjectSetupModalOpen && (
+        <CreateProject
+          isModal={true}
+          onClose={() => setIsProjectSetupModalOpen(false)}
+          onProjectCreated={() => {
+            setIsProjectSetupModalOpen(false)
+          }}
+        />
       )}
     </div>
   )

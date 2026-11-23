@@ -488,7 +488,7 @@ export default function CQARiskAssessment() {
             disabled={saving || !canComplete}
             style={{ fontWeight: 600 }}
           >
-            {saving ? 'Completing…' : 'Confirm & Continue to Define Factors →'}
+            {saving ? 'Completing…' : 'Confirm & Continue to Experiment Setup →'}
           </button>
         </div>
       </div>
@@ -1195,7 +1195,7 @@ export default function CQARiskAssessment() {
           {saving ? (
             <><div className="spinner" /> Saving…</>
           ) : (
-            'Confirm & Continue to Stage Campaign Matrix →'
+            'Confirm & Continue to Experiment Setup →'
           )}
         </button>
       </div>

@@ -56,7 +56,7 @@ export default function Header() {
                       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
                     }, 50)
                   }}
-                  title="Click to jump to Stage section in Define Factors"
+                  title="Click to jump to Stage section in Experiment Setup"
                   style={{
                     marginLeft: '0.5rem',
                     fontSize: '0.75rem',

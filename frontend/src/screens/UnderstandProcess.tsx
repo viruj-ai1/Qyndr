@@ -142,7 +142,7 @@ export default function UnderstandProcess() {
       <div className="step-nav">
         <button className="btn btn-secondary" onClick={() => setStep('create-project')}>← Back</button>
         <button className="btn btn-primary" onClick={handleNext} disabled={saving}>
-          {saving ? <><div className="spinner" />Saving…</> : 'Continue to Define Factors →'}
+          {saving ? <><div className="spinner" />Saving…</> : 'Continue to Experiment Setup →'}
         </button>
       </div>
     </div>

@@ -149,7 +149,7 @@ export const PLATFORM_PHASES: WorkflowPhase[] = [
       {
         number: 7,
         id: 'define-factors',
-        name: 'Define Factors & Responses',
+        name: 'Experiment Setup',
         purpose: STEP_BRIEFINGS['define-factors']?.purpose || 'Establish operational ranges for process factors and quantitative metrics for response variables.',
         whatHappens: 'Set factor ranges, engineering units, baseline levels, and define CQA responses with optimization goals.',
         youDo: STEP_BRIEFINGS['define-factors']?.youDo,

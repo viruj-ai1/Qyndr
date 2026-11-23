@@ -1,6 +1,9 @@
 // frontend/src/config/workflowSteps.ts
 import { Step } from '../store/useStore'
 
+export const EXPERIMENT_SETUP_TITLE = 'Experiment Setup'
+export const EXPERIMENT_SETUP_SUBTITLE = 'Choose a stage, define what we will change and measure, and launch the DoE campaign.'
+
 export type StepStatus = 'completed' | 'current' | 'locked' | 'editing' | 'needs-review'
 
 export interface WorkflowStepConfig {
@@ -35,7 +38,7 @@ export const WORKFLOW_STEPS: WorkflowStepConfig[] = [
   {
     id: 'define-factors',
     number: 3,
-    label: 'Define Factors & Responses',
+    label: EXPERIMENT_SETUP_TITLE,
     phase: 'Phase 1 · DoE Formulation',
     route: 'define-factors',
     dependencies: ['cqa-risk'],

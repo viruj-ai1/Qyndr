@@ -1,6 +1,8 @@
 // src/utils/projectUtils.ts
 // Project Stage categorization and step mapping utilities for Viruj Chematrix
 
+import { EXPERIMENT_SETUP_TITLE } from '../config/workflowSteps';
+
 export type ProjectStage = 'planning' | 'ongoing' | 'completed';
 
 export const TOTAL_WORKFLOW_STEPS = 16;
@@ -73,10 +75,10 @@ export const STEP_KEY_TO_NUMBER: Record<string, number> = {
 export const STEP_NUMBER_TO_LABEL: Record<number, string> = {
   1: '01. Create Project',
   2: '02. QTPP Definition',
-  3: '03. CQA Derivation',
+  3: `03. ${EXPERIMENT_SETUP_TITLE}`,
   4: '04. Route Mapping',
   5: '05. Risk Assessment',
-  6: '06. Define Factors & Responses',
+  6: `06. ${EXPERIMENT_SETUP_TITLE}`,
   7: '07. Recommend DOE',
   8: '08. DOE Matrix & Results',
   9: '09. Initial Optimum',
@@ -146,7 +148,7 @@ export const STAGE_META: Record<ProjectStage, StageMeta> = {
     statusLabel: 'ON-GOING',
     stepRange: 'Steps 6 – 14',
     subtitle: 'DoE Runs & Bayesian Loop · Steps 6–14',
-    includedSteps: 'Step 06 (Define Factors & Responses) through Step 14 (New Experiment / Bayesian Iterations)',
+    includedSteps: `Step 06 (${EXPERIMENT_SETUP_TITLE}) through Step 14 (New Experiment / Bayesian Iterations)`,
     badgeClasses: 'bg-blue-50 text-blue-700 border-blue-200',
     icon: '🧪',
     accentColor: '#2563EB',

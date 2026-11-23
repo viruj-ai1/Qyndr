@@ -41,27 +41,27 @@ def test_workflow_sequential_locking_13_steps(db):
     statuses = workflow_lock_service.get_effective_statuses(project)
     assert statuses["create-project"] == "completed"
     assert statuses["cqa-risk"] == "current"
-    assert statuses["stage-campaign-matrix"] == "locked"
+    assert statuses["define-factors"] == "locked"
     assert "route-mapping" not in statuses
 
     # Cannot skip ahead to locked step
     assert workflow_lock_service.can_access_step(project, "cqa-risk") is True
-    assert workflow_lock_service.can_access_step(project, "stage-campaign-matrix") is False
+    assert workflow_lock_service.can_access_step(project, "define-factors") is False
 
-    # Attempting to complete stage-campaign-matrix before cqa-risk fails
-    ok, msg, _ = workflow_lock_service.complete_step(db, project, "stage-campaign-matrix")
+    # Attempting to complete define-factors before cqa-risk fails
+    ok, msg, _ = workflow_lock_service.complete_step(db, project, "define-factors")
     assert ok is False
     assert "Prerequisite" in msg
 
-    # Completing cqa-risk unlocks strictly stage-campaign-matrix
+    # Completing cqa-risk unlocks strictly define-factors
     project.cqas_data = [{"id": "cqa-1", "name": "Assay CQA"}]
     project.risk_assessment_data = {"stage-1": {"parameters": [{"id": "p-1", "name": "Temp", "severity": 4, "occurrence": 3, "detectability": 2, "rpn": 24, "linkedCqaIds": ["cqa-1"], "criticalFlag": False}]}}
     db.commit()
     ok, msg, new_statuses = workflow_lock_service.complete_step(db, project, "cqa-risk")
     assert ok is True
     assert new_statuses["cqa-risk"] == "completed"
-    assert new_statuses["stage-campaign-matrix"] == "current"
-    assert new_statuses["define-factors"] == "locked"
+    assert new_statuses["define-factors"] == "current"
+    assert new_statuses["recommend-doe"] == "locked"
 
     # Unlock step for edit: unlocking create-project locks cqa-risk and marks it needs-review
     ok, msg, edit_statuses = workflow_lock_service.unlock_step_for_edit(db, project, "create-project")

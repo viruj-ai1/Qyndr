@@ -568,11 +568,11 @@ export default function RecommendDOE() {
             <span>{errorMsg}</span>
           </div>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-            Process factors must be defined for this project in Step 07 before generating DOE design recommendations.
+            Process factors must be defined for this project in Experiment Setup before generating DOE design recommendations.
           </p>
           <div style={{ display: 'flex', gap: '0.6rem' }}>
             <button className="btn btn-secondary btn-sm" onClick={() => setStep('define-factors')}>
-              ← Go to Step 07: Define Factors & Responses
+              ← Go to Experiment Setup
             </button>
             <button className="btn btn-secondary btn-sm" onClick={() => loadOptions(phase)}>
               🔄 Retry Connection

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useStore, Factor, Response, StageItem, isPercentageResponse } from '../store/useStore'
+import { EXPERIMENT_SETUP_TITLE, EXPERIMENT_SETUP_SUBTITLE } from '../config/workflowSteps'
 import { Projects } from '../services/api'
 import { mapTargetToResponse, extractResponsesFromDescription, simplifyResponseName } from '../utils/targetParser'
 import toast from 'react-hot-toast'
@@ -484,8 +485,8 @@ export default function DefineFactors() {
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">Define Factors & Responses</h1>
-        <p className="page-desc">Select what we will change and what we will measure in the experiments.</p>
+        <h1 className="page-title">{EXPERIMENT_SETUP_TITLE}</h1>
+        <p className="page-desc">{EXPERIMENT_SETUP_SUBTITLE}</p>
       </div>
 
       {/* ── Multi-Stage Campaign Selector & Status (Multi-stage projects only) ── */}

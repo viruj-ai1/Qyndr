@@ -1,3 +1,5 @@
+import { EXPERIMENT_SETUP_TITLE, EXPERIMENT_SETUP_SUBTITLE } from './workflowSteps';
+
 export interface StepBriefing {
   id: string;
   step: number;
@@ -46,8 +48,8 @@ export const STEP_BRIEFINGS: Record<string, StepBriefing> = {
   'define-factors': {
     id: 'define-factors',
     step: 3,
-    title: 'Define Factors & Responses',
-    purpose: 'Establish operational ranges for process factors and quantitative metrics for response variables.',
+    title: EXPERIMENT_SETUP_TITLE,
+    purpose: EXPERIMENT_SETUP_SUBTITLE,
     youDo: [
       'Select active synthesis stage (for multi-stage projects) and manage campaign status.',
       'Set low, high, and baseline operating levels and engineering units for each factor.',

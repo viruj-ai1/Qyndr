@@ -351,6 +351,7 @@ export default function CQARiskAssessment() {
     rpnThreshold,
     setRpnThreshold,
     setStep,
+    setStepStatuses,
     addAuditLog,
     unlockedStep,
     setUnlockedStep
@@ -858,10 +859,13 @@ export default function CQARiskAssessment() {
     try {
       if (currentProject?.id) {
         // Complete step atomically via Workflow API
-        await WorkflowApi.complete(currentProject.id, 'cqa-risk', {
+        const resp = await WorkflowApi.complete(currentProject.id, 'cqa-risk', {
           cqas_data: cqaItems,
           risk_assessment_data: localRisk
         })
+        if (resp?.step_statuses) {
+          setStepStatuses(resp.step_statuses)
+        }
         addAuditLog('CQA_RISK_COMPLETE', `Completed CQA & Risk Assessment with ${cqaItems.length} CQAs and ${currentParams.length} parameters.`)
         toast.success('CQA & Risk Assessment confirmed!')
         setStep('define-factors')
@@ -1599,6 +1603,19 @@ export default function CQARiskAssessment() {
                   toast.error(`Decision justification is required for "${missingJust.attribute_name}" (${missingJust.classification}).`)
                   return
                 }
+
+                // Auto-unlock upcoming steps if data is filled: sync step status with backend
+                if (currentProject?.id) {
+                  WorkflowApi.complete(currentProject.id, 'cqa-risk', {
+                    cqas_data: cqaItems,
+                    risk_assessment_data: localRisk
+                  }).then(resp => {
+                    if (resp?.step_statuses) {
+                      setStepStatuses(resp.step_statuses)
+                    }
+                  }).catch(() => {})
+                }
+
                 setWizardStep(2)
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}

@@ -9,7 +9,7 @@ interface RouteGuardProps {
 }
 
 export default function RouteGuard({ children }: RouteGuardProps) {
-  const { currentStep, setStep, currentProject, stepStatuses, unlockedStep } = useStore()
+  const { currentStep, setStep, currentProject, stepStatuses, unlockedStep, cqas } = useStore()
 
   useEffect(() => {
     if (!currentProject || !currentProject.id) return
@@ -20,6 +20,11 @@ export default function RouteGuard({ children }: RouteGuardProps) {
 
     // If currently editing this step, it is permitted
     if (unlockedStep === rawStep) return
+
+    // If Step 2 (define-factors) and CQAs are filled, allow navigation
+    if (rawStep === 'define-factors' && ((cqas && cqas.length > 0) || (currentProject?.cqas_data && currentProject.cqas_data.length > 0))) {
+      return
+    }
 
     const status = stepStatuses?.[rawStep]
     // If the step is locked, redirect to the current active incomplete step
@@ -33,7 +38,7 @@ export default function RouteGuard({ children }: RouteGuardProps) {
       toast(`Step is locked. Redirecting to active step.`, { icon: '🔒' })
       setStep(fallback)
     }
-  }, [currentStep, stepStatuses, unlockedStep, currentProject?.id])
+  }, [currentStep, stepStatuses, unlockedStep, currentProject?.id, cqas])
 
   return <>{children}</>
 }

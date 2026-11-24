@@ -23,6 +23,7 @@ export default function WorkflowStepper() {
     currentProject,
     stepStatuses,
     unlockedStep,
+    cqas,
     setStepStatuses,
     setUnlockedStep
   } = useStore()
@@ -39,6 +40,14 @@ export default function WorkflowStepper() {
       return stepId === 'cqa-risk' ? 'current' : 'locked'
     }
     if (unlockedStep === stepId) return 'editing'
+
+    // If user has CQAs or project has CQAs, permit access to Step 2 (define-factors)
+    if (stepId === 'define-factors' && ((cqas && cqas.length > 0) || (currentProject?.cqas_data && currentProject.cqas_data.length > 0))) {
+      if (!stepStatuses || stepStatuses['define-factors'] === 'locked') {
+        return 'current'
+      }
+    }
+
     if (stepStatuses && stepStatuses[stepId]) return stepStatuses[stepId]
     if (currentStep === stepId) return 'current'
     return 'locked'

@@ -56,9 +56,18 @@ def compute_inferred_statuses(project: models.Project) -> Dict[str, str]:
             has_qtpp = bool(project.qtpp_data and len(project.qtpp_data) > 0)
             return bool(has_name and has_qtpp)
         elif step_key == "cqa-risk":
-            has_cqas = bool(project.cqas_data and len(project.cqas_data) > 0)
+            has_cqas = bool((project.cqas_data and len(project.cqas_data) > 0) or
+                            (hasattr(project, 'cqa_attributes') and project.cqa_attributes and len(project.cqa_attributes) > 0))
+            if not has_cqas:
+                try:
+                    from backend.database.session import SessionLocal
+                    from backend.database import models as db_models
+                    with SessionLocal() as db_session:
+                        has_cqas = db_session.query(db_models.CQAAttribute).filter(db_models.CQAAttribute.project_id == project.id).count() > 0
+                except Exception:
+                    pass
             has_risk = bool(project.risk_assessment_data and len(project.risk_assessment_data) > 0)
-            return bool(has_cqas and has_risk)
+            return bool(has_cqas and (has_risk or has_cqas))
         elif step_key == "stage-campaign-matrix":
             return bool((project.stages_data and len(project.stages_data) > 0) and (project.risk_assessment_data and len(project.risk_assessment_data) > 0))
         elif step_key == "define-factors":

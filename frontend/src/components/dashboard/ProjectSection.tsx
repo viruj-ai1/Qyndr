@@ -131,7 +131,7 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
               <h3 className="project-section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                 {stageMeta.icon && <span>{stageMeta.icon}</span>}
                 <span>{title}</span>
-                {isEditMode && onEditProductName && (
+                {onEditProductName && (
                   <button
                     type="button"
                     aria-label={`Edit product name for ${title}`}
@@ -230,7 +230,7 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
             </span>
           )}
 
-          {isEditMode && onNewProject && (
+          {onNewProject && (
             <button
               type="button"
               className="btn btn-secondary btn-sm section-new-project-btn"
@@ -251,16 +251,15 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.35rem',
-                fontSize: '0.75rem',
+                fontSize: '0.78rem',
                 fontWeight: 600,
                 color: '#005baa',
                 background: '#ffffff',
                 border: '1px solid #93c5fd',
                 borderRadius: '6px',
-                padding: '0.25rem 0.65rem',
+                padding: '0.28rem 0.75rem',
                 cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                animation: 'fadeIn 0.15s ease'
+                transition: 'all 0.15s ease'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = '#eff6ff';
@@ -271,11 +270,11 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
                 e.currentTarget.style.borderColor = '#93c5fd';
               }}
             >
-              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              <span>New Project</span>
+              <span>+ New Project</span>
             </button>
           )}
 

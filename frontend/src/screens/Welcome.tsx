@@ -25,7 +25,7 @@ import CreateProject from './CreateProject'
 const PRODUCT_SECTIONS_STORAGE_KEY = 'doe_product_sections_collapsed'
 
 export default function Welcome() {
-  const { setProject, setStep, setCreationProductContext, isEditMode, setEditMode } = useStore()
+  const { setProject, setStep, setCreationProductContext } = useStore()
   const { user, logout } = useAuth()
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,30 +49,6 @@ export default function Welcome() {
   const [addProductModalOpen, setAddProductModalOpen] = useState(false)
   const [newProductNameValue, setNewProductNameValue] = useState('')
   const [isCreatingProduct, setIsCreatingProduct] = useState(false)
-
-  // Safety: Edit mode always defaults to OFF on page load
-  useEffect(() => {
-    setEditMode(false)
-  }, [setEditMode])
-
-  // Safety: If Edit mode turns OFF while delete flow or modal is active, cancel it immediately
-  useEffect(() => {
-    if (!isEditMode) {
-      if (deleteMode) setDeleteMode(false)
-      if (deleteModalOpen) setDeleteModalOpen(false)
-      if (selectedDeleteId) setSelectedDeleteId(null)
-      if (deleteSearchQuery) setDeleteSearchQuery('')
-      if (editProductModalOpen) {
-        setEditProductModalOpen(false)
-        setEditingProductGroup(null)
-        setEditProductNameValue('')
-      }
-      if (addProductModalOpen) {
-        setAddProductModalOpen(false)
-        setNewProductNameValue('')
-      }
-    }
-  }, [isEditMode, deleteMode, deleteModalOpen, selectedDeleteId, deleteSearchQuery, editProductModalOpen, addProductModalOpen])
 
   async function loadProjects() {
     try {
@@ -421,211 +397,142 @@ export default function Welcome() {
 
           {/* Top-Right: Actions & Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-            {/* Search Input in Top Header (Only visible when Edit mode is OFF) */}
-            {!isEditMode && (
-              <div style={{ position: 'relative', width: '280px' }}>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Search projects..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  style={{
-                    padding: '0.45rem 2rem 0.45rem 2.1rem',
-                    fontSize: '0.875rem',
-                    height: '38px',
-                    borderRadius: '999px',
-                    background: '#f8fafc',
-                    border: '1px solid #cbd5e1',
-                    width: '100%',
-                    boxSizing: 'border-box'
-                  }}
-                />
-                <span
+            {/* Search Input in Top Header */}
+            <div style={{ position: 'relative', width: '280px' }}>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Search projects..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{
+                  padding: '0.45rem 2rem 0.45rem 2.1rem',
+                  fontSize: '0.875rem',
+                  height: '38px',
+                  borderRadius: '999px',
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  width: '100%',
+                  boxSizing: 'border-box'
+                }}
+              />
+              <span
+                style={{
+                  position: 'absolute',
+                  left: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  opacity: 0.5,
+                  fontSize: '0.82rem',
+                  pointerEvents: 'none'
+                }}
+              >
+                🔍
+              </span>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  title="Clear search"
                   style={{
                     position: 'absolute',
-                    left: '0.75rem',
+                    right: '0.65rem',
                     top: '50%',
                     transform: 'translateY(-50%)',
-                    opacity: 0.5,
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
                     fontSize: '0.82rem',
-                    pointerEvents: 'none'
+                    padding: '2px'
                   }}
                 >
-                  🔍
-                </span>
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    title="Clear search"
-                    style={{
-                      position: 'absolute',
-                      right: '0.65rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      fontSize: '0.82rem',
-                      padding: '2px'
-                    }}
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            )}
+                  ✕
+                </button>
+              )}
+            </div>
 
-            {/* Edit Mode Toggle Button */}
+            {/* New Product Button (Replaces previous Edit button) */}
             <button
               type="button"
-              className={`btn ${isEditMode ? 'btn-primary' : 'btn-secondary'}`}
-              aria-pressed={isEditMode}
-              aria-label={isEditMode ? 'Exit Edit Mode' : 'Enable Edit Mode'}
-              title={isEditMode ? 'Turn off Edit mode' : 'Turn on Edit mode to manage products'}
-              onClick={() => setEditMode(!isEditMode)}
+              className="btn btn-primary"
               style={{
-                padding: '0.6rem 1rem',
-                fontSize: '0.85rem',
-                fontWeight: 600,
+                padding: '0.6rem 1.15rem',
+                fontSize: '0.86rem',
                 gap: '0.45rem',
-                backgroundColor: isEditMode ? 'var(--primary)' : '#ffffff',
-                borderColor: isEditMode ? 'var(--primary)' : 'var(--border)',
-                color: isEditMode ? '#ffffff' : 'var(--text-secondary)',
-                boxShadow: isEditMode ? '0 2px 8px rgba(0, 91, 170, 0.25)' : 'none',
-                transition: 'all 0.15s ease'
+                fontWeight: 700,
+                height: '38px',
+                display: 'inline-flex',
+                alignItems: 'center'
               }}
+              onClick={() => {
+                setNewProductNameValue('')
+                setAddProductModalOpen(true)
+              }}
+              title="Add a new product"
             >
-              {isEditMode ? (
-                <>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  <span>Turn off edit mode</span>
-                </>
-              ) : (
-                <>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                  </svg>
-                  <span>Edit</span>
-                </>
-              )}
+              <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>New Product</span>
             </button>
 
-            {/* Delete Project Action Toggle (Only visible when Edit mode is ON) */}
-            {isEditMode && (
-              <button
-                type="button"
-                id="delete-project-btn"
-                onClick={() => {
-                  const nextState = !deleteMode;
-                  setDeleteMode(nextState);
-                  if (nextState) {
-                    toast('Delete option enabled. Click the 🗑️ icon on any project card to delete.', {
-                      icon: '🗑️',
-                      duration: 3500
-                    });
-                  }
-                }}
-                title={deleteMode ? "Click to disable delete mode" : "Enable delete option to remove projects"}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.45rem',
-                  padding: '0.5rem 0.95rem',
-                  background: deleteMode ? '#dc2626' : '#ffffff',
-                  borderRadius: '999px',
-                  border: deleteMode ? '1px solid #b91c1c' : '1px solid #fca5a5',
-                  fontSize: '0.84rem',
-                  fontWeight: 600,
-                  color: deleteMode ? '#ffffff' : '#dc2626',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  height: '38px',
-                  boxSizing: 'border-box',
-                  whiteSpace: 'nowrap',
-                  boxShadow: deleteMode ? '0 2px 8px rgba(220, 38, 38, 0.35)' : 'none',
-                  animation: 'fadeIn 0.15s ease'
-                }}
-                onMouseEnter={e => {
-                  if (!deleteMode) {
-                    e.currentTarget.style.background = '#fef2f2';
-                    e.currentTarget.style.borderColor = '#ef4444';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(239, 68, 68, 0.15)';
-                  } else {
-                    e.currentTarget.style.background = '#b91c1c';
-                  }
-                }}
-                onMouseLeave={e => {
-                  if (!deleteMode) {
-                    e.currentTarget.style.background = '#ffffff';
-                    e.currentTarget.style.borderColor = '#fca5a5';
-                    e.currentTarget.style.transform = 'none';
-                    e.currentTarget.style.boxShadow = 'none';
-                  } else {
-                    e.currentTarget.style.background = '#dc2626';
-                  }
-                }}
+            {/* Delete Project Button beside New Product */}
+            <button
+              type="button"
+              id="delete-project-btn"
+              onClick={() => {
+                openDeleteModal()
+              }}
+              title="Delete a project"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.5rem 0.95rem',
+                background: '#ffffff',
+                borderRadius: '8px',
+                border: '1px solid #fca5a5',
+                fontSize: '0.84rem',
+                fontWeight: 600,
+                color: '#dc2626',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                height: '38px',
+                boxSizing: 'border-box',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = '#fef2f2';
+                e.currentTarget.style.borderColor = '#ef4444';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 2px 6px rgba(239, 68, 68, 0.15)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = '#ffffff';
+                e.currentTarget.style.borderColor = '#fca5a5';
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <svg
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
               >
-                {deleteMode ? (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                    <span>Exit Delete Mode</span>
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      width="15"
-                      height="15"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      viewBox="0 0 24 24"
-                    >
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      <line x1="10" y1="11" x2="10" y2="17" />
-                      <line x1="14" y1="11" x2="14" y2="17" />
-                    </svg>
-                    <span>Delete Project</span>
-                  </>
-                )}
-              </button>
-            )}
-
-            {/* Primary Action Button: New Product (Only visible when Edit mode is ON) */}
-            {isEditMode && (
-              <button
-                className="btn btn-primary"
-                style={{
-                  padding: '0.6rem 1.25rem',
-                  fontSize: '0.9rem',
-                  gap: '0.45rem',
-                  fontWeight: 700,
-                  animation: 'fadeIn 0.15s ease'
-                }}
-                onClick={() => {
-                  setNewProductNameValue('')
-                  setAddProductModalOpen(true)
-                }}
-              >
-                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                New Product
-              </button>
-            )}
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
+              <span>Delete Project</span>
+            </button>
 
             {/* Logout Button */}
             <button
@@ -656,47 +563,6 @@ export default function Welcome() {
 
       {/* ── Main Landing Body ── */}
       <main style={{ flex: 1, width: '100%', padding: '1.5rem 2.5rem 2.5rem 2.5rem' }}>
-        {/* Edit Mode Active Banner / Indicator */}
-        {isEditMode && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0.65rem 1.25rem',
-              background: '#eff6ff',
-              border: '1px solid #bfdbfe',
-              borderRadius: 'var(--radius-sm)',
-              marginBottom: '1.25rem',
-              fontSize: '0.84rem',
-              color: '#1e40af',
-              animation: 'fadeIn 0.15s ease'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '1rem' }}>✏️</span>
-              <span>
-                <strong>Edit Mode Active:</strong> You can add new products via the top bar or add new projects directly inside any product section.
-              </span>
-            </div>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              style={{
-                fontSize: '0.75rem',
-                padding: '0.2rem 0.65rem',
-                borderColor: '#93c5fd',
-                color: '#005baa',
-                background: '#ffffff'
-              }}
-              onClick={() => setEditMode(false)}
-            >
-              Done Editing ✕
-            </button>
-          </div>
-        )}
-
-
         {/* Global Search Status Banner */}
         {searchActive && (
           <div
@@ -796,32 +662,19 @@ export default function Welcome() {
                 Launch a new QbD design of experiments campaign to begin the workflow.
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                {isEditMode ? (
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => {
-                      setNewProductNameValue('')
-                      setAddProductModalOpen(true)
-                    }}
-                  >
-                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    New Product
-                  </button>
-                ) : (
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => setEditMode(true)}
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 20h9" />
-                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                    </svg>
-                    Enable Edit Mode to Add Product
-                  </button>
-                )}
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setNewProductNameValue('')
+                    setAddProductModalOpen(true)
+                  }}
+                >
+                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  New Product
+                </button>
               </div>
             </div>
           ) : (
@@ -848,7 +701,6 @@ export default function Welcome() {
                     searchQuery={searchQuery}
                     onClearSearch={() => setSearchQuery('')}
                     emptyStateMessage={`No projects under ${group.displayName} currently.`}
-                    isEditMode={isEditMode}
                     onEditProductName={isUnassigned ? undefined : () => openEditProductModal(group)}
                     onNewProject={() => {
                       setCreationProductContext({

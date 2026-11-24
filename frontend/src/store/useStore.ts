@@ -13,6 +13,26 @@ export type Step =
 
 export type CriterionType = 'range' | 'upper_bound' | 'lower_bound' | 'exact' | 'qualitative'
 
+export type QTPPCriterionType = 'MIN' | 'MAX' | 'RANGE' | 'EXACT' | 'QUALITATIVE'
+
+export const ATTRIBUTE_CLASSIFICATIONS = [
+  'Dosage form',
+  'Route of administration',
+  'Dosage strength',
+  'Drug release profile',
+  'Assay / potency',
+  'Purity / related substances',
+  'Dissolution',
+  'Content uniformity',
+  'Physical properties',
+  'Microbiological quality',
+  'Stability',
+  'Container closure system',
+  'Other'
+] as const
+
+export type AttributeClassification = typeof ATTRIBUTE_CLASSIFICATIONS[number]
+
 export interface AcceptanceCriterion {
   type: CriterionType
   minValue?: number | null
@@ -32,6 +52,55 @@ export interface QTPPItem {
   justification: string
   type: string
   acceptanceCriterion?: AcceptanceCriterion
+  // Extended ICH Q8(R2) specification fields:
+  attribute_name?: string
+  attribute_classification?: string
+  criterion_type?: QTPPCriterionType
+  unit?: string | null
+  min_value?: number | null
+  max_value?: number | null
+  target_value?: number | null
+  qualitative_text?: string | null
+  reference_source?: string
+  sort_order?: number
+  display_string?: string
+}
+
+export type CQAClassification = 'CQA' | 'POTENTIAL_CQA' | 'NON_CQA'
+
+export interface CQARiskSecondary {
+  id?: number
+  cqa_id: string
+  occurrence?: number | null
+  detectability?: number | null
+  notes?: string
+  rpn?: number | null
+}
+
+export interface CQALinkedQTPPDetail {
+  id: string
+  attribute_name: string
+  display_string: string
+  classification: string
+}
+
+export interface CQAAttributeItem {
+  id: string
+  cqa_code: string
+  project_id: number
+  attribute_name: string
+  description: string
+  scientific_justification: string
+  severity_score: number
+  evidence_basis: string[]
+  classification: CQAClassification
+  decision_justification: string
+  sort_order: number
+  linked_qtpp_ids: string[]
+  linked_qtpp_details?: CQALinkedQTPPDetail[]
+  secondary_risk?: CQARiskSecondary | null
+  created_at?: string
+  updated_at?: string
 }
 
 export interface CQAMapping {

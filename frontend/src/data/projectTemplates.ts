@@ -1,5 +1,5 @@
 // frontend/src/data/projectTemplates.ts
-// Single source of truth for Project Input Templates in Qyndr
+// Single source of truth for Project Input Templates in DoE and QbD Platform
 
 export type FieldKey = 'projectName' | 'compound' | 'objective' | 'description'
 

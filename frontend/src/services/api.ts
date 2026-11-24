@@ -171,14 +171,40 @@ export const Reports = {
 
 /* ── CQA Assessment & Suggestions ─────────────────────────── */
 export const CQAApi = {
+  getAll: (projectId: number) =>
+    api.get(`/projects/${projectId}/cqas`).then(r => r.data),
+  create: (projectId: number, payload: any) =>
+    api.post(`/projects/${projectId}/cqas`, payload).then(r => r.data),
+  update: (projectId: number, cqaId: string, payload: any) =>
+    api.put(`/projects/${projectId}/cqas/${cqaId}`, payload).then(r => r.data),
+  delete: (projectId: number, cqaId: string) =>
+    api.delete(`/projects/${projectId}/cqas/${cqaId}`).then(r => r.data),
+  reorder: (projectId: number, items: { id: string; sort_order: number }[]) =>
+    api.put(`/projects/${projectId}/cqas/reorder`, items).then(r => r.data),
+  clearAll: (projectId: number) =>
+    api.delete(`/projects/${projectId}/cqas/clear-all`).then(r => r.data),
+  getApproved: (projectId: number) =>
+    api.get(`/projects/${projectId}/cqas/approved`).then(r => r.data),
+  getSummary: (projectId: number) =>
+    api.get(`/projects/${projectId}/cqas/summary`).then(r => r.data),
+  suggestAI: (projectId: number) =>
+    api.post(`/projects/${projectId}/cqa/suggest-ai`).then(r => r.data),
   suggestions: (projectId: number) =>
-    api.get(`/projects/${projectId}/cqa/suggestions`).then(r => r.data),
+    api.get(`/projects/${projectId}/cqa/suggest-ai`).then(r => r.data),
   validate: (projectId: number, cqas: any[]) =>
     api.post(`/projects/${projectId}/cqa/validate`, cqas).then(r => r.data),
   auditLog: (projectId: number, cqaId?: string) =>
     api.get(`/projects/${projectId}/cqa/audit`, { params: cqaId ? { cqa_id: cqaId } : {} }).then(r => r.data),
   recordAudit: (projectId: number, payload: { cqa_id: string; action: string; old_value?: any; new_value?: any }) =>
     api.post(`/projects/${projectId}/cqa/audit`, payload).then(r => r.data),
+}
+
+/* ── QTPP Specifications API ──────────────────────────────── */
+export const QTPPApi = {
+  get: (projectId: number) =>
+    api.get(`/projects/${projectId}/qtpp`).then(r => r.data),
+  save: (projectId: number, specs: any[]) =>
+    api.post(`/projects/${projectId}/qtpp`, specs).then(r => r.data),
 }
 
 /* ── Project Input Template Auto-Alignment ─────────────────── */

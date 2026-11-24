@@ -132,6 +132,15 @@ def init_db():
         except Exception as mig_err:
             print("Risk parameter legacy migration notice:", mig_err)
 
+        # 7. QTPP Specifications Data Migration:
+        # Migrate existing rows from projects.qtpp_data into qtpp_specifications
+        try:
+            from .crud import migrate_legacy_qtpp_for_all_projects, migrate_legacy_cqas_for_all_projects
+            migrate_legacy_qtpp_for_all_projects(engine)
+            migrate_legacy_cqas_for_all_projects(engine)
+        except Exception as qtpp_mig_err:
+            print("QTPP/CQA migration notice:", qtpp_mig_err)
+
     # Admin Bootstrap / Sync from .env or default credentials
     admin_user = (os.getenv("ADMIN_USERNAME", "").strip() or "R&D_Lab_Head")
     admin_pass = (os.getenv("ADMIN_PASSWORD", "").strip() or "R&D_Lab_Head@VG.in")

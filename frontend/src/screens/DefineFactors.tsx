@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useStore, Factor, Response, StageItem, isPercentageResponse } from '../store/useStore'
 import { EXPERIMENT_SETUP_TITLE, EXPERIMENT_SETUP_SUBTITLE } from '../config/workflowSteps'
-import { Projects } from '../services/api'
+import { Projects, CQAApi } from '../services/api'
 import { mapTargetToResponse, extractResponsesFromDescription, simplifyResponseName } from '../utils/targetParser'
 import toast from 'react-hot-toast'
 
@@ -810,17 +810,6 @@ export default function DefineFactors() {
                   Delete Factor {selectedIndices.length > 0 ? `(${selectedIndices.length})` : ''}
                 </button>
 
-                {factors.length > 0 && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={handleClearAll}
-                    title="Clear all factors"
-                  >
-                    Clear All
-                  </button>
-                )}
-
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
@@ -989,6 +978,87 @@ export default function DefineFactors() {
                     Clear All
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={async () => {
+                    if (!currentProject?.id) return
+                    try {
+                      const approved = await CQAApi.getApproved(currentProject.id)
+                      if (!approved || approved.length === 0) {
+                        toast('No approved CQAs found (classification must be CQA).')
+                        return
+                      }
+                      const existingNames = new Set(responses.map(r => r.name.toLowerCase().trim()))
+                      const toAdd: Response[] = []
+                      for (const a of approved) {
+                        const nameTrim = a.attribute_name.trim()
+                        if (existingNames.has(nameTrim.toLowerCase())) continue
+                        const isImp = nameTrim.toLowerCase().includes('impurity') || nameTrim.toLowerCase().includes('substance')
+                        toAdd.push({
+                          name: nameTrim,
+                          unit: a.linked_qtpp_details?.[0]?.display_string?.includes('%') ? '%' : '',
+                          goal: isImp ? 'minimize' : 'maximize',
+                          inherited_from_target: true
+                        })
+                      }
+                      if (toAdd.length === 0) {
+                        toast('All approved CQAs are already in the response table.')
+                      } else {
+                        setResponses(prev => [...prev, ...toAdd])
+                        toast.success(`Loaded ${toAdd.length} approved CQA(s) into responses.`)
+                      }
+                    } catch (e: any) {
+                      toast.error('Failed to fetch approved CQAs.')
+                    }
+                  }}
+                  title="Import approved CQAs (classification == CQA) as candidate DoE responses"
+                  style={{
+                    borderColor: '#a7f3d0',
+                    color: '#047857',
+                    background: '#ecfdf5',
+                    fontWeight: 600
+                  }}
+                >
+                  + Import Approved CQAs
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    const hasYield = responses.some(r => r.name.toLowerCase().includes('yield'))
+                    if (hasYield) {
+                      toast('Yield response already exists in table.')
+                      return
+                    }
+                    setResponses(r => [
+                      ...r,
+                      {
+                        name: 'Isolated Yield',
+                        unit: '%',
+                        goal: 'maximize',
+                        target: 95.0,
+                        lower_limit: 80.0,
+                        upper_limit: 100.0,
+                        weight: 1.0,
+                        inherited_from_target: false
+                      }
+                    ])
+                    setIsResponseEditMode(true)
+                    toast.success('Added "Isolated Yield (%)" response variable.')
+                  }}
+                  title="Add standard Isolated Yield (%) response variable (Process performance measure)"
+                  style={{
+                    borderColor: '#93c5fd',
+                    color: '#005baa',
+                    background: '#eff6ff',
+                    fontWeight: 600
+                  }}
+                >
+                  + Add Yield Response
+                </button>
 
                 <button
                   type="button"

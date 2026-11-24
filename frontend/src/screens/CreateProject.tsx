@@ -1,9 +1,9 @@
 // src/screens/CreateProject.tsx – Step 01: Project Setup & QTPP
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import ReactDOM from 'react-dom'
-import { Info, Plus, Edit, ArrowRight, ArrowLeft, Sparkles, CheckCircle2 } from 'lucide-react'
+import { Info, Plus, Edit, ArrowRight, ArrowLeft, Sparkles, CheckCircle2, Trash2 } from 'lucide-react'
 import { useStore, QTPPItem, AcceptanceCriterion } from '../store/useStore'
-import { Projects, WorkflowApi } from '../services/api'
+import { Projects, WorkflowApi, QTPPApi } from '../services/api'
 import { extractTargetsFromDescription } from '../utils/targetParser'
 import { CriterionInput } from '../components/CriterionInput'
 import {
@@ -17,42 +17,184 @@ import {
   deduplicateDescriptionSections
 } from '../data/projectTemplates'
 
-interface ExtendedQTPPItem extends QTPPItem {
+import {
+  ATTRIBUTE_CLASSIFICATIONS,
+  AttributeClassification,
+  QTPPCriterionType
+} from '../store/useStore'
+
+export interface ExtendedQTPPSpecificationItem {
+  id: string
+  attribute_name: string
+  attribute_classification: AttributeClassification | string
+  criterion_type: QTPPCriterionType
+  unit: string | null
+  min_value: number | null
+  max_value: number | null
+  target_value: number | null
+  qualitative_text: string | null
+  justification: string
+  reference_source: string
+  sort_order: number
   userEdited?: boolean
 }
 
-const JUSTIFICATION_OPTIONS = [
-  'Pharmacopoeial',
-  'Regulatory Guideline',
-  'Patient-Critical',
-  'Internal Spec'
+const QUICK_UNITS = ['%', '% w/w', 'mg', 'mg/mL', 'min', 'months', 'ppm', 'N/A']
+
+const CRITERION_TYPE_OPTIONS: { value: QTPPCriterionType; label: string; symbol: string }[] = [
+  { value: 'MIN', label: 'Minimum limit (≥)', symbol: '≥' },
+  { value: 'MAX', label: 'Maximum limit (≤)', symbol: '≤' },
+  { value: 'RANGE', label: 'Range (Between)', symbol: '–' },
+  { value: 'EXACT', label: 'Exact target (=)', symbol: '=' },
+  { value: 'QUALITATIVE', label: 'Qualitative requirement', symbol: 'Txt' }
 ]
 
-const TYPE_OPTIONS = [
-  'Identity',
-  'Assay-Purity',
-  'Impurity',
-  'Physical Property',
-  'Residual Solvent',
-  'Microbial',
-  'Stability',
-  'Appearance & Color'
+const IR_TABLET_EXAMPLE: Omit<ExtendedQTPPSpecificationItem, 'id' | 'sort_order'>[] = [
+  {
+    attribute_name: 'Dosage form',
+    attribute_classification: 'Dosage form',
+    criterion_type: 'QUALITATIVE',
+    unit: 'N/A',
+    min_value: null,
+    max_value: null,
+    target_value: null,
+    qualitative_text: 'Immediate release tablet',
+    justification: 'Intended product presentation',
+    reference_source: 'Product requirement'
+  },
+  {
+    attribute_name: 'Assay',
+    attribute_classification: 'Assay / potency',
+    criterion_type: 'RANGE',
+    unit: '%',
+    min_value: 95,
+    max_value: 105,
+    target_value: null,
+    qualitative_text: null,
+    justification: 'Ensures drug content',
+    reference_source: 'Internal specification'
+  },
+  {
+    attribute_name: 'Related substances',
+    attribute_classification: 'Purity / related substances',
+    criterion_type: 'MAX',
+    unit: '%',
+    min_value: null,
+    max_value: 0.15,
+    target_value: null,
+    qualitative_text: null,
+    justification: 'Controls impurities',
+    reference_source: 'Applicable specification'
+  },
+  {
+    attribute_name: 'Dissolution',
+    attribute_classification: 'Dissolution',
+    criterion_type: 'MIN',
+    unit: '%',
+    min_value: 80,
+    max_value: null,
+    target_value: null,
+    qualitative_text: null,
+    justification: 'Ensures drug release',
+    reference_source: 'Development target'
+  },
+  {
+    attribute_name: 'Content uniformity',
+    attribute_classification: 'Content uniformity',
+    criterion_type: 'QUALITATIVE',
+    unit: 'N/A',
+    min_value: null,
+    max_value: null,
+    target_value: null,
+    qualitative_text: 'Compendial compliance',
+    justification: 'Ensures dose consistency',
+    reference_source: 'USP / applicable pharmacopoeia'
+  },
+  {
+    attribute_name: 'Stability',
+    attribute_classification: 'Stability',
+    criterion_type: 'MIN',
+    unit: 'months',
+    min_value: 24,
+    max_value: null,
+    target_value: null,
+    qualitative_text: null,
+    justification: 'Supports intended shelf life',
+    reference_source: 'Stability requirement'
+  },
+  {
+    attribute_name: 'Container closure',
+    attribute_classification: 'Container closure system',
+    criterion_type: 'QUALITATIVE',
+    unit: 'N/A',
+    min_value: null,
+    max_value: null,
+    target_value: null,
+    qualitative_text: 'Protective packaging',
+    justification: 'Protects product quality',
+    reference_source: 'Packaging requirement'
+  }
 ]
 
-function formatItems(list: any[]): ExtendedQTPPItem[] {
-  return list.map(item => {
-    let ac = item.acceptanceCriterion
-    if (!ac) {
-      ac = parseLegacyCriterion(item.criterion, item.operator, item.type)
+function formatLegacyItemsToSpecs(list: any[]): ExtendedQTPPSpecificationItem[] {
+  return list.map((item, idx) => {
+    const attrName = (item.attribute_name || item.attribute || `Attribute ${idx + 1}`).trim()
+    let classification = item.attribute_classification || item.type || 'Other'
+    if (classification === 'Assay-Purity') classification = 'Assay / potency'
+    if (classification === 'Impurity') classification = 'Purity / related substances'
+    if (classification === 'Physical Property' || classification === 'Physical') classification = 'Physical properties'
+
+    let cType: QTPPCriterionType = item.criterion_type || 'QUALITATIVE'
+    let unit: string | null = item.unit ?? null
+    let minVal: number | null = item.min_value ?? null
+    let maxVal: number | null = item.max_value ?? null
+    let targetVal: number | null = item.target_value ?? null
+    let qualText: string | null = item.qualitative_text ?? null
+
+    const ac = item.acceptanceCriterion
+    if (ac && !item.criterion_type) {
+      if (ac.type === 'lower_bound' || ac.type === 'min') {
+        cType = 'MIN'
+        minVal = ac.minValue ?? null
+        unit = ac.unit ?? unit
+      } else if (ac.type === 'upper_bound' || ac.type === 'max') {
+        cType = 'MAX'
+        maxVal = ac.maxValue ?? null
+        unit = ac.unit ?? unit
+      } else if (ac.type === 'range') {
+        cType = 'RANGE'
+        minVal = ac.minValue ?? null
+        maxVal = ac.maxValue ?? null
+        unit = ac.unit ?? unit
+      } else if (ac.type === 'exact') {
+        cType = 'EXACT'
+        targetVal = ac.targetValue ?? null
+        unit = ac.unit ?? unit
+      } else {
+        cType = 'QUALITATIVE'
+        qualText = ac.textDescription || item.criterion || 'Conforms'
+        unit = 'N/A'
+      }
     }
-    const op = getCriterionOperator(ac.type)
-    const crit = ac.displayString || formatCriterionDisplay(ac) || item.criterion || ''
+
+    if (cType === 'QUALITATIVE') {
+      unit = 'N/A'
+      if (!qualText) qualText = item.criterion || 'Conforms'
+    }
 
     return {
-      ...item,
-      operator: op,
-      criterion: crit,
-      acceptanceCriterion: ac,
+      id: item.id || `qtpp-${idx + 1}`,
+      attribute_name: attrName,
+      attribute_classification: classification,
+      criterion_type: cType,
+      unit,
+      min_value: minVal,
+      max_value: maxVal,
+      target_value: targetVal,
+      qualitative_text: qualText,
+      justification: item.justification || '',
+      reference_source: item.reference_source || item.reference || '',
+      sort_order: item.sort_order ?? idx,
       userEdited: item.userEdited ?? false
     }
   })
@@ -121,23 +263,25 @@ export default function CreateProject({
   }, [creationProductContext, currentProject])
 
   // QTPP State
-  const getInitialQTPP = (): ExtendedQTPPItem[] => {
+  const getInitialQTPP = (): ExtendedQTPPSpecificationItem[] => {
     const saved = (currentProject?.qtpp_data && currentProject.qtpp_data.length > 0)
       ? currentProject.qtpp_data
       : []
 
     if (saved.length > 0) {
-      return formatItems(saved)
+      return formatLegacyItemsToSpecs(saved)
     }
 
     return []
   }
 
-  const [items, setItems] = useState<ExtendedQTPPItem[]>(getInitialQTPP)
+  const [items, setItems] = useState<ExtendedQTPPSpecificationItem[]>(getInitialQTPP)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [isDeleteMode, setIsDeleteMode] = useState(false)
   const [isEditMode, setIsEditMode] = useState(true)
   const [saving, setSaving] = useState(false)
   const [headerError, setHeaderError] = useState<string | null>(null)
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null)
 
   // Determine if this is an unlock-to-edit session on an existing project
   const isEditingExisting = Boolean(currentProject?.id && unlockedStep === 'create-project')
@@ -205,81 +349,50 @@ export default function CreateProject({
 
   // QTPP Table handlers
   const handleAddRow = () => {
-    const defaultType = 'Assay-Purity'
-    const defaultCriterion = getDefaultCriterionForAttribute(defaultType)
-    const newItem: ExtendedQTPPItem = {
+    const newItem: ExtendedQTPPSpecificationItem = {
       id: `qtpp-${Date.now()}`,
-      attribute: '',
-      operator: getCriterionOperator(defaultCriterion.type),
-      criterion: defaultCriterion.displayString || formatCriterionDisplay(defaultCriterion),
+      attribute_name: '',
+      attribute_classification: 'Assay / potency',
+      criterion_type: 'RANGE',
+      unit: '%',
+      min_value: 98.0,
+      max_value: 102.0,
+      target_value: null,
+      qualitative_text: null,
       justification: 'Pharmacopoeial',
-      type: defaultType,
-      acceptanceCriterion: defaultCriterion,
+      reference_source: 'Monograph / Standard',
+      sort_order: items.length,
       userEdited: true
     }
     setItems(prev => [...prev, newItem])
     setIsEditMode(true)
   }
 
-  // Load standard pharmaceutical QbD preset attributes (ICH Q8 / Q6A)
-  const handleLoadQbdPreset = () => {
-    const compoundName = form.compound || 'Drug Substance'
-    const presetAttributes: ExtendedQTPPItem[] = [
-      {
-        id: `qtpp-assay-${Date.now()}`,
-        attribute: `${compoundName} Assay`,
-        operator: 'Between',
-        criterion: '98.0 – 102.0 % w/w',
-        justification: 'Pharmacopoeial',
-        type: 'Assay-Purity',
-        acceptanceCriterion: { type: 'range', minValue: 98.0, maxValue: 102.0, unit: '% w/w', displayString: '98.0 – 102.0 % w/w' },
-        userEdited: false
-      },
-      {
-        id: `qtpp-purity-${Date.now() + 1}`,
-        attribute: 'Chromatographic Purity (HPLC)',
-        operator: '≥',
-        criterion: '≥ 99.5 % area',
-        justification: 'Regulatory Guideline',
-        type: 'Assay-Purity',
-        acceptanceCriterion: { type: 'lower_bound', minValue: 99.5, unit: '%', displayString: '≥ 99.5 %' },
-        userEdited: false
-      },
-      {
-        id: `qtpp-specified-imp-${Date.now() + 2}`,
-        attribute: 'Total Related Substances (Impurities)',
-        operator: '≤',
-        criterion: '≤ 0.50 % area',
-        justification: 'Regulatory Guideline',
-        type: 'Impurity',
-        acceptanceCriterion: { type: 'upper_bound', maxValue: 0.50, unit: '%', displayString: '≤ 0.50 %' },
-        userEdited: false
-      },
-      {
-        id: `qtpp-solvents-${Date.now() + 3}`,
-        attribute: 'Residual Solvents (ICH Q3C)',
-        operator: '≤',
-        criterion: '≤ Option 1 limits',
-        justification: 'Regulatory Guideline',
-        type: 'Residual Solvent',
-        acceptanceCriterion: { type: 'qualitative', textDescription: 'Meets ICH Q3C Class 2/3 limits', displayString: 'Meets ICH Q3C limits' },
-        userEdited: false
-      },
-      {
-        id: `qtpp-solid-state-${Date.now() + 4}`,
-        attribute: 'Polymorphic Form & Crystal Habit',
-        operator: 'Target',
-        criterion: 'Form I (Single Polymorph by XRPD)',
-        justification: 'Patient-Critical',
-        type: 'Physical Property',
-        acceptanceCriterion: { type: 'qualitative', textDescription: 'Conforms to Form I standard', displayString: 'Form I Single Polymorph' },
-        userEdited: false
-      }
-    ]
+  const handleDuplicateRow = (id: string) => {
+    const src = items.find(i => i.id === id)
+    if (!src) return
+    const duplicated: ExtendedQTPPSpecificationItem = {
+      ...src,
+      id: `qtpp-${Date.now()}`,
+      attribute_name: `${src.attribute_name} (Copy)`.trim(),
+      sort_order: items.length,
+      userEdited: true
+    }
+    setItems(prev => [...prev, duplicated])
+    toast.success(`Duplicated "${src.attribute_name || 'Attribute'}"`)
+  }
 
-    setItems(presetAttributes)
+  // Load IR Tablet example (ICH Q8(R2))
+  const handleLoadIRTabletExample = () => {
+    const exampleItems: ExtendedQTPPSpecificationItem[] = IR_TABLET_EXAMPLE.map((ex, idx) => ({
+      ...ex,
+      id: `qtpp-ir-${Date.now()}-${idx}`,
+      sort_order: idx,
+      userEdited: false
+    }))
+    setItems(exampleItems)
     setIsEditMode(true)
-    toast.success('Loaded standard ICH Q8 QbD specification profile!')
+    toast.success('Loaded illustrative immediate-release tablet example specifications!')
   }
 
   const handleToggleSelect = (id: string) => {
@@ -297,57 +410,64 @@ export default function CreateProject({
     const remaining = items.filter(i => !selectedIds.includes(i.id))
     setItems(remaining)
     setSelectedIds([])
+    setIsDeleteMode(false)
     if (remaining.length === 0) {
       setIsEditMode(false)
     }
     toast.success(`Deleted ${count} ${count === 1 ? 'attribute' : 'attributes'}`)
   }
 
-  const handleCriterionChange = (id: string, newCriterion: AcceptanceCriterion) => {
+  const handleSpecFieldChange = (id: string, field: keyof ExtendedQTPPSpecificationItem, value: any) => {
     setItems(prev =>
       prev.map(item => {
         if (item.id !== id) return item
-        const op = getCriterionOperator(newCriterion.type)
-        const display = newCriterion.displayString || formatCriterionDisplay(newCriterion)
-        return {
-          ...item,
-          operator: op,
-          criterion: display,
-          acceptanceCriterion: newCriterion,
-          userEdited: true
+        const updated: ExtendedQTPPSpecificationItem = { ...item, [field]: value, userEdited: true }
+
+        // If switching criterion_type to QUALITATIVE: unit is auto-set to 'N/A'
+        if (field === 'criterion_type') {
+          if (value === 'QUALITATIVE') {
+            updated.unit = 'N/A'
+            if (!updated.qualitative_text) {
+              updated.qualitative_text = 'Conforms to specification'
+            }
+          } else {
+            if (updated.unit === 'N/A') {
+              updated.unit = '%'
+            }
+            if (value === 'RANGE') {
+              if (updated.min_value == null) updated.min_value = 95.0
+              if (updated.max_value == null) updated.max_value = 105.0
+            } else if (value === 'MIN') {
+              if (updated.min_value == null) updated.min_value = 90.0
+            } else if (value === 'MAX') {
+              if (updated.max_value == null) updated.max_value = 0.15
+            } else if (value === 'EXACT') {
+              if (updated.target_value == null) updated.target_value = 100.0
+            }
+          }
         }
+        return updated
       })
     )
   }
 
-  const handleChange = (id: string, field: keyof QTPPItem, value: string) => {
-    setItems(prev =>
-      prev.map(i => {
-        if (i.id !== id) return i
-        if (field === 'type') {
-          const isEmpty =
-            !i.acceptanceCriterion ||
-            (i.acceptanceCriterion.type === 'qualitative' && !i.acceptanceCriterion.textDescription) ||
-            (i.acceptanceCriterion.type !== 'qualitative' &&
-              i.acceptanceCriterion.minValue == null &&
-              i.acceptanceCriterion.maxValue == null &&
-              i.acceptanceCriterion.targetValue == null)
+  // Drag and drop reordering
+  const handleDragStart = (idx: number) => {
+    setDraggedIdx(idx)
+  }
 
-          if (isEmpty) {
-            const defCriterion = getDefaultCriterionForAttribute(value, i.attribute)
-            return {
-              ...i,
-              type: value,
-              operator: getCriterionOperator(defCriterion.type),
-              criterion: defCriterion.displayString || formatCriterionDisplay(defCriterion),
-              acceptanceCriterion: defCriterion,
-              userEdited: true
-            }
-          }
-        }
-        return { ...i, [field]: value, userEdited: true }
-      })
-    )
+  const handleDragOver = (e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault()
+    if (draggedIdx === null || draggedIdx === targetIdx) return
+    const reordered = [...items]
+    const [moved] = reordered.splice(draggedIdx, 1)
+    reordered.splice(targetIdx, 0, moved)
+    setDraggedIdx(targetIdx)
+    setItems(reordered.map((r, i) => ({ ...r, sort_order: i })))
+  }
+
+  const handleDragEnd = () => {
+    setDraggedIdx(null)
   }
 
   const handleClearAll = () => {
@@ -368,37 +488,47 @@ export default function CreateProject({
     return { valid: true }
   }
 
-  // Validation for Step 2 (QTPP)
+  // Validation for Step 2 (QTPP Specifications)
   const validateStep2 = (): { valid: boolean; message?: string } => {
     if (items.length === 0) {
-      return { valid: false, message: 'Please define at least one Quality Target Product Profile attribute.' }
+      return { valid: false, message: 'Please define at least one Quality Target Product Profile specification.' }
     }
+    const seenNames = new Set<string>()
     for (let idx = 0; idx < items.length; idx++) {
       const item = items[idx]
-      if (!item.attribute.trim()) {
+      const name = (item.attribute_name || '').trim()
+      if (!name) {
         return { valid: false, message: `Attribute #${idx + 1} requires an attribute name.` }
       }
-      const ac = item.acceptanceCriterion
-      if (ac) {
-        if (ac.type === 'range') {
-          if (ac.minValue == null || ac.maxValue == null) {
-            return { valid: false, message: `Attribute "${item.attribute}" requires both Minimum and Maximum values.` }
-          }
-          if (Number(ac.minValue) > Number(ac.maxValue)) {
-            return { valid: false, message: `Attribute "${item.attribute}": Minimum value cannot be greater than Maximum.` }
-          }
-        } else if (ac.type === 'upper_bound') {
-          if (ac.maxValue == null && ac.targetValue == null) {
-            return { valid: false, message: `Attribute "${item.attribute}" requires a valid upper limit (≤).` }
-          }
-        } else if (ac.type === 'lower_bound') {
-          if (ac.minValue == null && ac.targetValue == null) {
-            return { valid: false, message: `Attribute "${item.attribute}" requires a valid lower limit (≥).` }
-          }
-        } else if (ac.type === 'qualitative') {
-          if (!ac.textDescription?.trim() && !item.criterion?.trim()) {
-            return { valid: false, message: `Attribute "${item.attribute}" requires a qualitative specification description.` }
-          }
+      const lowerName = name.toLowerCase()
+      if (seenNames.has(lowerName)) {
+        return { valid: false, message: `Duplicate attribute name "${name}". Attribute names must be unique.` }
+      }
+      seenNames.add(lowerName)
+
+      // Criterion validation rules matching backend
+      if (item.criterion_type === 'MIN') {
+        if (item.min_value == null || isNaN(Number(item.min_value))) {
+          return { valid: false, message: `Attribute "${name}" requires a valid Minimum limit (min_value).` }
+        }
+      } else if (item.criterion_type === 'MAX') {
+        if (item.max_value == null || isNaN(Number(item.max_value))) {
+          return { valid: false, message: `Attribute "${name}" requires a valid Maximum limit (max_value).` }
+        }
+      } else if (item.criterion_type === 'RANGE') {
+        if (item.min_value == null || item.max_value == null || isNaN(Number(item.min_value)) || isNaN(Number(item.max_value))) {
+          return { valid: false, message: `Attribute "${name}" requires both Minimum and Maximum values.` }
+        }
+        if (Number(item.min_value) >= Number(item.max_value)) {
+          return { valid: false, message: `Attribute "${name}": Minimum value must be strictly less than Maximum.` }
+        }
+      } else if (item.criterion_type === 'EXACT') {
+        if (item.target_value == null || isNaN(Number(item.target_value))) {
+          return { valid: false, message: `Attribute "${name}" requires a valid Exact target value.` }
+        }
+      } else if (item.criterion_type === 'QUALITATIVE') {
+        if (!item.qualitative_text || !item.qualitative_text.trim()) {
+          return { valid: false, message: `Attribute "${name}" requires a qualitative requirement description.` }
         }
       }
     }
@@ -421,19 +551,19 @@ export default function CreateProject({
       const cleanDesc = deduplicateDescriptionSections(form.description)
       const targets = extractTargetsFromDescription(cleanDesc, form.objective, form.compound)
       if (targets.length > 0) {
-        const seeded = targets.map((t, idx) => ({
+        const seeded: ExtendedQTPPSpecificationItem[] = targets.map((t, idx) => ({
           id: `qtpp-extracted-${idx}`,
-          attribute: t.name,
-          operator: t.goal === 'Minimize' ? '≤' : t.goal === 'Maximize' ? '≥' : 'Target',
-          criterion: t.specification || `${t.goal} ${t.name}`,
+          attribute_name: t.name,
+          attribute_classification: t.name.toLowerCase().includes('impurity') ? 'Purity / related substances' : 'Assay / potency',
+          criterion_type: (t.goal === 'Minimize' ? 'MAX' : t.goal === 'Maximize' ? 'MIN' : 'EXACT') as QTPPCriterionType,
+          unit: t.unit || '%',
+          min_value: t.goal === 'Maximize' ? (t.target_value ?? 90.0) : null,
+          max_value: t.goal === 'Minimize' ? (t.target_value ?? 0.15) : null,
+          target_value: t.goal === 'Target' ? (t.target_value ?? 100.0) : null,
+          qualitative_text: null,
           justification: 'Internal Spec',
-          type: t.name.toLowerCase().includes('impurity') ? 'Impurity' : 'Assay-Purity',
-          acceptanceCriterion: {
-            type: (t.goal === 'Minimize' ? 'upper_bound' : t.goal === 'Maximize' ? 'lower_bound' : 'qualitative') as any,
-            targetValue: t.target_value ?? undefined,
-            unit: t.unit || '',
-            displayString: t.specification
-          },
+          reference_source: 'Description extraction',
+          sort_order: idx,
           userEdited: false
         }))
         setItems(seeded)
@@ -443,6 +573,19 @@ export default function CreateProject({
 
     setWizardStep(2)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Helper for generating formatted display string
+  const formatSpecDisplay = (item: ExtendedQTPPSpecificationItem): string => {
+    const u = (item.unit || '').trim()
+    const uSuffix = u && u.toUpperCase() !== 'N/A' ? ` ${u}` : ''
+    const _fmt = (v: number | null | undefined) => v == null ? '' : `${v}`
+
+    if (item.criterion_type === 'MIN') return `>= ${_fmt(item.min_value)}${uSuffix}`.trim()
+    if (item.criterion_type === 'MAX') return `<= ${_fmt(item.max_value)}${uSuffix}`.trim()
+    if (item.criterion_type === 'RANGE') return `${_fmt(item.min_value)}-${_fmt(item.max_value)}${uSuffix}`.trim()
+    if (item.criterion_type === 'EXACT') return `= ${_fmt(item.target_value)}${uSuffix}`.trim()
+    return (item.qualitative_text || 'Conforms').trim()
   }
 
   // Final Project Submission
@@ -459,8 +602,8 @@ export default function CreateProject({
     const v2 = validateStep2()
     if (!v2.valid) {
       setWizardStep(2)
-      setHeaderError(v2.message || 'Please check QTPP attributes.')
-      toast.error(v2.message || 'Please check QTPP attributes.')
+      setHeaderError(v2.message || 'Please check QTPP specifications.')
+      toast.error(v2.message || 'Please check QTPP specifications.')
       qtppSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
       return
     }
@@ -470,7 +613,23 @@ export default function CreateProject({
     try {
       const cleanDesc = deduplicateDescriptionSections(form.description)
       const extractedTargets = extractTargetsFromDescription(cleanDesc, form.objective, form.compound)
-      const validQtpp = items.filter(i => i.attribute.trim() !== '')
+      const validQtpp = items.filter(i => i.attribute_name.trim() !== '').map((s, idx) => ({
+        id: s.id,
+        attribute: s.attribute_name,
+        criterion: formatSpecDisplay(s),
+        justification: s.justification,
+        type: s.attribute_classification,
+        attribute_name: s.attribute_name,
+        attribute_classification: s.attribute_classification,
+        criterion_type: s.criterion_type,
+        unit: s.unit,
+        min_value: s.min_value,
+        max_value: s.max_value,
+        target_value: s.target_value,
+        qualitative_text: s.qualitative_text,
+        reference_source: s.reference_source,
+        sort_order: idx
+      }))
 
       // IF EDITING EXISTING UNLOCKED PROJECT
       if (isEditingExisting && currentProject?.id) {
@@ -485,6 +644,9 @@ export default function CreateProject({
         }
 
         await Projects.update(currentProject.id, updatePayload)
+        // Also save to relational QTPP Specifications endpoint
+        await QTPPApi.save(currentProject.id, items)
+
         const realignSummary = await WorkflowApi.realign(currentProject.id, 'create-project', updatePayload)
         
         setProject({
@@ -492,7 +654,7 @@ export default function CreateProject({
           ...updatePayload,
           unlocked_step: null
         })
-        setQtpp(validQtpp)
+        setQtpp(validQtpp as any)
         setApiTargets(extractedTargets)
         setUnlockedStep(null)
 
@@ -523,12 +685,11 @@ export default function CreateProject({
         api_targets: extractedTargets,
         qtpp_data: validQtpp
       })
-      setQtpp(validQtpp)
+      setQtpp(validQtpp as any)
       setApiTargets(extractedTargets)
       if (proj.stages_data) {
         setStages(proj.stages_data)
       }
-      // Safety behavior: Turn Edit mode OFF automatically after product or project creation
       setEditMode(false)
       toast.success('Project created!')
 
@@ -904,82 +1065,77 @@ export default function CreateProject({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.85rem' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <h2 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0, color: 'var(--text-main)' }}>
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
                   Quality Target Product Profile (QTPP) Specifications
                 </h2>
-                <span className="badge badge-primary" style={{ fontSize: '0.7rem' }}>ICH Q8(R2)</span>
+                <span className="badge badge-primary" style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}>
+                  ICH Q8(R2) - Product development
+                </span>
               </div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
-                Target quality criteria and acceptance ranges that govern Critical Quality Attributes (CQAs) and DoE response variables.
+              <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', margin: '0.35rem 0 0', lineHeight: 1.4 }}>
+                Define the intended quality characteristics and measurable targets for the finished drug product.
               </p>
             </div>
 
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              {!isEditMode ? (
+              {!isDeleteMode ? (
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  onClick={() => setIsEditMode(true)}
-                  style={{
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.4rem'
+                  onClick={() => {
+                    if (items.length === 0) {
+                      toast('No attributes to delete.')
+                      return
+                    }
+                    setIsDeleteMode(true)
                   }}
+                  style={{
+                    color: '#ef4444',
+                    borderColor: 'rgba(239, 68, 68, 0.35)',
+                    fontWeight: 600
+                  }}
+                  title="Enter selection mode to delete QTPP attributes"
                 >
-                  <Edit size={14} />
-                  Edit
+                  <Trash2 size={14} style={{ marginRight: '0.25rem' }} /> Delete QTPP
                 </button>
               ) : (
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <button
                     type="button"
-                    className="btn btn-secondary btn-sm"
+                    className="btn btn-sm"
                     onClick={handleDeleteSelected}
                     style={{
-                      color: selectedIds.length > 0 ? '#ef4444' : 'var(--danger)',
-                      borderColor: 'rgba(239, 68, 68, 0.35)',
+                      backgroundColor: '#ef4444',
+                      borderColor: '#dc2626',
+                      color: '#ffffff',
                       fontWeight: 600
                     }}
-                    title={selectedIds.length === 0 ? "Select rows below using checkboxes to delete" : `Delete ${selectedIds.length} selected attributes`}
+                    title={selectedIds.length === 0 ? "Select attributes below to delete" : `Delete ${selectedIds.length} selected attributes`}
                   >
-                    Delete {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+                    Confirm Delete {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
                   </button>
-
-                  {items.length > 0 && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={handleClearAll}
-                      title="Clear all rows to start with a blank table"
-                    >
-                      Clear All
-                    </button>
-                  )}
-
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
-                    onClick={handleAddRow}
-                    title="Add a new quality attribute row"
-                  >
-                    <Plus size={14} style={{ marginRight: '0.2rem' }} /> Add Attribute
-                  </button>
-
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
                     onClick={() => {
-                      setIsEditMode(false)
+                      setIsDeleteMode(false)
                       setSelectedIds([])
                     }}
-                    style={{ fontWeight: 600 }}
-                    title="Done editing"
+                    title="Cancel deletion and exit selection mode"
                   >
-                    Done
+                    Cancel
                   </button>
                 </div>
               )}
+
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={handleAddRow}
+                title="Add a new quality attribute row"
+              >
+                <Plus size={14} style={{ marginRight: '0.2rem' }} /> Add Attribute
+              </button>
             </div>
           </div>
 
@@ -994,29 +1150,43 @@ export default function CreateProject({
               backgroundColor: '#ffffff'
             }}
           >
-            <table className="data-table" style={{ width: '100%', minWidth: '950px', fontSize: '0.85rem' }}>
+            <table className="data-table" style={{ width: '100%', minWidth: '1050px', fontSize: '0.85rem' }}>
               <thead>
                 <tr>
-                  {isEditMode && (
-                    <th style={{ width: '3%', textAlign: 'center' }} />
+                  {isDeleteMode && (
+                    <th style={{ width: '4%', textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={items.length > 0 && selectedIds.length === items.length}
+                        onChange={() => {
+                          if (selectedIds.length === items.length) {
+                            setSelectedIds([])
+                          } else {
+                            setSelectedIds(items.map(i => i.id))
+                          }
+                        }}
+                        title="Select all"
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </th>
                   )}
-                  <th style={{ width: '4%' }}>#</th>
-                  <th style={{ width: isEditMode ? '24%' : '25%' }}>Attribute Name</th>
-                  <th style={{ width: isEditMode ? '38%' : '40%' }}>Target / Acceptance Criterion</th>
-                  <th style={{ width: isEditMode ? '20%' : '20%' }}>Justification / Source</th>
-                  <th style={{ width: isEditMode ? '15%' : '15%' }}>Attribute Type</th>
+                  <th style={{ width: isDeleteMode ? '20%' : '24%' }}>Attribute name</th>
+                  <th style={{ width: '16%' }}>Target / acceptance criterion</th>
+                  <th style={{ width: '8%' }}>Unit</th>
+                  <th style={{ width: '28%' }}>Justification</th>
+                  <th style={{ width: '24%' }}>Reference / source</th>
                 </tr>
               </thead>
               <tbody>
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={isEditMode ? 6 : 5} style={{ textAlign: 'center', padding: '2.5rem 1.5rem', color: 'var(--text-muted)' }}>
+                    <td colSpan={isDeleteMode ? 6 : 5} style={{ textAlign: 'center', padding: '2.5rem 1.5rem', color: 'var(--text-muted)' }}>
                       <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📋</div>
                       <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.95rem', marginBottom: '0.35rem' }}>
                         No QTPP Attributes Defined Yet
                       </div>
                       <div style={{ fontSize: '0.82rem', maxWidth: '520px', margin: '0 auto 1.25rem', lineHeight: 1.5 }}>
-                        In pharmaceutical Quality by Design (QbD) and modern DoE platforms (like MODDE and JMP), the QTPP specifies patient-relevant targets (Assay, Purity, Dissolution, Impurities) to evaluate experimental outcomes.
+                        In pharmaceutical Quality by Design (ICH Q8(R2)), the QTPP defines patient-relevant targets (Assay, Purity, Dissolution, Impurities) to evaluate experimental outcomes.
                       </div>
                       <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
                         <button className="btn btn-primary btn-sm" onClick={handleAddRow}>
@@ -1028,63 +1198,215 @@ export default function CreateProject({
                 ) : (
                   items.map((row, idx) => {
                     const isChecked = selectedIds.includes(row.id)
+                    const isQualitative = row.criterion_type === 'QUALITATIVE'
+
                     return (
-                      <tr key={row.id} style={{ background: isChecked ? 'rgba(239, 68, 68, 0.04)' : undefined }}>
-                        {isEditMode && (
-                          <td style={{ textAlign: 'center', verticalAlign: 'top', paddingTop: '1.05rem' }}>
+                      <tr
+                        key={row.id}
+                        draggable
+                        onDragStart={() => handleDragStart(idx)}
+                        onDragOver={(e) => handleDragOver(e, idx)}
+                        onDragEnd={handleDragEnd}
+                        style={{
+                          background: isChecked ? 'rgba(239, 68, 68, 0.04)' : undefined,
+                          cursor: 'default',
+                          opacity: draggedIdx === idx ? 0.4 : 1
+                        }}
+                      >
+                        {/* Select checkbox (only rendered in delete mode) */}
+                        {isDeleteMode && (
+                          <td style={{ textAlign: 'center', verticalAlign: 'top', paddingTop: '1rem' }}>
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => handleToggleSelect(row.id)}
-                              title={`Select ${row.attribute || 'attribute'} to delete`}
+                              title={`Select ${row.attribute_name || 'attribute'} to delete`}
                               style={{ cursor: 'pointer' }}
                             />
                           </td>
                         )}
-                        <td style={{ color: 'var(--text-muted)', fontWeight: 600, verticalAlign: 'top', paddingTop: '1rem' }}>
-                          {idx + 1}
+
+                        {/* Column: Attribute name & Classification selector */}
+                        <td style={{ verticalAlign: 'top', paddingTop: '0.8rem' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                            <input
+                              type="text"
+                              className="form-input"
+                              style={{ padding: '0.45rem 0.65rem', fontSize: '0.85rem' }}
+                              placeholder="e.g. Assay"
+                              value={row.attribute_name}
+                              onChange={e => handleSpecFieldChange(row.id, 'attribute_name', e.target.value)}
+                            />
+
+                            {/* Classification selector per row */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                Class:
+                              </span>
+                              <select
+                                className="form-select"
+                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', width: '100%' }}
+                                value={row.attribute_classification}
+                                onChange={e => handleSpecFieldChange(row.id, 'attribute_classification', e.target.value)}
+                              >
+                                {ATTRIBUTE_CLASSIFICATIONS.map(cls => (
+                                  <option key={cls} value={cls}>{cls}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
                         </td>
-                        <td style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
+
+                        {/* Column 3: Target / acceptance criterion */}
+                        <td style={{ verticalAlign: 'top', paddingTop: '0.8rem' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                            {/* Dynamic Criterion Type Selector */}
+                            <select
+                              className="form-select"
+                              style={{ padding: '0.4rem 0.6rem', fontSize: '0.82rem', fontWeight: 600, color: '#1e3a8a' }}
+                              value={row.criterion_type}
+                              onChange={e => handleSpecFieldChange(row.id, 'criterion_type', e.target.value as QTPPCriterionType)}
+                            >
+                              {CRITERION_TYPE_OPTIONS.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                            </select>
+
+                            {/* Inputs according to criterion_type */}
+                            {row.criterion_type === 'MIN' && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>≥</span>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  className="form-input"
+                                  style={{ padding: '0.38rem 0.6rem', fontSize: '0.85rem' }}
+                                  placeholder="Min value"
+                                  value={row.min_value ?? ''}
+                                  onChange={e => handleSpecFieldChange(row.id, 'min_value', e.target.value ? Number(e.target.value) : null)}
+                                />
+                              </div>
+                            )}
+
+                            {row.criterion_type === 'MAX' && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>≤</span>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  className="form-input"
+                                  style={{ padding: '0.38rem 0.6rem', fontSize: '0.85rem' }}
+                                  placeholder="Max limit"
+                                  value={row.max_value ?? ''}
+                                  onChange={e => handleSpecFieldChange(row.id, 'max_value', e.target.value ? Number(e.target.value) : null)}
+                                />
+                              </div>
+                            )}
+
+                            {row.criterion_type === 'RANGE' && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  className="form-input"
+                                  style={{ padding: '0.38rem 0.5rem', fontSize: '0.85rem', width: '50%' }}
+                                  placeholder="Min"
+                                  value={row.min_value ?? ''}
+                                  onChange={e => handleSpecFieldChange(row.id, 'min_value', e.target.value ? Number(e.target.value) : null)}
+                                />
+                                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>–</span>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  className="form-input"
+                                  style={{ padding: '0.38rem 0.5rem', fontSize: '0.85rem', width: '50%' }}
+                                  placeholder="Max"
+                                  value={row.max_value ?? ''}
+                                  onChange={e => handleSpecFieldChange(row.id, 'max_value', e.target.value ? Number(e.target.value) : null)}
+                                />
+                              </div>
+                            )}
+
+                            {row.criterion_type === 'EXACT' && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>=</span>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  className="form-input"
+                                  style={{ padding: '0.38rem 0.6rem', fontSize: '0.85rem' }}
+                                  placeholder="Target value"
+                                  value={row.target_value ?? ''}
+                                  onChange={e => handleSpecFieldChange(row.id, 'target_value', e.target.value ? Number(e.target.value) : null)}
+                                />
+                              </div>
+                            )}
+
+                            {row.criterion_type === 'QUALITATIVE' && (
+                              <input
+                                type="text"
+                                className="form-input"
+                                style={{ padding: '0.38rem 0.6rem', fontSize: '0.82rem' }}
+                                placeholder="e.g. Immediate release tablet / Conforms"
+                                value={row.qualitative_text ?? ''}
+                                onChange={e => handleSpecFieldChange(row.id, 'qualitative_text', e.target.value)}
+                              />
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Column 4: Unit dropdown */}
+                        <td style={{ verticalAlign: 'top', paddingTop: '0.8rem' }}>
+                          <select
+                            className="form-select"
+                            disabled={isQualitative}
+                            style={{
+                              padding: '0.38rem 0.55rem',
+                              fontSize: '0.82rem',
+                              background: isQualitative ? '#f8fafc' : '#ffffff',
+                              color: isQualitative ? '#94a3b8' : 'inherit',
+                              width: '100%'
+                            }}
+                            value={isQualitative ? 'N/A' : (row.unit || '%')}
+                            onChange={e => handleSpecFieldChange(row.id, 'unit', e.target.value)}
+                          >
+                            {isQualitative ? (
+                              <option value="N/A">N/A</option>
+                            ) : (
+                              <>
+                                {QUICK_UNITS.filter(u => u !== 'N/A').map(u => (
+                                  <option key={u} value={u}>{u}</option>
+                                ))}
+                                {row.unit && !QUICK_UNITS.includes(row.unit) && (
+                                  <option value={row.unit}>{row.unit}</option>
+                                )}
+                              </>
+                            )}
+                          </select>
+                        </td>
+
+                        {/* Column 5: Justification */}
+                        <td style={{ verticalAlign: 'top', paddingTop: '0.8rem' }}>
+                          <textarea
+                            className="form-input"
+                            rows={2}
+                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.82rem', resize: 'vertical' }}
+                            placeholder="e.g. Ensures drug content / Patient efficacy"
+                            value={row.justification}
+                            onChange={e => handleSpecFieldChange(row.id, 'justification', e.target.value)}
+                          />
+                        </td>
+
+                        {/* Column 6: Reference / source */}
+                        <td style={{ verticalAlign: 'top', paddingTop: '0.8rem' }}>
                           <input
                             type="text"
                             className="form-input"
-                            style={{ padding: '0.45rem 0.65rem', fontSize: '0.85rem' }}
-                            placeholder="e.g. Assay (Purity)"
-                            value={row.attribute}
-                            onChange={e => handleChange(row.id, 'attribute', e.target.value)}
+                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.82rem' }}
+                            placeholder="e.g. USP / Applicable specification"
+                            value={row.reference_source}
+                            onChange={e => handleSpecFieldChange(row.id, 'reference_source', e.target.value)}
                           />
-                        </td>
-                        <td style={{ verticalAlign: 'top', padding: '0.75rem 0.5rem' }}>
-                          <CriterionInput
-                            value={row.acceptanceCriterion}
-                            onChange={newCrit => handleCriterionChange(row.id, newCrit)}
-                            attributeType={row.type}
-                            attributeName={row.attribute}
-                          />
-                        </td>
-                        <td style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
-                          <select
-                            className="form-select"
-                            style={{ padding: '0.45rem 0.65rem', fontSize: '0.82rem' }}
-                            value={row.justification}
-                            onChange={e => handleChange(row.id, 'justification', e.target.value)}
-                          >
-                            {JUSTIFICATION_OPTIONS.map(opt => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td style={{ verticalAlign: 'top', paddingTop: '0.85rem' }}>
-                          <select
-                            className="form-select"
-                            style={{ padding: '0.45rem 0.65rem', fontSize: '0.82rem' }}
-                            value={row.type}
-                            onChange={e => handleChange(row.id, 'type', e.target.value)}
-                          >
-                            {TYPE_OPTIONS.map(opt => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                          </select>
                         </td>
                       </tr>
                     )

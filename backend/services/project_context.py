@@ -64,32 +64,71 @@ def build_full_project_context(project_id: int, db: Session) -> Dict[str, Any]:
 
     df = pd.DataFrame(rows) if rows else pd.DataFrame()
 
-    # 2. Extract QTPP
+    # 2. Extract QTPP Specifications (Relational model first, fallback to JSON)
     qtpp_list = []
-    for item in (proj.qtpp_data or []):
-        if isinstance(item, dict):
+    specs = crud.get_qtpp_specifications(db, project_id)
+    if specs:
+        for s in specs:
             qtpp_list.append({
-                "id": item.get("id", ""),
-                "attribute": item.get("attribute", ""),
-                "criterion": item.get("criterion", ""),
-                "justification": item.get("justification", ""),
-                "type": item.get("type", "Quality")
+                "id": s.id,
+                "attribute": s.attribute_name,
+                "attribute_name": s.attribute_name,
+                "attribute_classification": s.attribute_classification,
+                "criterion_type": s.criterion_type,
+                "criterion": s.format_target_display(),
+                "unit": s.unit,
+                "justification": s.justification or "",
+                "reference_source": s.reference_source or "",
+                "type": s.attribute_classification
             })
+    else:
+        for item in (proj.qtpp_data or []):
+            if isinstance(item, dict):
+                qtpp_list.append({
+                    "id": item.get("id", ""),
+                    "attribute": item.get("attribute_name") or item.get("attribute", ""),
+                    "criterion": item.get("criterion", ""),
+                    "justification": item.get("justification", ""),
+                    "type": item.get("attribute_classification") or item.get("type", "Quality")
+                })
 
-    # 3. Extract CQAs
+    # 3. Extract CQAs (Relational models first, fallback to JSON)
     cqas_list = []
-    for item in (proj.cqas_data or []):
-        if isinstance(item, dict):
+    cqa_attrs = crud.get_cqa_attributes(db, project_id)
+    if cqa_attrs:
+        for c in cqa_attrs:
+            linked_names = [q.attribute_name for q in c.linked_qtpp_specs]
+            linked_ids = [q.id for q in c.linked_qtpp_specs]
             cqas_list.append({
-                "id": item.get("id", ""),
-                "name": item.get("name", ""),
-                "appliesTo": item.get("appliesTo", "Final API"),
-                "stageName": item.get("stageName", ""),
-                "method": item.get("method", ""),
-                "range": item.get("range", ""),
-                "justification": item.get("justification", ""),
-                "linkedQtppIds": item.get("linkedQtppIds", [])
+                "id": c.id,
+                "cqa_code": c.cqa_code,
+                "name": c.attribute_name,
+                "description": c.description or "",
+                "scientific_justification": c.scientific_justification,
+                "decision_justification": c.decision_justification or "",
+                "severity_score": c.severity_score,
+                "evidence_basis": c.evidence_basis or [],
+                "classification": c.classification,
+                "is_critical": c.classification == "CQA",
+                "linkedQtppIds": linked_ids,
+                "linkedQtppNames": linked_names,
+                "justification": c.decision_justification or c.scientific_justification
             })
+    else:
+        for item in (proj.cqas_data or []):
+            if isinstance(item, dict):
+                cqas_list.append({
+                    "id": item.get("id", ""),
+                    "cqa_code": item.get("cqa_code", ""),
+                    "name": item.get("name", ""),
+                    "appliesTo": item.get("appliesTo", "Final API"),
+                    "stageName": item.get("stageName", ""),
+                    "method": item.get("method", ""),
+                    "range": item.get("range", ""),
+                    "justification": item.get("justification", ""),
+                    "linkedQtppIds": item.get("linkedQtppIds", []),
+                    "is_critical": item.get("is_critical", False)
+                })
 
     # 4. Extract Stages / Route Mapping
     stages_list = []

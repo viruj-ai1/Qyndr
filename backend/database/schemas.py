@@ -2,8 +2,205 @@
 database/schemas.py - Pydantic data schemas for API requests & responses.
 """
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import List, Optional, Dict, Any
+
+from enum import Enum
+
+class CriterionTypeEnum(str, Enum):
+    MIN = "MIN"
+    MAX = "MAX"
+    RANGE = "RANGE"
+    EXACT = "EXACT"
+    QUALITATIVE = "QUALITATIVE"
+
+class AttributeClassificationEnum(str, Enum):
+    DOSAGE_FORM = "Dosage form"
+    ROUTE_OF_ADMINISTRATION = "Route of administration"
+    DOSAGE_STRENGTH = "Dosage strength"
+    DRUG_RELEASE_PROFILE = "Drug release profile"
+    ASSAY_POTENCY = "Assay / potency"
+    PURITY_RELATED_SUBSTANCES = "Purity / related substances"
+    DISSOLUTION = "Dissolution"
+    CONTENT_UNIFORMITY = "Content uniformity"
+    PHYSICAL_PROPERTIES = "Physical properties"
+    MICROBIOLOGICAL_QUALITY = "Microbiological quality"
+    STABILITY = "Stability"
+    CONTAINER_CLOSURE_SYSTEM = "Container closure system"
+    OTHER = "Other"
+
+class QTPPSpecificationBase(BaseModel):
+    attribute_name: str
+    attribute_classification: str = "Other"
+    criterion_type: CriterionTypeEnum
+    unit: Optional[str] = None
+    min_value: Optional[float] = None
+    max_value: Optional[float] = None
+    target_value: Optional[float] = None
+    qualitative_text: Optional[str] = None
+    justification: str = ""
+    reference_source: str = ""
+    sort_order: int = 0
+
+    def validate_criterion_rules(self):
+        c_type = self.criterion_type
+        if c_type == CriterionTypeEnum.MIN:
+            if self.min_value is None:
+                raise ValueError("MIN criterion requires 'min_value'.")
+        elif c_type == CriterionTypeEnum.MAX:
+            if self.max_value is None:
+                raise ValueError("MAX criterion requires 'max_value'.")
+        elif c_type == CriterionTypeEnum.RANGE:
+            if self.min_value is None or self.max_value is None:
+                raise ValueError("RANGE criterion requires both 'min_value' and 'max_value'.")
+            if self.min_value >= self.max_value:
+                raise ValueError("RANGE criterion requires 'min_value' to be strictly less than 'max_value'.")
+        elif c_type == CriterionTypeEnum.EXACT:
+            if self.target_value is None:
+                raise ValueError("EXACT criterion requires 'target_value'.")
+        elif c_type == CriterionTypeEnum.QUALITATIVE:
+            if not self.qualitative_text or not self.qualitative_text.strip():
+                raise ValueError("QUALITATIVE criterion requires 'qualitative_text'.")
+
+class QTPPSpecificationCreate(QTPPSpecificationBase):
+    id: Optional[str] = None
+
+class QTPPSpecificationUpdate(BaseModel):
+    attribute_name: Optional[str] = None
+    attribute_classification: Optional[str] = None
+    criterion_type: Optional[CriterionTypeEnum] = None
+    unit: Optional[str] = None
+    min_value: Optional[float] = None
+    max_value: Optional[float] = None
+    target_value: Optional[float] = None
+    qualitative_text: Optional[str] = None
+    justification: Optional[str] = None
+    reference_source: Optional[str] = None
+    sort_order: Optional[int] = None
+
+class QTPPSpecificationOut(QTPPSpecificationBase):
+    id: str
+    project_id: int
+    display_string: str = ""
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ── CQA Identification & Criticality Assessment Schemas ─────
+
+class CQAClassificationEnum(str, Enum):
+    CQA = "CQA"
+    POTENTIAL_CQA = "POTENTIAL_CQA"
+    NON_CQA = "NON_CQA"
+
+class CQAEvidenceBasisEnum(str, Enum):
+    SCIENTIFIC_KNOWLEDGE = "Scientific knowledge"
+    PRODUCT_DEV_LITERATURE = "Product development literature"
+    PRIOR_KNOWLEDGE = "Prior knowledge / similar products"
+    REGULATORY_GUIDANCE = "Regulatory guidance"
+    PRELIMINARY_EXPERIMENTAL_DATA = "Preliminary experimental data"
+    CLINICAL_PATIENT_DATA = "Clinical / patient data"
+    OTHER = "Other"
+
+class CQARiskSecondaryIn(BaseModel):
+    occurrence: Optional[int] = Field(None, ge=1, le=5)
+    detectability: Optional[int] = Field(None, ge=1, le=5)
+    notes: Optional[str] = ""
+
+class CQARiskSecondaryOut(CQARiskSecondaryIn):
+    id: Optional[int] = None
+    cqa_id: str
+    rpn: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class CQAAttributeBase(BaseModel):
+    attribute_name: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = ""
+    scientific_justification: str = Field(..., min_length=1)
+    severity_score: int = Field(default=3, ge=1, le=5)
+    evidence_basis: List[str] = Field(default_factory=list)
+    classification: CQAClassificationEnum = CQAClassificationEnum.POTENTIAL_CQA
+    decision_justification: Optional[str] = ""
+    linked_qtpp_ids: List[str] = Field(default_factory=list)
+    sort_order: Optional[int] = 0
+
+    @field_validator("attribute_name")
+    def validate_name(cls, v):
+        if not v or not v.strip():
+            raise ValueError("attribute_name cannot be empty")
+        return v.strip()
+
+    @field_validator("severity_score")
+    def validate_severity(cls, v):
+        if v < 1 or v > 5:
+            raise ValueError("severity_score must be between 1 and 5")
+        return v
+
+    def validate_cqa_rules(self):
+        if not self.linked_qtpp_ids or len(self.linked_qtpp_ids) == 0:
+            raise ValueError("Each CQA must link to at least one QTPP attribute.")
+        if self.classification in [CQAClassificationEnum.CQA, CQAClassificationEnum.NON_CQA]:
+            if not self.decision_justification or not self.decision_justification.strip():
+                raise ValueError(f"Decision justification is required when classification is {self.classification.value}.")
+
+class CQAAttributeCreate(CQAAttributeBase):
+    id: Optional[str] = None
+    secondary_risk: Optional[CQARiskSecondaryIn] = None
+
+class CQAAttributeUpdate(BaseModel):
+    attribute_name: Optional[str] = None
+    description: Optional[str] = None
+    scientific_justification: Optional[str] = None
+    severity_score: Optional[int] = Field(None, ge=1, le=5)
+    evidence_basis: Optional[List[str]] = None
+    classification: Optional[CQAClassificationEnum] = None
+    decision_justification: Optional[str] = None
+    linked_qtpp_ids: Optional[List[str]] = None
+    sort_order: Optional[int] = None
+    secondary_risk: Optional[CQARiskSecondaryIn] = None
+
+class CQALinkedQTPPDetail(BaseModel):
+    id: str
+    attribute_name: str
+    display_string: str
+    classification: str
+
+class CQAAttributeOut(BaseModel):
+    id: str
+    cqa_code: str
+    project_id: int
+    attribute_name: str
+    description: str
+    scientific_justification: str
+    severity_score: int
+    evidence_basis: List[str]
+    classification: str
+    decision_justification: str
+    sort_order: int
+    linked_qtpp_ids: List[str]
+    linked_qtpp_details: List[CQALinkedQTPPDetail] = []
+    secondary_risk: Optional[CQARiskSecondaryOut] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class CQASummaryOut(BaseModel):
+    project_id: int
+    total_cqas: int
+    cqa_count: int
+    potential_cqa_count: int
+    non_cqa_count: int
+    unlinked_qtpp_count: int
+
+class CQAReorderItem(BaseModel):
+    id: str
+    sort_order: int
 
 # ── Phase 0 QbD Schemas ─────────────────────────────────────
 

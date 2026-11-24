@@ -103,7 +103,7 @@ app.include_router(analysis_router,     prefix=PREFIX, dependencies=auth_dep)
 app.include_router(optimization_router, prefix=PREFIX, dependencies=auth_dep)
 app.include_router(reports_router,      prefix=PREFIX, dependencies=auth_dep)
 app.include_router(chat_router,         dependencies=auth_dep)
-app.include_router(cqa_router,          dependencies=auth_dep)
+app.include_router(cqa_router,          prefix=PREFIX, dependencies=auth_dep)
 app.include_router(project_input_router, dependencies=auth_dep)
 app.include_router(workflow_router,     prefix=PREFIX, dependencies=auth_dep)
 

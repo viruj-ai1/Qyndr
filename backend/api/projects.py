@@ -62,6 +62,72 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
+# ── QTPP Specifications ──────────────────────────────────────
+@router.get("/{project_id}/qtpp", response_model=List[schemas.QTPPSpecificationOut])
+def get_qtpp_specifications(project_id: int, db: Session = Depends(get_db)):
+    proj = crud.get_project(db, project_id)
+    if not proj: raise HTTPException(404, "Project not found")
+    specs = crud.get_qtpp_specifications(db, project_id)
+    out = []
+    for s in specs:
+        out.append(schemas.QTPPSpecificationOut(
+            id=s.id,
+            project_id=s.project_id,
+            attribute_name=s.attribute_name,
+            attribute_classification=s.attribute_classification,
+            criterion_type=s.criterion_type,
+            unit=s.unit,
+            min_value=s.min_value,
+            max_value=s.max_value,
+            target_value=s.target_value,
+            qualitative_text=s.qualitative_text,
+            justification=s.justification or "",
+            reference_source=s.reference_source or "",
+            sort_order=s.sort_order,
+            display_string=s.format_target_display(),
+            created_at=s.created_at,
+            updated_at=s.updated_at
+        ))
+    return out
+
+
+@router.post("/{project_id}/qtpp", response_model=List[schemas.QTPPSpecificationOut])
+def replace_qtpp_specifications(
+    project_id: int,
+    body: List[schemas.QTPPSpecificationCreate],
+    db: Session = Depends(get_db)
+):
+    proj = crud.get_project(db, project_id)
+    if not proj: raise HTTPException(404, "Project not found")
+    try:
+        specs = crud.create_or_replace_qtpp_specifications(db, project_id, body)
+        out = []
+        for s in specs:
+            out.append(schemas.QTPPSpecificationOut(
+                id=s.id,
+                project_id=s.project_id,
+                attribute_name=s.attribute_name,
+                attribute_classification=s.attribute_classification,
+                criterion_type=s.criterion_type,
+                unit=s.unit,
+                min_value=s.min_value,
+                max_value=s.max_value,
+                target_value=s.target_value,
+                qualitative_text=s.qualitative_text,
+                justification=s.justification or "",
+                reference_source=s.reference_source or "",
+                sort_order=s.sort_order,
+                display_string=s.format_target_display(),
+                created_at=s.created_at,
+                updated_at=s.updated_at
+            ))
+        return out
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ── Factors ──────────────────────────────────────────────────
 @router.get("/{project_id}/factors", response_model=List[schemas.FactorOut])
 def get_factors(project_id: int, db: Session = Depends(get_db)):

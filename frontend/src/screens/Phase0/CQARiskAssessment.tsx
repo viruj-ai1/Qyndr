@@ -381,7 +381,6 @@ export default function CQARiskAssessment() {
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([])
   const [loadingAi, setLoadingAi] = useState(false)
   const [draggedCqaIdx, setDraggedCqaIdx] = useState<number | null>(null)
-  const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
 
   // Fetch QTPP specifications and CQA attributes from backend
   const loadCqasAndQtpp = async () => {
@@ -603,18 +602,7 @@ export default function CQARiskAssessment() {
     }
   }
 
-  const handleClearAllCqas = async () => {
-    if (!currentProject?.id) return
-    try {
-      await CQAApi.clearAll(currentProject.id)
-      setCqaAttributes([])
-      setSelectedCqaIds([])
-      setClearConfirmOpen(false)
-      toast.success('Cleared all CQA attributes.')
-    } catch (e: any) {
-      toast.error(e.response?.data?.detail || 'Failed to clear CQAs.')
-    }
-  }
+
 
   const handleLoadIRTabletCQAs = async () => {
     if (!currentProject?.id) return
@@ -1035,25 +1023,6 @@ export default function CQARiskAssessment() {
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  onClick={handleLoadIRTabletCQAs}
-                  title="Illustrative example - not a universal specification"
-                  style={{
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    borderColor: '#93c5fd',
-                    color: '#005baa',
-                    background: '#eff6ff'
-                  }}
-                >
-                  <Sparkles size={14} />
-                  <span>Load example (immediate-release tablet)</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
                   onClick={handleSuggestAI}
                   disabled={loadingAi}
                   style={{
@@ -1130,17 +1099,6 @@ export default function CQARiskAssessment() {
                       Cancel
                     </button>
                   </div>
-                )}
-
-                {cqaAttributes.length > 0 && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => setClearConfirmOpen(true)}
-                    title="Clear all CQAs"
-                  >
-                    Clear All
-                  </button>
                 )}
 
                 <button
@@ -1269,9 +1227,6 @@ export default function CQARiskAssessment() {
                         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
                           <button className="btn btn-primary btn-sm" onClick={handleAddCqaRow}>
                             <Plus size={14} style={{ marginRight: '0.3rem' }} /> Add Attribute
-                          </button>
-                          <button className="btn btn-secondary btn-sm" onClick={handleLoadIRTabletCQAs}>
-                            <Sparkles size={14} style={{ marginRight: '0.3rem' }} /> Load example (immediate-release tablet)
                           </button>
                           <button className="btn btn-secondary btn-sm" onClick={handleSuggestAI}>
                             <Sparkles size={14} style={{ marginRight: '0.3rem' }} /> Suggest CQAs from QTPP
@@ -2164,54 +2119,7 @@ export default function CQARiskAssessment() {
         </div>
       )}
 
-      {/* Clear All Confirmation Modal */}
-      {clearConfirmOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          zIndex: 1100,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '10px',
-            padding: '1.5rem',
-            maxWidth: '440px',
-            width: '90%',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
-          }}>
-            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem', color: '#1e293b' }}>
-              Clear All CQA Attributes?
-            </h3>
-            <p style={{ margin: '0 0 1.25rem', fontSize: '0.84rem', color: '#64748b', lineHeight: 1.5 }}>
-              Are you sure you want to remove all CQA attributes for this project? Any associations with QTPP targets will be unlinked.
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setClearConfirmOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-sm"
-                onClick={handleClearAllCqas}
-                style={{ backgroundColor: '#ef4444', borderColor: '#dc2626', color: '#ffffff', fontWeight: 600 }}
-              >
-                Yes, Clear All
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Review Project Setup & QTPP Modal */}
       {isProjectSetupModalOpen && (

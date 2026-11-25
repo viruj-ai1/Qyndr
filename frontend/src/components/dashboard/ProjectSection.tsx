@@ -133,7 +133,7 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
               <h3 className="project-section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                 {stageMeta.icon && <span>{stageMeta.icon}</span>}
                 <span>{title}</span>
-                {onEditProductName && (
+                {isEditMode && onEditProductName && (
                   <button
                     type="button"
                     aria-label={`Edit product name for ${title}`}
@@ -178,7 +178,7 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
                     </svg>
                   </button>
                 )}
-                {onDeleteProduct && (
+                {isEditMode && onDeleteProduct && (
                   <button
                     type="button"
                     aria-label={`Delete product ${title}`}

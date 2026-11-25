@@ -541,78 +541,124 @@ export default function Welcome() {
 
             {/* Delete Dropdown (Project & Product) beside New Product */}
             <div style={{ position: 'relative' }} ref={deleteDropdownRef}>
-              <button
-                type="button"
-                id="delete-dropdown-btn"
-                onClick={() => setDeleteDropdownOpen(prev => !prev)}
-                title="Delete a project or product"
-                aria-expanded={deleteDropdownOpen}
-                aria-haspopup="true"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.45rem',
-                  padding: '0.5rem 0.85rem',
-                  background: deleteDropdownOpen ? '#fef2f2' : '#ffffff',
-                  borderRadius: '8px',
-                  border: deleteDropdownOpen ? '1px solid #ef4444' : '1px solid #fca5a5',
-                  fontSize: '0.84rem',
-                  fontWeight: 600,
-                  color: '#dc2626',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  height: '38px',
-                  boxSizing: 'border-box',
-                  whiteSpace: 'nowrap'
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = '#fef2f2';
-                  e.currentTarget.style.borderColor = '#ef4444';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 2px 6px rgba(239, 68, 68, 0.15)';
-                }}
-                onMouseLeave={e => {
-                  if (!deleteDropdownOpen) {
-                    e.currentTarget.style.background = '#ffffff';
-                    e.currentTarget.style.borderColor = '#fca5a5';
-                    e.currentTarget.style.transform = 'none';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }
-                }}
-              >
-                <svg
-                  width="15"
-                  height="15"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  viewBox="0 0 24 24"
-                >
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  <line x1="10" y1="11" x2="10" y2="17" />
-                  <line x1="14" y1="11" x2="14" y2="17" />
-                </svg>
-                <span>Delete</span>
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  id="delete-option-btn"
+                  onClick={() => {
+                    const next = !deleteMode;
+                    setDeleteMode(next);
+                    if (next) {
+                      toast('Delete option enabled. Click ✎ to rename or 🗑️ to delete.', {
+                        icon: '🗑️',
+                        duration: 3500
+                      });
+                    }
+                  }}
+                  title={deleteMode ? "Click to exit delete option" : "Click to enable edit and delete options"}
+                  aria-pressed={deleteMode}
                   style={{
-                    transition: 'transform 0.2s ease',
-                    transform: deleteDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    padding: '0.5rem 0.85rem',
+                    background: deleteMode ? '#dc2626' : (deleteDropdownOpen ? '#fef2f2' : '#ffffff'),
+                    borderRadius: '8px 0 0 8px',
+                    border: deleteMode ? '1px solid #dc2626' : (deleteDropdownOpen ? '1px solid #ef4444' : '1px solid #fca5a5'),
+                    borderRight: 'none',
+                    fontSize: '0.84rem',
+                    fontWeight: 600,
+                    color: deleteMode ? '#ffffff' : '#dc2626',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    height: '38px',
+                    boxSizing: 'border-box',
+                    whiteSpace: 'nowrap'
+                  }}
+                  onMouseEnter={e => {
+                    if (!deleteMode) {
+                      e.currentTarget.style.background = '#fef2f2';
+                      e.currentTarget.style.borderColor = '#ef4444';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!deleteMode) {
+                      e.currentTarget.style.background = '#ffffff';
+                      e.currentTarget.style.borderColor = '#fca5a5';
+                    }
                   }}
                 >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
+                  <svg
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    viewBox="0 0 24 24"
+                  >
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    <line x1="10" y1="11" x2="10" y2="17" />
+                    <line x1="14" y1="11" x2="14" y2="17" />
+                  </svg>
+                  <span>{deleteMode ? 'Delete Option (ON) ✕' : 'Delete Option'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="delete-dropdown-arrow-btn"
+                  onClick={() => setDeleteDropdownOpen(prev => !prev)}
+                  title="More delete options (modal selector)"
+                  aria-expanded={deleteDropdownOpen}
+                  aria-haspopup="true"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0 0.55rem',
+                    background: deleteMode ? '#b91c1c' : (deleteDropdownOpen ? '#fef2f2' : '#ffffff'),
+                    borderRadius: '0 8px 8px 0',
+                    border: deleteMode ? '1px solid #dc2626' : (deleteDropdownOpen ? '1px solid #ef4444' : '1px solid #fca5a5'),
+                    fontSize: '0.84rem',
+                    color: deleteMode ? '#ffffff' : '#dc2626',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    height: '38px',
+                    boxSizing: 'border-box'
+                  }}
+                  onMouseEnter={e => {
+                    if (!deleteMode) {
+                      e.currentTarget.style.background = '#fef2f2';
+                      e.currentTarget.style.borderColor = '#ef4444';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!deleteMode && !deleteDropdownOpen) {
+                      e.currentTarget.style.background = '#ffffff';
+                      e.currentTarget.style.borderColor = '#fca5a5';
+                    }
+                  }}
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{
+                      transition: 'transform 0.2s ease',
+                      transform: deleteDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+                    }}
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+              </div>
 
               {deleteDropdownOpen && (
                 <div
@@ -620,7 +666,7 @@ export default function Welcome() {
                     position: 'absolute',
                     top: 'calc(100% + 6px)',
                     right: 0,
-                    minWidth: '220px',
+                    minWidth: '240px',
                     background: '#ffffff',
                     borderRadius: '10px',
                     boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
@@ -632,6 +678,62 @@ export default function Welcome() {
                     gap: '0.25rem'
                   }}
                 >
+                  {/* Toggle inline option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteDropdownOpen(false)
+                      const next = !deleteMode;
+                      setDeleteMode(next);
+                      if (next) {
+                        toast('Delete option enabled. Click ✎ to rename or 🗑️ to delete.', { icon: '🗑️', duration: 3500 });
+                      }
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.65rem',
+                      width: '100%',
+                      padding: '0.6rem 0.75rem',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: deleteMode ? '#fef2f2' : 'transparent',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background 0.15s ease'
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#fef2f2')}
+                    onMouseLeave={e => (e.currentTarget.style.background = deleteMode ? '#fef2f2' : 'transparent')}
+                  >
+                    <div
+                      style={{
+                        width: '30px',
+                        height: '30px',
+                        borderRadius: '6px',
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#dc2626',
+                        flexShrink: 0
+                      }}
+                    >
+                      <span style={{ fontSize: '13px' }}>{deleteMode ? '✕' : '⚡'}</span>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                        {deleteMode ? 'Disable Delete Option' : 'Enable Delete Option'}
+                      </div>
+                      <div style={{ fontSize: '0.73rem', color: '#64748b' }}>
+                        {deleteMode ? 'Hide ✎ and 🗑️ buttons' : 'Show ✎ and 🗑️ on dashboard'}
+                      </div>
+                    </div>
+                  </button>
+
+                  <div style={{ height: '1px', background: '#f1f5f9', margin: '0.2rem 0' }} />
+
+                  {/* Delete Project Modal */}
                   <button
                     type="button"
                     onClick={() => {
@@ -674,11 +776,12 @@ export default function Welcome() {
                       </svg>
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>Delete Project</div>
-                      <div style={{ fontSize: '0.73rem', color: '#64748b' }}>Remove single QbD campaign</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>Delete Project (Modal)</div>
+                      <div style={{ fontSize: '0.73rem', color: '#64748b' }}>Pick campaign from dropdown</div>
                     </div>
                   </button>
 
+                  {/* Delete Product Modal */}
                   <button
                     type="button"
                     onClick={() => {
@@ -722,8 +825,8 @@ export default function Welcome() {
                       </svg>
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>Delete Product</div>
-                      <div style={{ fontSize: '0.73rem', color: '#64748b' }}>Remove product & all its projects</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>Delete Product (Modal)</div>
+                      <div style={{ fontSize: '0.73rem', color: '#64748b' }}>Pick product from dropdown</div>
                     </div>
                   </button>
                 </div>
@@ -812,7 +915,7 @@ export default function Welcome() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '1rem' }}>🗑️</span>
               <span>
-                <strong>Delete Option Enabled:</strong> Click the red trash icon on any project card to delete that project.
+                <strong>Delete Option Enabled:</strong> Click ✎ to rename a product, or 🗑️ to delete any product or project.
               </span>
             </div>
             <button
@@ -897,6 +1000,7 @@ export default function Welcome() {
                     searchQuery={searchQuery}
                     onClearSearch={() => setSearchQuery('')}
                     emptyStateMessage={`No projects under ${group.displayName} currently.`}
+                    isEditMode={deleteMode}
                     onEditProductName={isUnassigned ? undefined : () => openEditProductModal(group)}
                     onDeleteProduct={isUnassigned ? undefined : () => openDeleteModal('product', group.key)}
                     onNewProject={() => {

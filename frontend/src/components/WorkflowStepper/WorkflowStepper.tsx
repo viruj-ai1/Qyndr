@@ -1,5 +1,5 @@
 // frontend/src/components/WorkflowStepper/WorkflowStepper.tsx
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Check,
   Lock,
@@ -32,6 +32,9 @@ export default function WorkflowStepper() {
   const [realignSummary, setRealignSummary] = useState<any | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [isProjectSetupModalOpen, setIsProjectSetupModalOpen] = useState(false)
+
+  const activeStepRef = useRef<HTMLButtonElement | null>(null)
+  const stepperNavRef = useRef<HTMLElement | null>(null)
 
   // Derive status of each step
   const getStatus = (stepId: Step): StepStatus => {
@@ -99,223 +102,220 @@ export default function WorkflowStepper() {
     }
   }
 
+  // Auto-scroll the active step into view on mount and whenever currentStep changes
+  useEffect(() => {
+    if (activeStepRef.current) {
+      activeStepRef.current.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest'
+      })
+    }
+  }, [currentStep])
+
   const currentStepConfig = WORKFLOW_STEPS.find(s => s.id === currentStep)
   const isCurrentEditing = unlockedStep === currentStep
   const isCurrentCompleted = currentStepConfig ? getStatus(currentStepConfig.id) === 'completed' : false
 
   return (
-    <aside
-      className="workflow-stepper-sidebar"
-      style={{
-        width: '260px',
-        minWidth: '260px',
-        maxWidth: '260px',
-        background: '#ffffff',
-        borderRight: '1px solid var(--border)',
-        boxShadow: '1px 0 3px rgba(0,0,0,0.03)',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        overflow: 'hidden',
-        zIndex: 20
-      }}
-    >
-      {/* Sidebar Header Title */}
-      <div
-        style={{
-          padding: '0.85rem 1rem 0.65rem',
-          borderBottom: '1px solid #f1f5f9',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.2rem'
-        }}
-      >
-        <div style={{ fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
-          Workflow Stepper
+    <div className="workflow-stepper-container">
+      {/* Slim Meta Row: Workflow Stepper, Project Name, and Read-Only / Unlock Button */}
+      <div className="workflow-stepper-meta">
+        {/* Left: Workflow Stepper tag + Project title */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
+          <span
+            style={{
+              fontSize: '0.68rem',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--text-muted)',
+              background: '#ffffff',
+              border: '1px solid var(--border)',
+              padding: '0.15rem 0.5rem',
+              borderRadius: '4px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Workflow Stepper
+          </span>
+          <span
+            style={{
+              fontSize: '0.825rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: '380px'
+            }}
+            title={currentProject?.name}
+          >
+            {currentProject?.name || 'New Project'}
+          </span>
         </div>
-        <div style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {currentProject?.name || 'New Project'}
+
+        {/* Right: Status and Unlock / Cancel Edit */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {isCurrentEditing ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <span
+                style={{
+                  fontSize: '0.76rem',
+                  fontWeight: 600,
+                  color: '#b45309',
+                  background: '#fef3c7',
+                  border: '1px solid #fde68a',
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '999px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
+                }}
+              >
+                <Edit2 size={12} style={{ color: '#d97706' }} />
+                <span>Editing Step: Saving re-aligns downstream steps</span>
+              </span>
+              <button
+                type="button"
+                className="btn btn-secondary btn-xs"
+                onClick={handleCancelEdit}
+                disabled={actionLoading}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  padding: '0.2rem 0.6rem',
+                  fontSize: '0.75rem'
+                }}
+              >
+                <RotateCcw size={12} />
+                <span>Cancel Edit</span>
+              </button>
+            </div>
+          ) : isCurrentCompleted ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <span
+                style={{
+                  fontSize: '0.76rem',
+                  fontWeight: 600,
+                  color: '#166534',
+                  background: '#dcfce7',
+                  border: '1px solid #bbf7d0',
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '999px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
+                }}
+              >
+                <Check size={12} strokeWidth={3} style={{ color: '#16a34a' }} />
+                <span>Completed (Read-Only)</span>
+              </span>
+              {currentStepConfig && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-xs"
+                  onClick={(e) => handleRequestUnlock(currentStepConfig, e)}
+                  disabled={actionLoading}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    padding: '0.2rem 0.6rem',
+                    fontSize: '0.75rem'
+                  }}
+                >
+                  <Unlock size={12} />
+                  <span>Unlock to Edit</span>
+                </button>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {/* Editing / Read-Only Notice Bar */}
-      {isCurrentEditing ? (
-        <div
-          style={{
-            background: '#fffbeb',
-            borderBottom: '1px solid #fef3c7',
-            padding: '0.65rem 0.85rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.45rem',
-            fontSize: '0.78rem',
-            color: '#92400e'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <Edit2 size={13} style={{ color: '#d97706', flexShrink: 0 }} />
-            <span><strong>Editing Step:</strong> Saving re-aligns downstream steps.</span>
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary btn-xs"
-            onClick={handleCancelEdit}
-            disabled={actionLoading}
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', width: '100%' }}
-          >
-            <RotateCcw size={12} />
-            <span>Cancel Edit</span>
-          </button>
-        </div>
-      ) : isCurrentCompleted ? (
-        <div
-          style={{
-            background: '#f8fafc',
-            borderBottom: '1px solid #e2e8f0',
-            padding: '0.65rem 0.85rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.45rem',
-            fontSize: '0.78rem',
-            color: '#475569'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <Check size={13} style={{ color: '#10b981', flexShrink: 0 }} />
-            <span><strong>Completed (Read-Only)</strong></span>
-          </div>
-          {currentStepConfig && (
-            <button
-              type="button"
-              className="btn btn-secondary btn-xs"
-              onClick={(e) => handleRequestUnlock(currentStepConfig, e)}
-              disabled={actionLoading}
-              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', width: '100%' }}
-            >
-              <Unlock size={12} />
-              <span>Unlock to Edit</span>
-            </button>
-          )}
-        </div>
-      ) : null}
-
-      {/* Vertical Steps List */}
+      {/* Stepper Track: Left-to-Right Horizontal Stepper */}
       <nav
-        aria-label="Workflow Navigation"
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '0.65rem 0.65rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.3rem'
-        }}
+        ref={stepperNavRef}
+        aria-label="Workflow Steps"
+        className="workflow-stepper-scroll"
       >
-        {WORKFLOW_STEPS.map((step) => {
+        {WORKFLOW_STEPS.map((step, idx) => {
           const status = getStatus(step.id)
           const isCurrent = step.id === currentStep
           const isLocked = status === 'locked'
 
-          // Status-specific visual styling
-          let bg = '#ffffff'
-          let borderColor = '#e2e8f0'
-          let textColor = '#475569'
+          // Check if prior step was completed for connector line
+          const isPriorCompleted = idx > 0 && getStatus(WORKFLOW_STEPS[idx - 1].id) === 'completed'
+
+          // Status-specific visual styling for circle
           let icon = <span>{step.number}</span>
           let iconBg = '#f1f5f9'
           let iconColor = '#64748b'
 
           if (status === 'completed') {
-            bg = '#f0fdf4'
-            borderColor = '#bbf7d0'
-            textColor = '#166534'
             icon = <Check size={12} strokeWidth={3} />
             iconBg = '#dcfce7'
             iconColor = '#16a34a'
           } else if (status === 'editing') {
-            bg = '#fffbeb'
-            borderColor = '#fde68a'
-            textColor = '#b45309'
             icon = <Edit2 size={12} />
             iconBg = '#fef3c7'
             iconColor = '#d97706'
           } else if (status === 'needs-review') {
-            bg = '#fff7ed'
-            borderColor = '#fed7aa'
-            textColor = '#c2410c'
             icon = <AlertTriangle size={12} />
             iconBg = '#ffedd5'
             iconColor = '#ea580c'
           } else if (status === 'current') {
-            bg = 'rgba(0, 91, 170, 0.08)'
-            borderColor = 'var(--primary)'
-            textColor = 'var(--primary)'
             icon = <strong>{step.number}</strong>
             iconBg = 'var(--primary)'
             iconColor = '#ffffff'
           } else if (isLocked) {
-            bg = '#f8fafc'
-            borderColor = '#f1f5f9'
-            textColor = '#94a3b8'
             icon = <Lock size={11} />
             iconBg = '#f1f5f9'
             iconColor = '#94a3b8'
           }
 
           if (isCurrent) {
-            bg = 'var(--primary)'
-            borderColor = 'var(--primary)'
-            textColor = '#ffffff'
             iconBg = 'rgba(255,255,255,0.25)'
             iconColor = '#ffffff'
           }
 
           return (
-            <button
-              key={step.id}
-              type="button"
-              onClick={() => handleStepClick(step)}
-              disabled={isLocked}
-              aria-current={isCurrent ? 'step' : undefined}
-              aria-disabled={isLocked}
-              title={isLocked ? `Complete Step ${step.number - 1} to continue` : step.label}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.65rem',
-                padding: '0.55rem 0.75rem',
-                borderRadius: '8px',
-                background: bg,
-                border: `1px solid ${borderColor}`,
-                color: textColor,
-                fontSize: '0.8rem',
-                fontWeight: isCurrent ? 700 : 500,
-                cursor: isLocked ? 'not-allowed' : 'pointer',
-                opacity: isLocked ? 0.6 : 1,
-                textAlign: 'left',
-                width: '100%',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <div
-                style={{
-                  width: '22px',
-                  height: '22px',
-                  minWidth: '22px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: iconBg,
-                  color: iconColor,
-                  fontSize: '0.7rem'
-                }}
+            <React.Fragment key={step.id}>
+              {/* Connector line between steps */}
+              {idx > 0 && (
+                <div
+                  className={`workflow-step-connector ${isPriorCompleted ? 'completed' : ''}`}
+                  aria-hidden="true"
+                />
+              )}
+
+              {/* Step Pill Button */}
+              <button
+                ref={isCurrent ? activeStepRef : null}
+                type="button"
+                onClick={() => handleStepClick(step)}
+                disabled={isLocked}
+                aria-current={isCurrent ? 'step' : undefined}
+                aria-disabled={isLocked}
+                title={isLocked ? `Complete Step ${step.number - 1} to continue` : `${step.number}. ${step.label}`}
+                className={`workflow-step-pill ${isCurrent ? 'active' : status}`}
               >
-                {icon}
-              </div>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {step.number}. {step.label}
-              </span>
-            </button>
+                <div
+                  className="workflow-step-circle"
+                  style={{
+                    background: iconBg,
+                    color: iconColor
+                  }}
+                >
+                  {icon}
+                </div>
+                <span className="workflow-step-label">
+                  {step.number}. {step.label}
+                </span>
+              </button>
+            </React.Fragment>
           )
         })}
       </nav>
@@ -349,6 +349,6 @@ export default function WorkflowStepper() {
           }}
         />
       )}
-    </aside>
+    </div>
   )
 }

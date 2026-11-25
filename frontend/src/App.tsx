@@ -108,8 +108,8 @@ export default function App() {
         <div className="bg-orb orb-1" /><div className="bg-orb orb-2" /><div className="bg-orb orb-3" />
       </div>
       <Header />
+      <WorkflowStepper />
       <div className="app-body">
-        <WorkflowStepper />
         <main className="main-content">
           <RouteGuard>
             <ErrorBoundary><Screen /></ErrorBoundary>

@@ -14,6 +14,7 @@ export interface ProjectSectionProps {
   onToggleCollapse?: () => void;
   onNewProject?: () => void;
   onEditProductName?: () => void;
+  onDeleteProduct?: () => void;
   isEditMode?: boolean;
   defaultCollapsed?: boolean;
   searchActive?: boolean;
@@ -36,6 +37,7 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
   onToggleCollapse,
   onNewProject,
   onEditProductName,
+  onDeleteProduct,
   isEditMode = false,
   defaultCollapsed = false,
   searchActive = false,
@@ -176,6 +178,51 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
                     </svg>
                   </button>
                 )}
+                {onDeleteProduct && (
+                  <button
+                    type="button"
+                    aria-label={`Delete product ${title}`}
+                    title={`Delete product "${title}" and all its projects`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteProduct();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.stopPropagation();
+                        if (e.key === ' ') e.preventDefault();
+                        onDeleteProduct();
+                      }
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: '2px 4px',
+                      cursor: 'pointer',
+                      color: '#dc2626',
+                      borderRadius: '4px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginLeft: '0.1rem',
+                      opacity: 0.8,
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.opacity = '1';
+                      e.currentTarget.style.backgroundColor = '#fef2f2';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.opacity = '0.8';
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                  </button>
+                )}
               </h3>
 
               {/* Stage Accent Badge */}
@@ -274,7 +321,7 @@ export const ProjectSection: React.FC<ProjectSectionProps> = ({
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              <span>+ New Project</span>
+              <span>New Project</span>
             </button>
           )}
 

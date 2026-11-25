@@ -108,21 +108,55 @@ app.include_router(project_input_router, dependencies=auth_dep)
 app.include_router(workflow_router,     prefix=PREFIX, dependencies=auth_dep)
 
 
-# ── Root & Health ───────────────────────────────────────────
-@app.get("/", tags=["System"])
-def root():
-    return {
-        "status": "ok",
-        "service": "DOE Workflow Studio API",
-        "version": "1.0.0",
-        "docs_url": "http://127.0.0.1:8000/docs",
-        "frontend_url": "http://127.0.0.1:5173"
-    }
-
-
+# ── Health Endpoint ─────────────────────────────────────────
 @app.get("/api/health", tags=["System"])
 def health():
     return {"status": "ok", "service": "DOE Workflow Studio", "version": "1.0.0"}
+
+
+# ── Frontend SPA / Root Serving ─────────────────────────────
+frontend_dist = root_dir / "frontend" / "dist"
+assets_dir = frontend_dist / "assets"
+
+if frontend_dist.exists() and (frontend_dist / "index.html").exists():
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import FileResponse
+    from fastapi import HTTPException
+
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    @app.get("/", tags=["Frontend"])
+    async def root(request: Request):
+        accept = request.headers.get("accept", "")
+        if "application/json" in accept and "text/html" not in accept:
+            return {
+                "status": "ok",
+                "service": "DOE Workflow Studio API",
+                "version": "1.0.0",
+                "docs_url": "http://127.0.0.1:8000/docs",
+                "frontend_url": "http://127.0.0.1:5173"
+            }
+        return FileResponse(frontend_dist / "index.html")
+
+    @app.get("/{full_path:path}", tags=["Frontend"])
+    async def serve_spa(full_path: str):
+        if full_path.startswith("api/") or full_path in ("docs", "redoc", "openapi.json"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        target = frontend_dist / full_path
+        if full_path and target.is_file():
+            return FileResponse(target)
+        return FileResponse(frontend_dist / "index.html")
+else:
+    @app.get("/", tags=["System"])
+    def root():
+        return {
+            "status": "ok",
+            "service": "DOE Workflow Studio API",
+            "version": "1.0.0",
+            "docs_url": "http://127.0.0.1:8000/docs",
+            "frontend_url": "http://127.0.0.1:5173"
+        }
 
 
 if __name__ == "__main__":

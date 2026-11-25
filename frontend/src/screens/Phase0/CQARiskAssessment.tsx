@@ -1661,20 +1661,20 @@ export default function CQARiskAssessment() {
 
         {/* Process Parameter Table */}
         <div style={{ overflowX: 'auto', marginBottom: '1.25rem' }}>
-          <table className="data-table" style={{ width: '100%', fontSize: '0.85rem' }}>
+          <table className="data-table" style={{ width: '100%', minWidth: '1180px', fontSize: '0.85rem' }}>
             <thead>
               <tr>
                 {isRiskEditMode && <th style={{ width: '3%' }} />}
                 <th style={{ width: '3%' }}>#</th>
-                <th style={{ width: '22%' }}>Process Parameter</th>
-                <th style={{ width: '14%' }}>Type</th>
-                <th style={{ width: '19%' }}>Linked CQA(s)</th>
-                <th style={{ width: '7%', textAlign: 'center' }}>S</th>
-                <th style={{ width: '6%', textAlign: 'center' }}>O</th>
-                <th style={{ width: '6%', textAlign: 'center' }}>D</th>
-                <th style={{ width: '7%', textAlign: 'center' }}>RPN</th>
-                <th style={{ width: '10%', textAlign: 'center' }}>Status</th>
-                <th style={{ width: '8%', textAlign: 'center' }}>Review</th>
+                <th style={{ width: '32%', minWidth: '340px' }}>Process Parameter</th>
+                <th style={{ width: '11%', minWidth: '135px' }}>Type</th>
+                <th style={{ width: '18%', minWidth: '170px' }}>Linked CQA(s)</th>
+                <th style={{ width: '5%', minWidth: '50px', textAlign: 'center' }}>S</th>
+                <th style={{ width: '5%', minWidth: '50px', textAlign: 'center' }}>O</th>
+                <th style={{ width: '5%', minWidth: '50px', textAlign: 'center' }}>D</th>
+                <th style={{ width: '5%', minWidth: '55px', textAlign: 'center' }}>RPN</th>
+                <th style={{ width: '10%', minWidth: '95px', textAlign: 'center' }}>Status</th>
+                <th style={{ width: '6%', minWidth: '85px', textAlign: 'center' }}>Review</th>
               </tr>
             </thead>
             <tbody>
@@ -1722,12 +1722,12 @@ export default function CQARiskAssessment() {
                           </td>
                         )}
                         <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <td style={{ minWidth: '340px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
                             <input
                               type="text"
                               className="form-input"
-                              style={{ padding: '0.35rem 0.6rem', fontSize: '0.82rem', flex: 1 }}
+                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.84rem', flex: 1, minWidth: '220px' }}
                               value={param.name}
                               onChange={e => handleParamChange(param.id, 'name', e.target.value)}
                               placeholder="e.g. Reaction Temperature"
@@ -1741,9 +1741,10 @@ export default function CQARiskAssessment() {
                                   color: '#0369a1',
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '2px',
-                                  padding: '0.15rem 0.4rem',
-                                  whiteSpace: 'nowrap'
+                                  gap: '3px',
+                                  padding: '0.18rem 0.45rem',
+                                  whiteSpace: 'nowrap',
+                                  flexShrink: 0
                                 }}
                                 title="This parameter directly correlates with one or more of your assessed CQAs"
                               >

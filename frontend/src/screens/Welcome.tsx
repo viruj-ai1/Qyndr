@@ -603,7 +603,7 @@ export default function Welcome() {
                     <line x1="10" y1="11" x2="10" y2="17" />
                     <line x1="14" y1="11" x2="14" y2="17" />
                   </svg>
-                  <span>{deleteMode ? 'Delete Option (ON) ✕' : 'Delete Option'}</span>
+                  <span>{deleteMode ? 'Delete (ON) ✕' : 'Delete'}</span>
                 </button>
 
                 <button
@@ -723,7 +723,7 @@ export default function Welcome() {
                     </div>
                     <div>
                       <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
-                        {deleteMode ? 'Disable Delete Option' : 'Enable Delete Option'}
+                        {deleteMode ? 'Disable Delete' : 'Enable Delete'}
                       </div>
                       <div style={{ fontSize: '0.73rem', color: '#64748b' }}>
                         {deleteMode ? 'Hide ✎ and 🗑️ buttons' : 'Show ✎ and 🗑️ on dashboard'}
@@ -915,7 +915,7 @@ export default function Welcome() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '1rem' }}>🗑️</span>
               <span>
-                <strong>Delete Option Enabled:</strong> Click ✎ to rename a product, or 🗑️ to delete any product or project.
+                <strong>Delete Enabled:</strong> Click ✎ to rename a product, or 🗑️ to delete any product or project.
               </span>
             </div>
             <button

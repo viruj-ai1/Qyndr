@@ -173,7 +173,22 @@ def run_optimization(analyses: list, factors: list,
     if not valid:
         return {"error": "No valid regression models found. Please upload experiment results and run statistical analysis."}
 
-    return optimize_multi_response(models, factors, responses)
+    resp_dicts = []
+    for r in responses:
+        if isinstance(r, dict):
+            resp_dicts.append(r)
+        else:
+            resp_dicts.append({
+                "name": getattr(r, "name", ""),
+                "goal": getattr(r, "goal", "maximize"),
+                "unit": getattr(r, "unit", ""),
+                "target": getattr(r, "target", None),
+                "lower_limit": getattr(r, "lower_limit", None),
+                "upper_limit": getattr(r, "upper_limit", None),
+                "weight": getattr(r, "weight", 1.0)
+            })
+
+    return optimize_multi_response(models, factors, resp_dicts)
 
 
 def get_contour(analyses: list, response_idx: int,
